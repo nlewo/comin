@@ -2,159 +2,147 @@ package poll
 
 import (
 	"github.com/go-co-op/gocron"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
 	"github.com/sirupsen/logrus"
-	"time"
+	"os/exec"
+	"bytes"
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
+	"time"
+	"path/filepath"
+	"github.com/nlewo/comin/types"
+	"strings"
 )
 
-func Poller(repositories []string) {
-	logrus.SetLevel(logrus.DebugLevel)
-
+func Poller(hostname string, stateDir string, repositories []string) {
 	s := gocron.NewScheduler(time.UTC)
-	job, _ := s.Every(1).Second().Tag("poll").Do(poll)
+	period := 1
+	config := makeConfig(stateDir, hostname, repositories)
+	logrus.Infof("Polling every %d seconds to deploy the machine '%s'", period, hostname)
+	job, _ := s.Every(period).Second().Tag("poll").Do(
+		func () error {
+			return poll(config)
+		})
 	job.SingletonMode()
 	s.StartBlocking()
 }
 
-func poll() error {
+func makeConfig(stateDir string, hostname string, repositories []string) types.Config {
+	return types.Config{
+		Hostname: hostname,
+		StateDir: stateDir,
+		GitConfig: types.GitConfig{
+			Path: fmt.Sprintf("%s/repository", stateDir),
+			Remotes: []types.Remote{
+				types.Remote{
+					Name: "origin",
+					URL: repositories[0],
+				},
+			},
+		},
+	}
+}
+
+func poll(config types.Config) error {
 	logrus.Debugf("Executing poll()")
-	err := fetch()
+
+	updated, err := RepositoryUpdate(config.GitConfig)
 	if err != nil {
-		logrus.Fatal(err)
+		logrus.Error(err)
+		return err
+	}
+	if !updated {
+		return nil
+	}
+
+	err = deploy(config)
+	if err != nil {
+		logrus.Error(err)
 		return err
 	}
 	return nil
 }
 
-type Remote struct {
-	Name string
-	URL string
-}
-
-func fetch() (err error) {
-	localRepositoryPath := "/tmp/comin"
-	repositoryUrl := "https://framagit.org/markas/infrastructure.git"
-	keyring, err := ioutil.ReadFile("/tmp/keyring")
+func eval(config types.Config) (drvPath string, outPath string, err error) {
+	path := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", config.GitConfig.Path, config.Hostname)
+	args := []string{
+		"show-derivation",
+		path,
+		"-L",
+	}
+	logrus.Infof("Running nix %s", args)
+	cmd := exec.Command("nix", args...)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
 	if err != nil {
-		return err
+		return
 	}
 
-	r, err := openOrInit(localRepositoryPath)
-
-	remotes := []config.RemoteConfig{
-		config.RemoteConfig{
-			Name: "origin",
-			URLs: []string{"bla"},
-		},
-		config.RemoteConfig{
-			Name: "fallback-1",
-			URLs: []string{repositoryUrl},
-		},
-	}
-
-	err = manageRemotes(r, remotes)
+	var output map[string]Derivation
+	err = json.Unmarshal(stdout.Bytes(), &output)
 	if err != nil {
-		return err
+		return
 	}
-
-	err = pull(r, remotes)
-	if err != nil {
-		return err
+	keys := make([]string, 0, len(output))
+	for key := range output {
+		keys = append(keys, key)
 	}
-
-	err = verifyHead(r, string(keyring))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// openOrInit inits the repository if it's not already a Git
-// repository and opens it otherwise
-func openOrInit(repositoryPath string) (r *git.Repository, err error){
-	r, err = git.PlainInit(repositoryPath, false)
-	if err != nil {
-		r, err = git.PlainOpen(repositoryPath)
-		if err != nil {
-			return
-		}
-		logrus.Debugf("Git repository located at %s has been opened", repositoryPath)
-	} else {
-		logrus.Infof("Git repository located at %s has been initialized", repositoryPath)
-	}
+	drvPath = keys[0]
+	outPath = output[drvPath].Outputs.Out.Path
+	logrus.Infof("Evaluated %s (%s)", drvPath, outPath)
 	return
 }
 
-func pull(r *git.Repository, remotes []config.RemoteConfig) error {
-	w, err := r.Worktree()
-	if err != nil {
-		return err
-	}
-
-	for _, remote := range remotes {
-		logrus.Debugf("Pulling remote '%s'", remote.Name)
-		err = w.Pull(&git.PullOptions{RemoteName: remote.Name})
-		if err == nil {
-			// TODO: get the list of new commits and return it.
-			return nil
-		} else if err != git.NoErrAlreadyUpToDate {
-			logrus.Infof("Pull from remote '%s' failed: %s", remote.Name, err)
-		}
-	}
-	return nil
+type Path struct {
+	Path string `json:"path"`
 }
 
-func manageRemotes(r *git.Repository, remotes []config.RemoteConfig) error {
-	for _, expectedRemoteConfig := range remotes {
-		url := expectedRemoteConfig.URLs[0]
-		name := expectedRemoteConfig.Name
-
-		remote, err := r.Remote(name)
-		if err == git.ErrRemoteNotFound {
-			logrus.Infof("Adding remote %s (%s)", name, url)
-			_, err = r.CreateRemote(&expectedRemoteConfig)
-			if err != nil {
-				return err
-			}
-			continue
-		} else if err != nil {
-			return err
-		}
-
-		remoteConfig := remote.Config()
-		if remoteConfig.URLs[0] != url {
-			if err := r.DeleteRemote(name); err != nil {
-				return err
-			}
-			logrus.Infof("Updating remote %s (%s)", name, url)
-			_, err = r.CreateRemote(&expectedRemoteConfig)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+type Output struct {
+	Out Path `json:"out"`
 }
 
-func verifyHead(r *git.Repository, keyring string) error {
-	head, err := r.Head()
-	if head == nil {
-		return fmt.Errorf("Repository HEAD should not be nil")
-	}
-	logrus.Debugf("Repository HEAD is %s", head.Strings()[1])
+type Derivation struct {
+	Outputs Output `json:"outputs"`
+}
 
-	commit, err := r.CommitObject(head.Hash())
+func deploy(config types.Config) (err error) {
+	err = os.MkdirAll(config.StateDir, 0750)
 	if err != nil {
-		return err
+		return
 	}
-	entity, err := commit.Verify(keyring)
+
+	drvPath, _, err := eval(config)
+
+	gcRoot := filepath.Join(
+		config.StateDir,
+		fmt.Sprintf("switch-to-configuration-%s", config.Hostname))
+	args := []string{
+		"build",
+		drvPath,
+		"-L",
+		"--out-link", gcRoot}
+	logrus.Infof("Running nix %s", strings.Join(args, " "))
+	cmd := exec.Command("nix", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
 	if err != nil {
-		return err
+		logrus.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
+		return
 	}
-	logrus.Debugf("Commit %s signed by %s", head.Hash(), entity.PrimaryIdentity().Name)
-	return nil
+
+	switchToConfiguration := filepath.Join(gcRoot, "bin", "switch-to-configuration")
+	logrus.Infof("Running %s switch", switchToConfiguration)
+	cmd = exec.Command(switchToConfiguration, "switch")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		logrus.Errorf("Command %s switch fails with %s", switchToConfiguration, err)
+		return
+	}
+	logrus.Infof("Switch successfully terminated")
+	return
 }
