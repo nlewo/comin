@@ -9,13 +9,14 @@ import (
 
 var hostname string
 var stateDir string
+var dryRun bool
 
 var pollCmd = &cobra.Command{
-	Use:   "poll REPOSITORY-URL REPOSITORY-URL-FALLBACK-1 ...",
+	Use:   "poll REPOSITORY-URL",
 	Short: "Poll a repository and deploy the configuration",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		poll.Poller(hostname, stateDir, args[0:])
+		poll.Poller(hostname, stateDir, dryRun, args[0:])
 	},
 }
 
@@ -26,5 +27,6 @@ func init() {
 	}
 	pollCmd.Flags().StringVarP(&hostname, "hostname", "", hostnameDefault, "the name of the configuration to deploy")
 	pollCmd.Flags().StringVarP(&stateDir, "state-dir", "", "/var/lib/comin", "the path of the state directory")
+	pollCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "n", false, "dry-run mode")
 	rootCmd.AddCommand(pollCmd)
 }
