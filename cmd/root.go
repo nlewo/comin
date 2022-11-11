@@ -10,12 +10,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var debug bool
+
 var rootCmd = &cobra.Command{
 	Use:   "comin",
 	Short: "Deployment tool",
 }
-
-var Verbose bool
 
 func Execute() {
 	err := rootCmd.Execute()
@@ -25,9 +25,11 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")
-	if Verbose {
-		logrus.SetLevel(logrus.DebugLevel)
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		if debug {
+			logrus.Info("Debug logs enabled")
+			logrus.SetLevel(logrus.DebugLevel)
+		}
 	}
-
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "verbose logging")
 }
