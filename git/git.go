@@ -1,4 +1,4 @@
-package poll
+package git
 
 import (
 	"fmt"
@@ -57,6 +57,17 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTes
 			newHead = testingHead
 			fromBranch = config.Testing
 			isTesting = true
+		}
+	} else {
+		// The main branch can not be hard reset: HEAD has to
+		// be an ancestor of the remote main branch.
+		var ok bool
+		ok, err = isAncestor(r, mainHead, head)
+		if err != nil {
+			return
+		}
+		if !ok {
+			return false, false, fmt.Errorf("The remote main branch '%s' has been hard reseted")
 		}
 	}
 

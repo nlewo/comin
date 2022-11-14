@@ -1,4 +1,4 @@
-package poll
+package git
 
 import (
 	"github.com/go-git/go-git/v5"
@@ -169,6 +169,46 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	assert.False(t, isTesting)
 
 	// time.Sleep(100*time.Second)
+}
+
+func TestRepositoryUpdateHardResetMain(t *testing.T) {
+	remoteRepositoryDir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	remoteRepository, err := initRemoteRepostiory(remoteRepositoryDir)
+	assert.Nil(t, err)
+
+	gitConfig := types.GitConfig{
+		Path: cominRepositoryDir,
+		Remote: types.Remote{
+			Name: "origin",
+			URL: remoteRepositoryDir,
+		},
+		Main: "main",
+		Testing: "testing",
+	}
+	cominRepository, err := RepositoryOpen(gitConfig)
+	assert.Nil(t, err)
+
+	// The remote repository is initially checkouted
+	updated, isTesting, err := RepositoryUpdate(cominRepository, gitConfig)
+	assert.Nil(t, err)
+	assert.True(t, updated)
+	assert.False(t, isTesting)
+
+	// The last commit of the main branch is removed.
+	testingHeadRef, err := remoteRepository.Reference(
+		plumbing.ReferenceName("refs/heads/testing"),
+		true)
+	ref := plumbing.NewHashReference("refs/heads/main", testingHeadRef.Hash())
+	err = remoteRepository.Storer.SetReference(ref)
+	if err != nil {
+		return
+	}
+	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	assert.Nil(t, err)
+	assert.False(t, updated)
+	assert.False(t, isTesting)
+
 }
 
 func TestRepositoryUpdateMain(t *testing.T) {

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 	"github.com/nlewo/comin/types"
+	"github.com/nlewo/comin/nix"
+	cominGit "github.com/nlewo/comin/git"
 	"github.com/go-git/go-git/v5"
 )
 
@@ -13,7 +15,7 @@ func Poller(hostname string, stateDir string, dryRun bool, repositories []string
 	s := gocron.NewScheduler(time.UTC)
 	period := 1
 	config := makeConfig(stateDir, hostname, dryRun, repositories)
-	repository, err := RepositoryOpen(config.GitConfig)
+	repository, err := cominGit.RepositoryOpen(config.GitConfig)
 	if err != nil {
 		return fmt.Errorf("Failed to open the repository: %s", err)
 	}
@@ -47,7 +49,7 @@ func makeConfig(stateDir string, hostname string, dryRun bool, repositories []st
 func poll(repository *git.Repository, config types.Config) error {
 	logrus.Debugf("Executing a poll iteration")
 
-	hasNewCommits, isTesting, err := RepositoryUpdate(repository, config.GitConfig)
+	hasNewCommits, isTesting, err := cominGit.RepositoryUpdate(repository, config.GitConfig)
 	if err != nil {
 		logrus.Error(err)
 		return err
@@ -60,7 +62,7 @@ func poll(repository *git.Repository, config types.Config) error {
 	if isTesting {
 		operation = "test"
 	}
-	err = Deploy(config, operation)
+	err = nix.Deploy(config, operation)
 	if err != nil {
 		logrus.Error(err)
 		return err
