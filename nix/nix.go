@@ -1,4 +1,4 @@
-package poll
+package nix
 
 import (
 	"github.com/sirupsen/logrus"
