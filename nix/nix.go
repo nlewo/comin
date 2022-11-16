@@ -103,12 +103,14 @@ func Deploy(config types.Config, operation string) (err error) {
 		gcRoot := filepath.Join(
 			gcRootDir,
 			fmt.Sprintf("switch-to-configuration-%s", config.Hostname))
+		// TODO: only remove if file already exists
+		os.Remove(gcRoot)
 		err = os.Symlink(outPath, gcRoot)
 		if err != nil {
 			logrus.Errorf("Failed to create symlink 'ln -s %s %s': %s", outPath, gcRoot, err)
 			return
 		}
-		logrus.Infof("Creating gcroots '%s'", gcRoot)
+		logrus.Infof("Creating gcroot '%s'", gcRoot)
 	}
 	return
 }
