@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func commitFile(remoteRepository *git.Repository, dir, branch, content string) (err error) {
+func commitFile(remoteRepository *git.Repository, dir, branch, content string) (hash plumbing.Hash, err error) {
 	w, err := remoteRepository.Worktree()
 	if err != nil {
 		return
@@ -31,7 +31,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 	if err != nil {
 		return
 	}
-	_, err = w.Commit(content, &git.CommitOptions{
+	hash, err = w.Commit(content, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "John Doe",
 			Email: "john@doe.org",
@@ -50,15 +50,15 @@ func initRemoteRepostiory(dir string) (remoteRepository *git.Repository,err erro
 		return
 	}
 
-	err = commitFile(remoteRepository, dir, "main", "file-1")
+	_, err = commitFile(remoteRepository, dir, "main", "file-1")
 	if err != nil {
 		return
 	}
-	err = commitFile(remoteRepository, dir, "main", "file-2")
+	_, err = commitFile(remoteRepository, dir, "main", "file-2")
 	if err != nil {
 		return
 	}
-	err = commitFile(remoteRepository, dir, "main", "file-3")
+	_, err = commitFile(remoteRepository, dir, "main", "file-3")
 	if err != nil {
 		return
 	}
@@ -137,7 +137,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
-	err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
+	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
 	assert.Nil(t, err)
 	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
@@ -146,7 +146,8 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
-	err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
+	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
+
 	assert.Nil(t, err)
 	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
@@ -195,20 +196,24 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, isTesting)
 
+	// Two commits are added to get a previous commit hash in
+	// order to reset it.
+	previousHash, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
+	_, err = commitFile(remoteRepository, remoteRepositoryDir, "main", "file-5")
+
+	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	assert.Nil(t, err)
+	assert.True(t, updated)
+	assert.False(t, isTesting)
+
 	// The last commit of the main branch is removed.
-	testingHeadRef, err := remoteRepository.Reference(
-		plumbing.ReferenceName("refs/heads/testing"),
-		true)
-	ref := plumbing.NewHashReference("refs/heads/main", testingHeadRef.Hash())
+	ref := plumbing.NewHashReference("refs/heads/main", previousHash)
 	err = remoteRepository.Storer.SetReference(ref)
 	if err != nil {
 		return
 	}
 	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
-	assert.Nil(t, err)
-	assert.False(t, updated)
-	assert.False(t, isTesting)
-
+	assert.ErrorContains(t, err, "hard reset")
 }
 
 func TestRepositoryUpdateMain(t *testing.T) {
@@ -243,7 +248,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 
 	// A new commit is pushed to the remote repository: the local
 	// repository is updated
-	err = commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
+	_, err = commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
 	assert.Nil(t, err)
 	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
@@ -252,7 +257,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 
 	// A commit is pushed to the testing branch which is currently
 	// behind the main branch: the repository is not updated
-	err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
+	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
 	assert.Nil(t, err)
 	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
