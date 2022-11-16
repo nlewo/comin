@@ -13,61 +13,84 @@ import (
 
 // checkout only checkouts the branch under specific condition
 func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTesting bool, err error) {
-	var head, mainHead, testingHead plumbing.Hash
+	var head, mainHead, remoteMainHead, remoteTestingHead plumbing.Hash
 	err = fetch(r, config)
 	if err != nil {
 		return
 	}
 
+	// This is the checkouted commit and it is used to detect
+	// local updates.
 	headRef, err := r.Reference(plumbing.HEAD, true)
 	if headRef != nil && err == nil {
 		head = headRef.Hash()
 	}
 
-	mainBranch := fmt.Sprintf("refs/remotes/%s/%s", config.Remote.Name, config.Main)
+	remoteMainBranch := fmt.Sprintf("refs/remotes/%s/%s", config.Remote.Name, config.Main)
+	remoteMainHeadRef, err := r.Reference(
+		plumbing.ReferenceName(remoteMainBranch),
+		true)
+	if err != nil || remoteMainHeadRef == nil {
+		return updated, isTesting, fmt.Errorf("The remote branch '%s' doesn't exist", remoteMainBranch)
+	}
+	remoteMainHead = remoteMainHeadRef.Hash()
+	newHead := remoteMainHead
+	fromBranch := config.Main
+
+	// The main branch can not be hard reseted: HEAD has to be an
+	// ancestor of the remote main branch. The main branch is used
+	// to ensure the remote branch has not been hard reset.
+	mainBranch := fmt.Sprintf("refs/heads/%s", config.Main)
 	mainHeadRef, err := r.Reference(
 		plumbing.ReferenceName(mainBranch),
 		true)
-	if err != nil || mainHeadRef == nil {
-		return updated, isTesting, fmt.Errorf("The remote branch '%s' doesn't exist", mainBranch)
+	if err == nil && mainHeadRef != nil {
+		mainHead = mainHeadRef.Hash()
 	}
-	mainHead = mainHeadRef.Hash()
-	newHead := mainHead
-	fromBranch := config.Main
-
-	testingBranch := fmt.Sprintf("refs/remotes/%s/%s", config.Remote.Name, config.Testing)
-	testingHeadRef, err := r.Reference(
-		plumbing.ReferenceName(testingBranch),
-		true)
-	if err != nil || testingHeadRef == nil {
-		logrus.Debugf("The remote branch '%s' doesn't exist", testingBranch)
-	} else {
-		testingHead = testingHeadRef.Hash()
-	}
-
-	if testingHeadRef != nil {
-		// If the testing branch is on top of the main branch, we hard
-		// reset to the testing branch
-		var ancestor bool
-		ancestor, err = isAncestor(r, mainHead, testingHead)
-		if err != nil {
-			return
-		}
-		if (ancestor) {
-			newHead = testingHead
-			fromBranch = config.Testing
-			isTesting = true
-		}
-	} else {
-		// The main branch can not be hard reset: HEAD has to
-		// be an ancestor of the remote main branch.
+	if mainHeadRef != nil && remoteMainHeadRef != nil && mainHead != remoteMainHead {
 		var ok bool
-		ok, err = isAncestor(r, mainHead, head)
+		ok, err = isAncestor(r, mainHead, remoteMainHead)
 		if err != nil {
 			return
 		}
 		if !ok {
-			return false, false, fmt.Errorf("The remote main branch '%s' has been hard reseted")
+			return false, false, fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out", config.Main)
+		}
+	}
+	// Since we know the main remote branch has not been hard
+	// reset, we can pull remote main branch into the local main
+	// branch.
+	if remoteMainHead != mainHead {
+		logrus.Infof("The local branch '%s' has been reset on the remote branch '%s' (commit '%s')",
+			config.Main, config.Main, remoteMainHead)
+		ref := plumbing.NewHashReference(plumbing.ReferenceName(mainBranch), remoteMainHead)
+		err = r.Storer.SetReference(ref)
+		if err != nil {
+			return false, false, fmt.Errorf("Failed to set the reference '%s': '%s'", ref, err)
+		}
+	}
+	remoteTestingBranch := fmt.Sprintf("refs/remotes/%s/%s", config.Remote.Name, config.Testing)
+	remoteTestingHeadRef, err := r.Reference(
+		plumbing.ReferenceName(remoteTestingBranch),
+		true)
+	if err != nil || remoteTestingHeadRef == nil {
+		logrus.Debugf("The remote branch '%s' doesn't exist", remoteTestingBranch)
+	} else {
+		remoteTestingHead = remoteTestingHeadRef.Hash()
+	}
+
+	if remoteTestingHeadRef != nil {
+		// If the testing branch is on top of the main branch, we hard
+		// reset to the testing branch
+		var ancestor bool
+		ancestor, err = isAncestor(r, remoteMainHead, remoteTestingHead)
+		if err != nil {
+			return
+		}
+		if (ancestor) {
+			newHead = remoteTestingHead
+			fromBranch = config.Testing
+			isTesting = true
 		}
 	}
 
