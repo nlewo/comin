@@ -1,15 +1,29 @@
+# Comin
+
+Comin is a deployment tool polling a Git repository and deploying the NixOS
+configuration found in this repository on the machine where it is executed.
+
+
+By default, `comin` tracks the `main` branch of the repository. When
+new commits are push to this branch, `comin` pulls them and run
+`nixos-rebuild switch`. If this branch is hard reset, `comin` then
+refuses to deploy the `main` branch.
+
+
 ## How to test a configuration
 
-1. Create a testing branch in your configuration repository.
-2. Push this branch
+The `testing` branch of the repository is on top of the `main` branch,
+Comin deploys this configuration by running `nixos-rebuild test`: the
+bootloader is not modified.
 
-- The testing branch have to have the HEAD of master as ancestor
-- To promote the change, we have to rebase the master branch on top of
-  the testing branch
-- It is possible to push force the testing branch, but it always have
-  to have the current HEAD of master as ancestor
+So, to test a configuration:
 
-If new valid commits are pushed to the master branch, comin switches
-to it and deploy it.
+1. Create a `testing` branch in your configuration repository on top of the `main` branch
+2. Add new commits to this branch
+3. Comin runs `nixos-rebuild test` on the found configuration
 
-To stop using the testing branch, reset it to the main branch HEAD.
+Note this branch can be hard reset and Comin then deploys the hard
+reset configuration.
+
+To `nixos-rebuild switch` to the testing configuration, the `main`
+branch has to be rebased on the `testing` branch.
