@@ -80,14 +80,14 @@ func poll(repository *git.Repository, config types.Config) error {
 		logrus.Debugf("State is %#v", state)
 	}
 
-	if commitHash.String() == state.CommitId && state.LastOperation == operation {
+	if commitHash.String() == state.CommitId && state.Operation == operation {
 		return nil
 	}
 
 	err = nix.Deploy(config, operation)
 	state.Deployed = err == nil
 	state.CommitId = commitHash.String()
-	state.LastOperation = operation
+	state.Operation = operation
 
 	res, err := json.MarshalIndent(state, "", "\t")
 	if err != nil {
