@@ -12,11 +12,11 @@ import (
 	"strings"
 )
 
-func eval(config types.Config) (drvPath string, outPath string, err error) {
-	path := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", config.GitConfig.Path, config.Hostname)
+func eval(path, hostname string) (drvPath string, outPath string, err error) {
+	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", path, hostname)
 	args := []string{
 		"show-derivation",
-		path,
+		installable,
 		"-L",
 	}
 	logrus.Infof("Running 'nix %s'", strings.Join(args, " "))
@@ -57,13 +57,11 @@ type Derivation struct {
 	Outputs Output `json:"outputs"`
 }
 
-func Deploy(config types.Config, operation string) (err error) {
-	err = os.MkdirAll(config.StateDir, 0750)
+func Build(path, hostname string) (outPath string, err error) {
+	drvPath, outPath, err := eval(path, hostname)
 	if err != nil {
 		return
 	}
-
-	drvPath, outPath, err := eval(config)
 
 	args := []string{
 		"build",
@@ -79,10 +77,20 @@ func Deploy(config types.Config, operation string) (err error) {
 		logrus.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
 		return
 	}
+	return
+}
+
+func Deploy(config types.Config, operation string) (err error) {
+	err = os.MkdirAll(config.StateDir, 0750)
+	if err != nil {
+		return
+	}
+
+	outPath, err := Build(config.GitConfig.Path, config.Hostname)
 
 	switchToConfiguration := filepath.Join(outPath, "bin", "switch-to-configuration")
 	logrus.Infof("Running '%s %s'", switchToConfiguration, operation)
-	cmd = exec.Command(switchToConfiguration, operation)
+	cmd := exec.Command(switchToConfiguration, operation)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if config.DryRun {

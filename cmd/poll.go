@@ -7,7 +7,6 @@ import (
 	"os"
 )
 
-var hostname string
 var stateDir string
 var dryRun bool
 
