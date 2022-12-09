@@ -11,6 +11,7 @@ import (
 )
 
 var debug bool
+var hostname string
 
 var rootCmd = &cobra.Command{
 	Use:   "comin",
