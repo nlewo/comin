@@ -57,12 +57,12 @@ func makeConfig(stateDir string, hostname string, dryRun bool, repositories []st
 func poll(repository *git.Repository, config types.Config) error {
 	logrus.Debugf("Executing a poll iteration")
 
-	hasNewCommits, isTesting, err := cominGit.RepositoryUpdate(repository, config.GitConfig)
+	commitHash, branch, err := cominGit.RepositoryUpdate(repository, config.GitConfig)
 	if err != nil {
 		return err
 	}
 	operation := "switch"
-	if isTesting {
+	if branch == config.GitConfig.Testing {
 		operation = "test"
 	}
 
@@ -80,14 +80,13 @@ func poll(repository *git.Repository, config types.Config) error {
 		logrus.Debugf("State is %#v", state)
 	}
 
-	if !hasNewCommits && state.LastOperation == operation {
+	if commitHash.String() == state.CommitId && state.LastOperation == operation {
 		return nil
 	}
 
 	err = nix.Deploy(config, operation)
-	if err != nil {
-		return err
-	}
+	state.Deployed = err == nil
+	state.CommitId = commitHash.String()
 	state.LastOperation = operation
 
 	res, err := json.MarshalIndent(state, "", "\t")
@@ -99,5 +98,5 @@ func poll(repository *git.Repository, config types.Config) error {
 		return err
 	}
 
-	return nil
+	return err
 }

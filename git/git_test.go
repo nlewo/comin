@@ -35,7 +35,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 		Author: &object.Signature{
 			Name:  "John Doe",
 			Email: "john@doe.org",
-			When:  time.Now(),
+			When:  time.Unix(0, 0),
 		},
 	})
 	if err != nil {
@@ -130,29 +130,29 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	assert.Nil(t, err)
 
 	// The remote repository is initially checkouted on main
-	updated, isTesting, err := RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err := RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.True(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, branch, "main")
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
-	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
+	newCommitId, err := commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
 	assert.Nil(t, err)
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.True(t, updated)
-	assert.True(t, isTesting)
+	assert.Equal(t, commitId, newCommitId)
+	assert.Equal(t, branch, "testing")
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
-	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
+	newCommitId, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
 
 	assert.Nil(t, err)
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.True(t, updated)
-	assert.True(t, isTesting)
+	assert.Equal(t, commitId, newCommitId)
+	assert.Equal(t, branch, "testing")
 
 	// The main branch is rebased on top of testing: we switch
 	// back the the main branch
@@ -164,10 +164,10 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	if err != nil {
 		return
 	}
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.False(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId, newCommitId)
+	assert.Equal(t, branch, "main")
 
 	// time.Sleep(100*time.Second)
 }
@@ -191,20 +191,20 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 	assert.Nil(t, err)
 
 	// The remote repository is initially checkouted
-	updated, isTesting, err := RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err := RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.True(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, branch, "main")
 
 	// Two commits are added to get a previous commit hash in
 	// order to reset it.
 	previousHash, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
-	_, err = commitFile(remoteRepository, remoteRepositoryDir, "main", "file-5")
+	newCommitId, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-5")
 
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.True(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId, newCommitId)
+	assert.Equal(t, branch, "main")
 
 	// The last commit of the main branch is removed.
 	ref := plumbing.NewHashReference("refs/heads/main", previousHash)
@@ -212,7 +212,7 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 	if err != nil {
 		return
 	}
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.ErrorContains(t, err, "hard reset")
 }
 
@@ -235,34 +235,34 @@ func TestRepositoryUpdateMain(t *testing.T) {
 	assert.Nil(t, err)
 
 	// The remote repository is initially checkouted
-	updated, isTesting, err := RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err := RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.True(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, branch, "main")
 
 	// Without any new remote commits, the local repository is not updated
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.False(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, branch, "main")
 
 	// A new commit is pushed to the remote repository: the local
 	// repository is updated
-	_, err = commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
+	newCommitId, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
 	assert.Nil(t, err)
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.True(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId, newCommitId)
+	assert.Equal(t, branch, "main")
 
 	// A commit is pushed to the testing branch which is currently
 	// behind the main branch: the repository is not updated
 	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
 	assert.Nil(t, err)
-	updated, isTesting, err = RepositoryUpdate(cominRepository, gitConfig)
+	commitId, branch, err = RepositoryUpdate(cominRepository, gitConfig)
 	assert.Nil(t, err)
-	assert.False(t, updated)
-	assert.False(t, isTesting)
+	assert.Equal(t, commitId, newCommitId)
+	assert.Equal(t, branch, "main")
 
 	// time.Sleep(100*time.Second)
 }
