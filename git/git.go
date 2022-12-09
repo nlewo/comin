@@ -12,7 +12,7 @@ import (
 )
 
 // checkout only checkouts the branch under specific condition
-func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTesting bool, err error) {
+func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbing.Hash, fromBranch string, err error) {
 	var head, mainHead, remoteMainHead, remoteTestingHead plumbing.Hash
 	err = fetch(r, config)
 	if err != nil {
@@ -31,11 +31,11 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTes
 		plumbing.ReferenceName(remoteMainBranch),
 		true)
 	if err != nil || remoteMainHeadRef == nil {
-		return updated, isTesting, fmt.Errorf("The remote branch '%s' doesn't exist", remoteMainBranch)
+		return newHead, fromBranch, fmt.Errorf("The remote branch '%s' doesn't exist", remoteMainBranch)
 	}
 	remoteMainHead = remoteMainHeadRef.Hash()
-	newHead := remoteMainHead
-	fromBranch := config.Main
+	newHead = remoteMainHead
+	fromBranch = config.Main
 
 	// The main branch can not be hard reseted: HEAD has to be an
 	// ancestor of the remote main branch. The main branch is used
@@ -54,7 +54,7 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTes
 			return
 		}
 		if !ok {
-			return false, false, fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out", config.Main)
+			return newHead, fromBranch, fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out", config.Main)
 		}
 	}
 	// Since we know the main remote branch has not been hard
@@ -66,7 +66,7 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTes
 		ref := plumbing.NewHashReference(plumbing.ReferenceName(mainBranch), remoteMainHead)
 		err = r.Storer.SetReference(ref)
 		if err != nil {
-			return false, false, fmt.Errorf("Failed to set the reference '%s': '%s'", ref, err)
+			return newHead, fromBranch, fmt.Errorf("Failed to set the reference '%s': '%s'", ref, err)
 		}
 	}
 	remoteTestingBranch := fmt.Sprintf("refs/remotes/%s/%s", config.Remote.Name, config.Testing)
@@ -90,7 +90,6 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTes
 		if (ancestor) {
 			newHead = remoteTestingHead
 			fromBranch = config.Testing
-			isTesting = true
 		}
 	}
 
@@ -98,19 +97,18 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (updated, isTes
 		var w *git.Worktree
 		w, err = r.Worktree()
 		if err != nil {
-			return false, false, fmt.Errorf("Failed to get the worktree")
+			return newHead, fromBranch, fmt.Errorf("Failed to get the worktree")
 		}
 		err = w.Checkout(&git.CheckoutOptions{
 			Hash: newHead,
 			Force: true,
 		})
 		if err != nil {
-			return false, false, fmt.Errorf("git reset --hard %s fails: '%s'", newHead, err)
+			return newHead, fromBranch, fmt.Errorf("git reset --hard %s fails: '%s'", newHead, err)
 		}
-		updated = true
 		logrus.Infof("The commit '%s' from branch '%s' has been checked out", newHead, fromBranch)
 	}
-	return updated, isTesting, nil
+	return newHead, fromBranch, nil
 }
 
 // fetch fetches the config.Remote

@@ -1,9 +1,14 @@
 package types
 
+// The state is only used to avoid unnecessary rebuilds and doesn't
+// need to be persisted.
 type State struct {
 	// LastOperation is the last nixos-rebuild operation
 	// (basically, test or switch)
 	LastOperation string
+	// The last commit that has been tried to be deployed
+	CommitId string
+	Deployed bool
 }
 
 type Config struct {
