@@ -57,6 +57,39 @@ type Derivation struct {
 	Outputs Output `json:"outputs"`
 }
 
+type Show struct {
+	NixosConfigurations map[string]struct{} `json:"nixosConfigurations"`
+}
+
+func List() (hosts []string, err error) {
+	args := []string{
+		"flake",
+		"show",
+		"--json"}
+	logrus.Infof("Running 'nix %s'", strings.Join(args, " "))
+	cmd := exec.Command("nix", args...)
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		logrus.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
+		return
+	}
+
+	var output Show
+	err = json.Unmarshal(stdout.Bytes(), &output)
+	if err != nil {
+		return
+	}
+	hosts = make([]string, 0, len(output.NixosConfigurations))
+	for key := range output.NixosConfigurations {
+		hosts = append(hosts, key)
+	}
+	return
+}
+
 func Build(path, hostname string) (outPath string, err error) {
 	drvPath, outPath, err := eval(path, hostname)
 	if err != nil {
