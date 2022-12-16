@@ -121,6 +121,24 @@ func Deploy(config types.Config, operation string) (err error) {
 
 	outPath, err := Build(config.GitConfig.Path, config.Hostname)
 
+	if operation == "switch" || operation == "boot" {
+		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
+		logrus.Infof("Running '%s'", cmdStr)
+		cmd := exec.Command("nix-env", "--profile", "/nix/var/nix/profiles/system", "--set", outPath)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if config.DryRun {
+			logrus.Infof("Dry-run enabled: '%s' has not been executed", cmdStr)
+		} else {
+			err = cmd.Run()
+			if err != nil {
+				logrus.Errorf("Command '%s' fails with %s", cmdStr, err)
+				return
+			}
+			logrus.Infof("Command '%s' succeeded", cmdStr)
+		}
+	}
+
 	switchToConfiguration := filepath.Join(outPath, "bin", "switch-to-configuration")
 	logrus.Infof("Running '%s %s'", switchToConfiguration, operation)
 	cmd := exec.Command(switchToConfiguration, operation)
