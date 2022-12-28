@@ -6,6 +6,7 @@ import (
 	gitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -114,8 +115,21 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbi
 // fetch fetches the config.Remote
 func fetch(r *git.Repository, config types.GitConfig) (err error) {
 	logrus.Debugf("Fetching remote '%s'", config.Remote.Name)
+	fetchOptions := git.FetchOptions{
+		RemoteName: config.Remote.Name,
+	}
+	// TODO: support several authentication methods
+	if config.Remote.Auth.AccessToken != ""  {
+		fetchOptions.Auth = &http.BasicAuth{
+			// On GitLab, any non blank username is
+			// working.
+			Username: "comin",
+			Password: config.Remote.Auth.AccessToken,
+		}
+	}
+
 	// TODO: should only fetch tracked branches
-	err = r.Fetch(&git.FetchOptions{RemoteName: config.Remote.Name})
+	err = r.Fetch(&fetchOptions)
 	if err == nil {
 		logrus.Infof("New commits have been fetched from '%s'", config.Remote.URL)
 		return nil

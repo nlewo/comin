@@ -27,3 +27,18 @@ reset configuration.
 
 To `nixos-rebuild switch` to the testing configuration, the `main`
 branch has to be rebased on the `testing` branch.
+
+## Authentication
+
+### GitLab
+
+Once a [personnal access
+token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+with read access has been created, it can be provided thanks to the
+`comin poll --auths-file` option. This file looks like:
+
+```
+{
+    "your-remote-url": {"AccessToken": "your-access-token"}
+}
+```

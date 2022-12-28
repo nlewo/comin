@@ -22,6 +22,7 @@ type Config struct {
 type Remote struct {
 	Name string
 	URL string
+	Auth Auth
 }
 
 type GitConfig struct {
@@ -34,3 +35,8 @@ type GitConfig struct {
 	Testing string
 }
 
+type Auths map[string]Auth
+
+type Auth struct {
+	AccessToken string
+}
