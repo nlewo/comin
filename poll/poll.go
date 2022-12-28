@@ -14,9 +14,8 @@ import (
 	"encoding/json"
 )
 
-func Poller(hostname string, stateDir string, authsFilepath string, dryRun bool, repositories []string) error {
+func Poller(period int, hostname string, stateDir string, authsFilepath string, dryRun bool, repositories []string) error {
 	s := gocron.NewScheduler(time.UTC)
-	period := 1
 	config, err := makeConfig(stateDir, authsFilepath, hostname, dryRun, repositories)
 	if err != nil {
 		return err

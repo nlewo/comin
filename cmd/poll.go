@@ -9,6 +9,7 @@ import (
 )
 
 var stateDir, authsFilepath string
+var period int
 var dryRun bool
 
 var pollCmd = &cobra.Command{
@@ -16,7 +17,7 @@ var pollCmd = &cobra.Command{
 	Short: "Poll a repository and deploy the configuration",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		err := poll.Poller(hostname, stateDir, authsFilepath, dryRun, args[0:])
+		err := poll.Poller(period, hostname, stateDir, authsFilepath, dryRun, args[0:])
 		if err != nil {
 			fmt.Printf("Error: %s", err)
 			os.Exit(1)
@@ -33,5 +34,6 @@ func init() {
 	pollCmd.Flags().StringVarP(&stateDir, "state-dir", "", "/var/lib/comin", "the path of the state directory")
 	pollCmd.Flags().StringVarP(&authsFilepath, "auths-file", "", "", "the path of the JSON auths file")
 	pollCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "n", false, "dry-run mode")
+	pollCmd.Flags().IntVarP(&period, "period", "", 60, "the polling period in seconds")
 	rootCmd.AddCommand(pollCmd)
 }
