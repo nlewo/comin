@@ -14,10 +14,14 @@ import (
 	"encoding/json"
 )
 
-func Poller(hostname string, stateDir string, dryRun bool, repositories []string) error {
+func Poller(hostname string, stateDir string, authsFilepath string, dryRun bool, repositories []string) error {
 	s := gocron.NewScheduler(time.UTC)
 	period := 1
-	config := makeConfig(stateDir, hostname, dryRun, repositories)
+	config, err := makeConfig(stateDir, authsFilepath, hostname, dryRun, repositories)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("Config is '%#v'", config)
 	repository, err := cominGit.RepositoryOpen(config.GitConfig)
 	if err != nil {
 		return fmt.Errorf("Failed to open the repository: %s", err)
@@ -36,8 +40,8 @@ func Poller(hostname string, stateDir string, dryRun bool, repositories []string
 	return nil
 }
 
-func makeConfig(stateDir string, hostname string, dryRun bool, repositories []string) types.Config {
-	return types.Config{
+func makeConfig(stateDir string, authsFilepath string, hostname string, dryRun bool, repositories []string) (config types.Config, err error) {
+	config = types.Config{
 		Hostname: hostname,
 		StateDir: stateDir,
 		StateFile: fmt.Sprintf("%s/state.json", stateDir),
@@ -45,6 +49,7 @@ func makeConfig(stateDir string, hostname string, dryRun bool, repositories []st
 			Path: fmt.Sprintf("%s/repository", stateDir),
 			Remote: types.Remote{
 				Name: "origin",
+				// TODO: support multiple repositories
 				URL: repositories[0],
 			},
 			Main: "master",
@@ -52,6 +57,34 @@ func makeConfig(stateDir string, hostname string, dryRun bool, repositories []st
 		},
 		DryRun: dryRun,
 	}
+	if authsFilepath != "" {
+		auths, err := readAuths(authsFilepath)
+		if err != nil {
+			return config, fmt.Errorf("Failed to read auths file: '%s'", err)
+		}
+		auth, exists := auths[repositories[0]]
+		if (exists) {
+			config.GitConfig.Remote.Auth = auth
+		}
+	}
+	return
+}
+
+func readAuths(authsFilepath string) (auths types.Auths, err error) {
+	var content []byte
+        if _, err = os.Stat(authsFilepath); err == nil {
+		logrus.Debugf("Loading auths file located at '%s'", authsFilepath)
+		content, err = ioutil.ReadFile(authsFilepath)
+		if err != nil {
+			return
+		}
+		err = json.Unmarshal(content, &auths)
+		if err != nil {
+			return
+		}
+		logrus.Debugf("Auths is %#v", auths)
+	}
+	return
 }
 
 func poll(repository *git.Repository, config types.Config) error {
