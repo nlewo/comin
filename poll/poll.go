@@ -116,7 +116,14 @@ func poll(repository *git.Repository, config types.Config) error {
 		return nil
 	}
 
+	logrus.Infof("Starting to deploy commit '%s'", commitHash)
 	err = nix.Deploy(config, operation)
+	if err != nil {
+		logrus.Errorf("%s", err)
+		logrus.Infof("Deploy failed")
+	} else {
+		logrus.Infof("Deploy succeeded")
+	}
 	state.Deployed = err == nil
 	state.CommitId = commitHash.String()
 	state.Operation = operation

@@ -19,15 +19,17 @@ func eval(path, hostname string) (drvPath string, outPath string, err error) {
 		installable,
 		"-L",
 	}
-	logrus.Infof("Running 'nix %s'", strings.Join(args, " "))
+	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
+	logrus.Infof("Running '%s'", cmdStr)
 	cmd := exec.Command("nix", args...)
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		return
+		return "", "", fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
 	}
+	logrus.Infof("After '%s'", cmdStr)
 
 	var output map[string]Derivation
 	err = json.Unmarshal(stdout.Bytes(), &output)
@@ -74,8 +76,7 @@ func List() (hosts []string, err error) {
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		logrus.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
-		return
+		return hosts, fmt.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
 	}
 
 	var output Show
@@ -107,8 +108,7 @@ func Build(path, hostname string) (outPath string, err error) {
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		logrus.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
-		return
+		return outPath, fmt.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
 	}
 	return
 }
@@ -120,6 +120,9 @@ func Deploy(config types.Config, operation string) (err error) {
 	}
 
 	outPath, err := Build(config.GitConfig.Path, config.Hostname)
+	if err != nil {
+		return
+	}
 
 	if operation == "switch" || operation == "boot" {
 		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
@@ -132,8 +135,7 @@ func Deploy(config types.Config, operation string) (err error) {
 		} else {
 			err = cmd.Run()
 			if err != nil {
-				logrus.Errorf("Command '%s' fails with %s", cmdStr, err)
-				return
+				return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
 			}
 			logrus.Infof("Command '%s' succeeded", cmdStr)
 		}
@@ -149,8 +151,7 @@ func Deploy(config types.Config, operation string) (err error) {
 	} else {
 		err = cmd.Run()
 		if err != nil {
-			logrus.Errorf("Command %s switch fails with %s", switchToConfiguration, err)
-			return
+			return fmt.Errorf("Command %s switch fails with %s", switchToConfiguration, err)
 		}
 		logrus.Infof("Switch successfully terminated")
 
@@ -166,8 +167,7 @@ func Deploy(config types.Config, operation string) (err error) {
 		os.Remove(gcRoot)
 		err = os.Symlink(outPath, gcRoot)
 		if err != nil {
-			logrus.Errorf("Failed to create symlink 'ln -s %s %s': %s", outPath, gcRoot, err)
-			return
+			return fmt.Errorf("Failed to create symlink 'ln -s %s %s': %s", outPath, gcRoot, err)
 		}
 		logrus.Infof("Creating gcroot '%s'", gcRoot)
 	}
