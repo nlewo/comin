@@ -19,14 +19,15 @@ func eval(path, hostname string) (drvPath string, outPath string, err error) {
 		installable,
 		"-L",
 	}
-	logrus.Infof("Running 'nix %s'", strings.Join(args, " "))
+	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
+	logrus.Infof("Running '%s'", cmdStr)
 	cmd := exec.Command("nix", args...)
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
-		return
+		return "", "", fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
 	}
 
 	var output map[string]Derivation
@@ -120,6 +121,9 @@ func Deploy(config types.Config, operation string) (err error) {
 	}
 
 	outPath, err := Build(config.GitConfig.Path, config.Hostname)
+	if err != nil {
+		return
+	}
 
 	if operation == "switch" || operation == "boot" {
 		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
