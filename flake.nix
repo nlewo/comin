@@ -71,6 +71,7 @@
         nixpkgs.overlays = [ self.overlay ];
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
+          path = [ pkgs.nix pkgs.git ];
           serviceConfig = {
             ExecStart =
               "${pkgs.comin}/bin/comin "
