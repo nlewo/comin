@@ -72,6 +72,9 @@
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
           path = [ pkgs.nix pkgs.git ];
+          # FIXME find a better way to restart comin without breaking
+          # the current deployment executed by comin...
+          restartIfChanged = false;
           serviceConfig = {
             ExecStart =
               "${pkgs.comin}/bin/comin "
