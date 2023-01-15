@@ -7,21 +7,20 @@ import (
 	"fmt"
 	"time"
 	"github.com/nlewo/comin/types"
-	"github.com/nlewo/comin/nix"
+	"github.com/nlewo/comin/deploy"
 	cominGit "github.com/nlewo/comin/git"
-	"github.com/go-git/go-git/v5"
 	"io/ioutil"
 	"encoding/json"
 )
 
 func Poller(period int, hostname string, stateDir string, authsFilepath string, dryRun bool, repositories []string) error {
 	s := gocron.NewScheduler(time.UTC)
-	config, err := makeConfig(stateDir, authsFilepath, hostname, dryRun, repositories)
+	config, gitConfig, err := makeConfigs(stateDir, authsFilepath, hostname, dryRun, repositories)
 	if err != nil {
 		return err
 	}
 	logrus.Debugf("Config is '%#v'", config)
-	repository, err := cominGit.RepositoryOpen(config.GitConfig)
+	repository, err := cominGit.RepositoryOpen(gitConfig)
 	if err != nil {
 		return fmt.Errorf("Failed to open the repository: %s", err)
 	}
@@ -39,31 +38,32 @@ func Poller(period int, hostname string, stateDir string, authsFilepath string, 
 	return nil
 }
 
-func makeConfig(stateDir string, authsFilepath string, hostname string, dryRun bool, repositories []string) (config types.Config, err error) {
+func makeConfigs(stateDir string, authsFilepath string, hostname string, dryRun bool, repositories []string) (config types.Config, gitConfig types.GitConfig, err error) {
 	config = types.Config{
 		Hostname: hostname,
 		StateDir: stateDir,
 		StateFile: fmt.Sprintf("%s/state.json", stateDir),
-		GitConfig: types.GitConfig{
-			Path: fmt.Sprintf("%s/repository", stateDir),
-			Remote: types.Remote{
-				Name: "origin",
-				// TODO: support multiple repositories
-				URL: repositories[0],
-			},
-			Main: "master",
-			Testing: "testing",
-		},
 		DryRun: dryRun,
 	}
+	gitConfig = types.GitConfig{
+		Path: fmt.Sprintf("%s/repository", stateDir),
+		Remote: types.Remote{
+			Name: "origin",
+			// TODO: support multiple repositories
+			URL: repositories[0],
+		},
+		Main: "master",
+		Testing: "testing",
+	}
+
 	if authsFilepath != "" {
 		auths, err := readAuths(authsFilepath)
 		if err != nil {
-			return config, fmt.Errorf("Failed to read auths file: '%s'", err)
+			return config, gitConfig, fmt.Errorf("Failed to read auths file: '%s'", err)
 		}
 		auth, exists := auths[repositories[0]]
 		if (exists) {
-			config.GitConfig.Remote.Auth = auth
+			gitConfig.Remote.Auth = auth
 		}
 	}
 	return
@@ -86,56 +86,7 @@ func readAuths(authsFilepath string) (auths types.Auths, err error) {
 	return
 }
 
-func poll(repository *git.Repository, config types.Config) error {
+func poll(repository types.Repository, config types.Config) error {
 	logrus.Debugf("Executing a poll iteration")
-
-	commitHash, branch, err := cominGit.RepositoryUpdate(repository, config.GitConfig)
-	if err != nil {
-		return err
-	}
-	operation := "switch"
-	if branch == config.GitConfig.Testing {
-		operation = "test"
-	}
-
-	var state types.State
-        if _, err := os.Stat(config.StateFile); err == nil {
-		logrus.Debugf("Loading state file")
-		content, err := ioutil.ReadFile(config.StateFile)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(content, &state)
-		if err != nil {
-			return err
-		}
-		logrus.Debugf("State is %#v", state)
-	}
-
-	if commitHash.String() == state.CommitId && state.Operation == operation {
-		return nil
-	}
-
-	logrus.Infof("Starting to deploy commit '%s'", commitHash)
-	err = nix.Deploy(config, operation)
-	if err != nil {
-		logrus.Errorf("%s", err)
-		logrus.Infof("Deploy failed")
-	} else {
-		logrus.Infof("Deploy succeeded")
-	}
-	state.Deployed = err == nil
-	state.CommitId = commitHash.String()
-	state.Operation = operation
-
-	res, err := json.MarshalIndent(state, "", "\t")
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(config.StateFile, []byte(res), 0644)
-	if err != nil {
-		return err
-	}
-
-	return err
+	return deploy.Deploy(repository, config)
 }

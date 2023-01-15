@@ -1,5 +1,9 @@
 package types
 
+import (
+	"github.com/go-git/go-git/v5"
+)
+
 // The state is only used to avoid unnecessary rebuilds and doesn't
 // need to be persisted.
 type State struct {
@@ -15,7 +19,6 @@ type Config struct {
 	Hostname string
 	StateDir string
 	StateFile string
-	GitConfig GitConfig
 	DryRun bool
 }
 
@@ -39,4 +42,9 @@ type Auths map[string]Auth
 
 type Auth struct {
 	AccessToken string
+}
+
+type Repository struct {
+	Repository *git.Repository
+	GitConfig GitConfig
 }

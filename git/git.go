@@ -13,22 +13,22 @@ import (
 )
 
 // checkout only checkouts the branch under specific condition
-func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbing.Hash, fromBranch string, err error) {
+func RepositoryUpdate(r types.Repository) (newHead plumbing.Hash, fromBranch string, err error) {
 	var head, mainHead, remoteMainHead, remoteTestingHead plumbing.Hash
-	err = fetch(r, config)
+	err = fetch(r)
 	if err != nil {
 		return
 	}
 
 	// This is the checkouted commit and it is used to detect
 	// local updates.
-	headRef, err := r.Reference(plumbing.HEAD, true)
+	headRef, err := r.Repository.Reference(plumbing.HEAD, true)
 	if headRef != nil && err == nil {
 		head = headRef.Hash()
 	}
 
-	remoteMainBranch := fmt.Sprintf("refs/remotes/%s/%s", config.Remote.Name, config.Main)
-	remoteMainHeadRef, err := r.Reference(
+	remoteMainBranch := fmt.Sprintf("refs/remotes/%s/%s", r.GitConfig.Remote.Name, r.GitConfig.Main)
+	remoteMainHeadRef, err := r.Repository.Reference(
 		plumbing.ReferenceName(remoteMainBranch),
 		true)
 	if err != nil || remoteMainHeadRef == nil {
@@ -36,13 +36,13 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbi
 	}
 	remoteMainHead = remoteMainHeadRef.Hash()
 	newHead = remoteMainHead
-	fromBranch = config.Main
+	fromBranch = r.GitConfig.Main
 
 	// The main branch can not be hard reseted: HEAD has to be an
 	// ancestor of the remote main branch. The main branch is used
 	// to ensure the remote branch has not been hard reset.
-	mainBranch := fmt.Sprintf("refs/heads/%s", config.Main)
-	mainHeadRef, err := r.Reference(
+	mainBranch := fmt.Sprintf("refs/heads/%s", r.GitConfig.Main)
+	mainHeadRef, err := r.Repository.Reference(
 		plumbing.ReferenceName(mainBranch),
 		true)
 	if err == nil && mainHeadRef != nil {
@@ -50,12 +50,12 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbi
 	}
 	if mainHeadRef != nil && remoteMainHeadRef != nil && mainHead != remoteMainHead {
 		var ok bool
-		ok, err = isAncestor(r, mainHead, remoteMainHead)
+		ok, err = isAncestor(r.Repository, mainHead, remoteMainHead)
 		if err != nil {
 			return
 		}
 		if !ok {
-			return newHead, fromBranch, fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out", config.Main)
+			return newHead, fromBranch, fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out", r.GitConfig.Main)
 		}
 	}
 	// Since we know the main remote branch has not been hard
@@ -63,15 +63,15 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbi
 	// branch.
 	if remoteMainHead != mainHead {
 		logrus.Infof("The local branch '%s' has been reset on the remote branch '%s' (commit '%s')",
-			config.Main, config.Main, remoteMainHead)
+			r.GitConfig.Main, r.GitConfig.Main, remoteMainHead)
 		ref := plumbing.NewHashReference(plumbing.ReferenceName(mainBranch), remoteMainHead)
-		err = r.Storer.SetReference(ref)
+		err = r.Repository.Storer.SetReference(ref)
 		if err != nil {
 			return newHead, fromBranch, fmt.Errorf("Failed to set the reference '%s': '%s'", ref, err)
 		}
 	}
-	remoteTestingBranch := fmt.Sprintf("refs/remotes/%s/%s", config.Remote.Name, config.Testing)
-	remoteTestingHeadRef, err := r.Reference(
+	remoteTestingBranch := fmt.Sprintf("refs/remotes/%s/%s", r.GitConfig.Remote.Name, r.GitConfig.Testing)
+	remoteTestingHeadRef, err := r.Repository.Reference(
 		plumbing.ReferenceName(remoteTestingBranch),
 		true)
 	if err != nil || remoteTestingHeadRef == nil {
@@ -84,19 +84,19 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbi
 		// If the testing branch is on top of the main branch, we hard
 		// reset to the testing branch
 		var ancestor bool
-		ancestor, err = isAncestor(r, remoteMainHead, remoteTestingHead)
+		ancestor, err = isAncestor(r.Repository, remoteMainHead, remoteTestingHead)
 		if err != nil {
 			return
 		}
 		if (ancestor) {
 			newHead = remoteTestingHead
-			fromBranch = config.Testing
+			fromBranch = r.GitConfig.Testing
 		}
 	}
 
 	if newHead != head {
 		var w *git.Worktree
-		w, err = r.Worktree()
+		w, err = r.Repository.Worktree()
 		if err != nil {
 			return newHead, fromBranch, fmt.Errorf("Failed to get the worktree")
 		}
@@ -113,29 +113,29 @@ func RepositoryUpdate(r *git.Repository, config types.GitConfig) (newHead plumbi
 }
 
 // fetch fetches the config.Remote
-func fetch(r *git.Repository, config types.GitConfig) (err error) {
-	logrus.Debugf("Fetching remote '%s'", config.Remote.Name)
+func fetch(r types.Repository) (err error) {
+	logrus.Debugf("Fetching remote '%s'", r.GitConfig.Remote.Name)
 	fetchOptions := git.FetchOptions{
-		RemoteName: config.Remote.Name,
+		RemoteName: r.GitConfig.Remote.Name,
 	}
 	// TODO: support several authentication methods
-	if config.Remote.Auth.AccessToken != ""  {
+	if r.GitConfig.Remote.Auth.AccessToken != ""  {
 		fetchOptions.Auth = &http.BasicAuth{
 			// On GitLab, any non blank username is
 			// working.
 			Username: "comin",
-			Password: config.Remote.Auth.AccessToken,
+			Password: r.GitConfig.Remote.Auth.AccessToken,
 		}
 	}
 
 	// TODO: should only fetch tracked branches
-	err = r.Fetch(&fetchOptions)
+	err = r.Repository.Fetch(&fetchOptions)
 	if err == nil {
-		logrus.Infof("New commits have been fetched from '%s'", config.Remote.URL)
+		logrus.Infof("New commits have been fetched from '%s'", r.GitConfig.Remote.URL)
 		return nil
 	} else if err != git.NoErrAlreadyUpToDate {
-		logrus.Infof("Pull from remote '%s' failed: %s", config.Remote.Name, err)
-		return fmt.Errorf("'git fetch %s' fails: '%s'", config.Remote.Name, err)
+		logrus.Infof("Pull from remote '%s' failed: %s", r.GitConfig.Remote.Name, err)
+		return fmt.Errorf("'git fetch %s' fails: '%s'", r.GitConfig.Remote.Name, err)
 	} else {
 		logrus.Debugf("No new commits have been fetched")
 		return nil
@@ -165,10 +165,11 @@ func isAncestor(r *git.Repository, base, top plumbing.Hash) (found bool, err err
 
 // openOrInit inits the repository if it's not already a Git
 // repository and opens it otherwise
-func RepositoryOpen(config types.GitConfig) (r *git.Repository, err error) {
-	r, err = git.PlainInit(config.Path, false)
+func RepositoryOpen(config types.GitConfig) (r types.Repository, err error) {
+	r.GitConfig = config
+	r.Repository, err = git.PlainInit(config.Path, false)
 	if err != nil {
-		r, err = git.PlainOpen(config.Path)
+		r.Repository, err = git.PlainOpen(config.Path)
 		if err != nil {
 			return
 		}
@@ -176,7 +177,7 @@ func RepositoryOpen(config types.GitConfig) (r *git.Repository, err error) {
 	} else {
 		logrus.Infof("The local Git repository located at '%s' has been initialized", config.Path)
 	}
-	err = manageRemote(r, config)
+	err = manageRemote(r.Repository, config)
 	if err != nil {
 		return
 	}

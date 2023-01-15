@@ -113,13 +113,13 @@ func Build(path, hostname string) (outPath string, err error) {
 	return
 }
 
-func Deploy(config types.Config, operation string) (err error) {
+func Deploy(config types.Config, path, operation string) (err error) {
 	err = os.MkdirAll(config.StateDir, 0750)
 	if err != nil {
 		return
 	}
 
-	outPath, err := Build(config.GitConfig.Path, config.Hostname)
+	outPath, err := Build(path, config.Hostname)
 	if err != nil {
 		return
 	}
