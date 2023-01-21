@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List hosts of the local repository",
+var deployCmd = &cobra.Command{
+	Use:   "deploy",
+	Short: "Deploy an host",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		hosts, _ := nix.List()
@@ -19,5 +19,5 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(deployCmd)
 }

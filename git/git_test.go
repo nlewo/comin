@@ -2,14 +2,14 @@ package git
 
 import (
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/nlewo/comin/types"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 	"time"
-	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/nlewo/comin/types"
-	"github.com/stretchr/testify/assert"
 )
 
 func commitFile(remoteRepository *git.Repository, dir, branch, content string) (hash plumbing.Hash, err error) {
@@ -19,7 +19,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 	}
 	err = w.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(branch),
-		Force: true,
+		Force:  true,
 	})
 
 	filename := filepath.Join(dir, content)
@@ -44,7 +44,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 	return
 }
 
-func initRemoteRepostiory(dir string) (remoteRepository *git.Repository,err error) {
+func initRemoteRepostiory(dir string) (remoteRepository *git.Repository, err error) {
 	remoteRepository, err = git.PlainInit(dir, false)
 	if err != nil {
 		return
@@ -90,7 +90,7 @@ func TestIsAncestor(t *testing.T) {
 
 	commits := make([]object.Commit, 3)
 	idx := 0
-	err = iter.ForEach(func (commit *object.Commit) error {
+	err = iter.ForEach(func(commit *object.Commit) error {
 		commits[idx] = *commit
 		idx += 1
 		return nil
@@ -121,9 +121,9 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 		Path: cominRepositoryDir,
 		Remote: types.Remote{
 			Name: "origin",
-			URL: remoteRepositoryDir,
+			URL:  remoteRepositoryDir,
 		},
-		Main: "main",
+		Main:    "main",
 		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
@@ -182,9 +182,9 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 		Path: cominRepositoryDir,
 		Remote: types.Remote{
 			Name: "origin",
-			URL: remoteRepositoryDir,
+			URL:  remoteRepositoryDir,
 		},
-		Main: "main",
+		Main:    "main",
 		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
@@ -226,9 +226,9 @@ func TestRepositoryUpdateMain(t *testing.T) {
 		Path: cominRepositoryDir,
 		Remote: types.Remote{
 			Name: "origin",
-			URL: remoteRepositoryDir,
+			URL:  remoteRepositoryDir,
 		},
-		Main: "main",
+		Main:    "main",
 		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)

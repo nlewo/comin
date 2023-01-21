@@ -32,13 +32,5 @@ branch has to be rebased on the `testing` branch.
 
 ### GitLab
 
-Once a [personnal access
-token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
-with read access has been created, it can be provided thanks to the
-`comin poll --auths-file` option. This file looks like:
-
-```
-{
-    "your-remote-url": {"AccessToken": "your-access-token"}
-}
-```
+[personnal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+are supported.

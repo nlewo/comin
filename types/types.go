@@ -16,35 +16,56 @@ type State struct {
 }
 
 type Config struct {
-	Hostname string
-	StateDir string
+	Hostname  string
+	StateDir  string
 	StateFile string
-	DryRun bool
+	DryRun    bool
 }
 
 type Remote struct {
 	Name string
-	URL string
+	URL  string
 	Auth Auth
 }
 
 type GitConfig struct {
 	// The repository Path
-	Path string
-	Remote Remote
-	Remotes []Remote
+	Path              string
+	Remote            Remote
+	Remotes           []Remote
 	GpgPublicKeyPaths []string
-	Main string
-	Testing string
+	Main              string
+	Testing           string
 }
 
-type Auths map[string]Auth
-
 type Auth struct {
-	AccessToken string
+	AccessToken     string
+	AccessTokenPath string `yaml:"access_token_path"`
 }
 
 type Repository struct {
 	Repository *git.Repository
-	GitConfig GitConfig
+	GitConfig  GitConfig
+}
+
+type Branch struct {
+	Name      string `yaml:"name"`
+	Protected bool   `yaml:"protected"`
+}
+
+type Branches struct {
+	Main    Branch `yaml:"main"`
+	Testing Branch `yaml:"testing"`
+}
+
+type Poller struct {
+	Period int `yaml:"period"`
+}
+
+type Configuration struct {
+	Hostname string   `yaml:"hostname"`
+	StateDir string   `yaml:"state_dir"`
+	Remotes  []Remote `yaml:"remotes"`
+	Branches Branches `yaml:"branches"`
+	Poller   Poller   `yaml:"poller"`
 }

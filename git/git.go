@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/go-git/go-git/v5"
 	gitConfig "github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
@@ -88,7 +88,7 @@ func RepositoryUpdate(r types.Repository) (newHead plumbing.Hash, fromBranch str
 		if err != nil {
 			return
 		}
-		if (ancestor) {
+		if ancestor {
 			newHead = remoteTestingHead
 			fromBranch = r.GitConfig.Testing
 		}
@@ -101,7 +101,7 @@ func RepositoryUpdate(r types.Repository) (newHead plumbing.Hash, fromBranch str
 			return newHead, fromBranch, fmt.Errorf("Failed to get the worktree")
 		}
 		err = w.Checkout(&git.CheckoutOptions{
-			Hash: newHead,
+			Hash:  newHead,
 			Force: true,
 		})
 		if err != nil {
@@ -119,7 +119,7 @@ func fetch(r types.Repository) (err error) {
 		RemoteName: r.GitConfig.Remote.Name,
 	}
 	// TODO: support several authentication methods
-	if r.GitConfig.Remote.Auth.AccessToken != ""  {
+	if r.GitConfig.Remote.Auth.AccessToken != "" {
 		fetchOptions.Auth = &http.BasicAuth{
 			// On GitLab, any non blank username is
 			// working.
@@ -151,7 +151,7 @@ func isAncestor(r *git.Repository, base, top plumbing.Hash) (found bool, err err
 
 	// To skip the first commit
 	isFirst := true
-	iter.ForEach(func (commit *object.Commit) error {
+	iter.ForEach(func(commit *object.Commit) error {
 		if !isFirst && commit.Hash == base {
 			found = true
 			// This error is ignored and used to terminate early the loop :/

@@ -26,7 +26,7 @@
             p == "README.md"
           );
         };
-        vendorSha256 = "sha256-7P//MF0ZRDihabSgbxhqxilDrwhZPjMRGblZXBdNT2E=";
+        vendorSha256 = "sha256-PQ8UpiIpOs2NQ6SYD1aIIvZ3wNkIrFNoUkylpO0aV8c=";
       };
     };
 
@@ -35,6 +35,32 @@
 
     nixosModules.comin = { config, pkgs, lib, ... }: let
       cfg = config.services.comin;
+      yaml = pkgs.formats.yaml { };
+      cominConfig = {
+        hostname = config.networking.hostName;
+        state_dir = "/var/lib/comin";
+        remotes = [
+          {
+            name = "origin";
+            url = cfg.repository;
+            auth = {
+              access_token_path = cfg.authFile;
+            };
+          }
+        ];
+        branches = {
+          main = {
+            name = "main";
+            protected = true;
+          };
+          testing = {
+            name = "testing";
+            protected = false;
+          };
+        };
+        poller.period = 10;
+      };
+      cominConfigYaml = yaml.generate "comin.yml" cominConfig;
     in {
       options = {
         services.comin = {
@@ -80,9 +106,7 @@
               "${pkgs.comin}/bin/comin "
               + (lib.optionalString cfg.debug "--debug ")
               + " poll "
-              + "'${cfg.repository}' "
-              + "--period 10 "
-              + (lib.optionalString (cfg.authFile != null) "--auths-file ${cfg.authFile}");
+              + "--config ${cominConfigYaml}";
               Restart = "always";
           };
         };

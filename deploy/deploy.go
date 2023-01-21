@@ -1,16 +1,20 @@
 package deploy
 
 import (
-	"github.com/nlewo/comin/types"
-	"github.com/nlewo/comin/nix"
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	cominGit "github.com/nlewo/comin/git"
-	"os"
+	"github.com/nlewo/comin/nix"
+	"github.com/nlewo/comin/types"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
-func Deploy(repository types.Repository, config types.Config) error {
+// Deploy update the tracked repository, deploys the configuration and
+// update the state file.
+func Deploy(repository types.Repository, config types.Configuration, dryRun bool) error {
+	stateFile := filepath.Join(config.StateDir, "state.json")
 	commitHash, branch, err := cominGit.RepositoryUpdate(repository)
 	if err != nil {
 		return err
@@ -21,9 +25,9 @@ func Deploy(repository types.Repository, config types.Config) error {
 	}
 
 	var state types.State
-        if _, err := os.Stat(config.StateFile); err == nil {
+	if _, err := os.Stat(stateFile); err == nil {
 		logrus.Debugf("Loading state file")
-		content, err := ioutil.ReadFile(config.StateFile)
+		content, err := ioutil.ReadFile(stateFile)
 		if err != nil {
 			return err
 		}
@@ -39,7 +43,7 @@ func Deploy(repository types.Repository, config types.Config) error {
 	}
 
 	logrus.Infof("Starting to deploy commit '%s'", commitHash)
-	err = nix.Deploy(config, repository.GitConfig.Path, operation)
+	err = nix.Deploy(config, repository.GitConfig.Path, operation, dryRun)
 	if err != nil {
 		logrus.Errorf("%s", err)
 		logrus.Infof("Deploy failed")
@@ -54,7 +58,7 @@ func Deploy(repository types.Repository, config types.Config) error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(config.StateFile, []byte(res), 0644)
+	err = ioutil.WriteFile(stateFile, []byte(res), 0644)
 	if err != nil {
 		return err
 	}

@@ -1,14 +1,14 @@
 package nix
 
 import (
-	"github.com/sirupsen/logrus"
-	"os/exec"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"github.com/nlewo/comin/types"
+	"github.com/sirupsen/logrus"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -113,7 +113,7 @@ func Build(path, hostname string) (outPath string, err error) {
 	return
 }
 
-func Deploy(config types.Config, path, operation string) (err error) {
+func Deploy(config types.Configuration, path, operation string, dryRun bool) (err error) {
 	err = os.MkdirAll(config.StateDir, 0750)
 	if err != nil {
 		return
@@ -130,7 +130,7 @@ func Deploy(config types.Config, path, operation string) (err error) {
 		cmd := exec.Command("nix-env", "--profile", "/nix/var/nix/profiles/system", "--set", outPath)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-		if config.DryRun {
+		if dryRun {
 			logrus.Infof("Dry-run enabled: '%s' has not been executed", cmdStr)
 		} else {
 			err = cmd.Run()
@@ -146,7 +146,7 @@ func Deploy(config types.Config, path, operation string) (err error) {
 	cmd := exec.Command(switchToConfiguration, operation)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if config.DryRun {
+	if dryRun {
 		logrus.Infof("Dry-run enabled: '%s switch' has not been executed", switchToConfiguration)
 	} else {
 		err = cmd.Run()

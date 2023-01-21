@@ -1,0 +1,20 @@
+hostname: machine
+state_dir: /var/lib/comin
+remotes:
+  - name: origin
+    type: https
+    url: https://framagit.org/owner/infra
+    auth:
+      access_token_path: ./secret
+  - name: local
+    type: local
+    url: /home/owner/git/infra
+branches:
+  main:
+    name: main
+    protected: true
+  testing:
+    name: testing-machine
+    protected: false
+poller:
+  period: 10

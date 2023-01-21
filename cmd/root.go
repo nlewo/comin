@@ -5,9 +5,9 @@ Copyright © 2022 lewo <lewo@abesis.fr>
 package cmd
 
 import (
-	"os"
-	"github.com/spf13/cobra"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"os"
 )
 
 var debug bool

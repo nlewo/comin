@@ -1,39 +1,36 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"github.com/nlewo/comin/config"
 	"github.com/nlewo/comin/poll"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"os"
-	"fmt"
 )
 
-var stateDir, authsFilepath string
-var period int
+var configFilepath string
 var dryRun bool
 
 var pollCmd = &cobra.Command{
-	Use:   "poll REPOSITORY-URL",
+	Use:   "poll",
 	Short: "Poll a repository and deploy the configuration",
-	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		err := poll.Poller(period, hostname, stateDir, authsFilepath, dryRun, args[0:])
+		config, err := config.Read(configFilepath)
 		if err != nil {
-			fmt.Printf("Error: %s", err)
+			logrus.Error(err)
+			os.Exit(1)
+		}
+		err = poll.Poller(dryRun, config)
+		if err != nil {
+			logrus.Error(err)
 			os.Exit(1)
 		}
 	},
 }
 
 func init() {
-	hostnameDefault, err := os.Hostname()
-	if err != nil {
-		logrus.Error(err)
-	}
-	pollCmd.Flags().StringVarP(&hostname, "hostname", "", hostnameDefault, "the name of the configuration to deploy")
-	pollCmd.Flags().StringVarP(&stateDir, "state-dir", "", "/var/lib/comin", "the path of the state directory")
-	pollCmd.Flags().StringVarP(&authsFilepath, "auths-file", "", "", "the path of the JSON auths file")
 	pollCmd.PersistentFlags().BoolVarP(&dryRun, "dry-run", "n", false, "dry-run mode")
-	pollCmd.Flags().IntVarP(&period, "period", "", 60, "the polling period in seconds")
+	pollCmd.PersistentFlags().StringVarP(&configFilepath, "config", "", "", "the configuration file path")
+	pollCmd.MarkPersistentFlagRequired("config")
 	rootCmd.AddCommand(pollCmd)
 }

@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
-	"github.com/sirupsen/logrus"
-	"os"
 	"github.com/nlewo/comin/nix"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"os"
 )
 
 var buildCmd = &cobra.Command{
