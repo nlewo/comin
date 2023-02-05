@@ -34,7 +34,7 @@
     defaultPackage.x86_64-linux = pkgs.comin;
 
     nixosModules.comin = { config, pkgs, lib, ... }: let
-      cfg = config.services.comin;
+      cfg = config;
       yaml = pkgs.formats.yaml { };
       cominConfig = {
         hostname = config.networking.hostName;
@@ -42,9 +42,9 @@
         remotes = [
           {
             name = "origin";
-            url = cfg.repository;
+            url = cfg.services.comin.repository;
             auth = {
-              access_token_path = cfg.authFile;
+              access_token_path = cfg.services.comin.authFile;
             };
           }
         ];
@@ -54,7 +54,7 @@
             protected = true;
           };
           testing = {
-            name = "testing";
+            name = cfg.services.comin.testingBranch;
             protected = false;
           };
         };
@@ -84,6 +84,13 @@
               The path of the auth file.
             '';
           };
+          testingBranch = lib.mkOption {
+            type = lib.types.str;
+            default = "testing-${cfg.networking.hostName}";
+            description = ''
+              The name of the testing branch
+            '';
+          };
           debug = lib.mkOption {
             type = lib.types.bool;
             default = false;
@@ -104,7 +111,7 @@
           serviceConfig = {
             ExecStart =
               "${pkgs.comin}/bin/comin "
-              + (lib.optionalString cfg.debug "--debug ")
+              + (lib.optionalString cfg.services.comin.debug "--debug ")
               + " poll "
               + "--config ${cominConfigYaml}";
               Restart = "always";
