@@ -58,7 +58,7 @@
             protected = false;
           };
         };
-        poller.period = 10;
+        poller.period = cfg.services.comin.pollerPeriod;
       };
       cominConfigYaml = yaml.generate "comin.yml" cominConfig;
     in {
@@ -88,7 +88,14 @@
             type = lib.types.str;
             default = "testing-${cfg.networking.hostName}";
             description = ''
-              The name of the testing branch
+              The name of the testing branch.
+            '';
+          };
+          pollerPeriod = lib.mkOption {
+            type = lib.types.int;
+            default = 60;
+            description = ''
+              The poller period in seconds.
             '';
           };
           debug = lib.mkOption {
