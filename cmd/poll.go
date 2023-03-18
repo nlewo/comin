@@ -2,7 +2,8 @@ package cmd
 
 import (
 	"github.com/nlewo/comin/config"
-	"github.com/nlewo/comin/poll"
+	"github.com/nlewo/comin/deploy"
+	"github.com/nlewo/comin/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
@@ -20,11 +21,16 @@ var pollCmd = &cobra.Command{
 			logrus.Error(err)
 			os.Exit(1)
 		}
-		err = poll.Poller(dryRun, config)
+
+		deployer, err := deploy.NewDeployer(dryRun, config)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
 		}
+
+		wk := worker.NewWorker(deployer.Deploy)
+		go worker.Scheduler(wk, config.Poller.Period)
+		wk.Run(dryRun, config)
 	},
 }
 
