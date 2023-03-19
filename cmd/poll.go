@@ -30,7 +30,7 @@ var pollCmd = &cobra.Command{
 
 		wk := worker.NewWorker(deployer.Deploy)
 		go worker.Scheduler(wk, config.Poller.Period)
-		wk.Run(dryRun, config)
+		wk.Run()
 	},
 }
 

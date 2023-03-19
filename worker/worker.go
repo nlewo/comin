@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
 	"time"
 )
@@ -39,13 +38,13 @@ func (w Worker) Beat() bool {
 	}
 }
 
-func (w Worker) Run(dryRun bool, cfg types.Configuration) {
+func (w Worker) Run() {
 	logrus.Infof("Starting the worker")
 	for {
 		<-w.signal
 		logrus.Debugf("Starting the run the work function")
 		if err := w.work(); err != nil {
-			logrus.Infof("The work function fails with: %#v", err)
+			logrus.Debugf("The work function failed: %s", err)
 		}
 	}
 }
