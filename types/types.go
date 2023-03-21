@@ -62,10 +62,18 @@ type Poller struct {
 	Period int `yaml:"period"`
 }
 
+type Webhook struct {
+	Address    string `yaml:"address"`
+	Port       int    `yaml:"port"`
+	Secret     string
+	SecretPath string `yaml:"secret_path"`
+}
+
 type Configuration struct {
 	Hostname string   `yaml:"hostname"`
 	StateDir string   `yaml:"state_dir"`
 	Remotes  []Remote `yaml:"remotes"`
 	Branches Branches `yaml:"branches"`
 	Poller   Poller   `yaml:"poller"`
+	Webhook  Webhook  `yaml:"webhook"`
 }

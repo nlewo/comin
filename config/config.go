@@ -29,6 +29,20 @@ func Read(path string) (config types.Configuration, err error) {
 			config.Remotes[i].Auth.AccessToken = string(content)
 		}
 	}
+
+	if config.Webhook.Address == "" {
+		config.Webhook.Address = "127.0.0.1"
+	}
+	if config.Webhook.Port == 0 {
+		config.Webhook.Port = 4242
+	}
+	if config.Webhook.SecretPath != "" {
+		content, err := ioutil.ReadFile(config.Webhook.SecretPath)
+		if err != nil {
+			return config, err
+		}
+		config.Webhook.Secret = string(content)
+	}
 	logrus.Debugf("Config is '%#v'", config)
 	return
 }

@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/nlewo/comin/config"
 	"github.com/nlewo/comin/deploy"
+	"github.com/nlewo/comin/webhook"
 	"github.com/nlewo/comin/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -30,6 +31,7 @@ var pollCmd = &cobra.Command{
 
 		wk := worker.NewWorker(deployer.Deploy)
 		go worker.Scheduler(wk, config.Poller.Period)
+		go webhook.Run(wk, config.Webhook)
 		wk.Run()
 	},
 }
