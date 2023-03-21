@@ -40,6 +40,7 @@ func (deployer Deployer) Deploy() error {
 	if err != nil {
 		return err
 	}
+	logrus.Debugf("Commit is '%s' from branch '%s'", commitHash.String(), branch)
 	operation := "switch"
 	if branch == deployer.repository.GitConfig.Testing {
 		operation = "test"

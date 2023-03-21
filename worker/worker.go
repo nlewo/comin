@@ -21,6 +21,7 @@ func NewWorker(work func() error) (w Worker) {
 }
 
 func Scheduler(w Worker, period int) {
+	logrus.Infof("Starting the scheduler with a period of %ds", period)
 	for {
 		w.Beat()
 		time.Sleep(time.Duration(period) * time.Second)
