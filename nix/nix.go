@@ -12,7 +12,47 @@ import (
 	"strings"
 )
 
-func eval(path, hostname string) (drvPath string, outPath string, err error) {
+const (
+	EXPECTED_MACHINE_ID_FILEPATH = "/etc/comin/expected-machine-id"
+)
+
+// GetExpectedMachineId evals
+// nixosConfigurations.MACHINE.config.services.comin.machineId and
+// returns (true, machine-id, nil) is comin.machineId is set, (false,
+// "", nil) otherwise.
+func getExpectedMachineId(path, hostname string) (isSet bool, machineId string, err error) {
+	expr := fmt.Sprintf("%s#nixosConfigurations.%s.config.services.comin.machineId", path, hostname)
+	args := []string{
+		"eval",
+		expr,
+		"--json",
+	}
+	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
+	logrus.Infof("Running '%s'", cmdStr)
+	cmd := exec.Command("nix", args...)
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return isSet, machineId, fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+	}
+	var machineIdPtr *string
+	err = json.Unmarshal(stdout.Bytes(), &machineIdPtr)
+	if err != nil {
+		return
+	}
+	if machineIdPtr != nil {
+ 		logrus.Debugf("Getting comin.machineId = %s", *machineIdPtr)
+		machineId = *machineIdPtr
+		isSet = true
+	} else {
+		logrus.Debugf("Getting comin.machineId = null (not set)")
+	}
+	return
+}
+
+func showDerivation(path, hostname string) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", path, hostname)
 	args := []string{
 		"show-derivation",
@@ -92,7 +132,7 @@ func List() (hosts []string, err error) {
 }
 
 func Build(path, hostname string) (outPath string, err error) {
-	drvPath, outPath, err := eval(path, hostname)
+	drvPath, outPath, err := showDerivation(path, hostname)
 	if err != nil {
 		return
 	}
@@ -113,10 +153,37 @@ func Build(path, hostname string) (outPath string, err error) {
 	return
 }
 
+// checkMachineId checks the specified machineId (via the
+// comin.machineId option) is equal to the machine id of the machine
+// being configured. If not, it returns an error. Note this is
+// optional: if the comin.machineId option is not set, this check is
+// skipped.
+func checkMachineId(path, hostname string) error {
+	isSet, expectedMachineId, err := getExpectedMachineId(path, hostname)
+	if err != nil {
+		return err
+	} else if (isSet) {
+		machineIdBytes, err := os.ReadFile("/etc/machine-id")
+		machineId := strings.TrimSuffix(string(machineIdBytes), "\n")
+		if err != nil {
+			return fmt.Errorf("Can not read file '/etc/machine-id': %s", err)
+		}
+		if expectedMachineId != machineId {
+			return fmt.Errorf("Skip deployment because the comin expected machine id '%s' is not equal to the actual machine id '%s'",
+				expectedMachineId, machineId)
+		}
+	}
+	return nil
+}
+
 func Deploy(config types.Configuration, path, operation string, dryRun bool) (err error) {
 	err = os.MkdirAll(config.StateDir, 0750)
 	if err != nil {
 		return
+	}
+
+	if err := checkMachineId(path, config.Hostname); err != nil {
+		return err
 	}
 
 	outPath, err := Build(path, config.Hostname)

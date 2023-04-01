@@ -105,6 +105,21 @@
               Whether to run comin in debug mode. Be careful, secrets are shown!.
             '';
           };
+          machineId = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = ''
+              The expected machine-id of the machine configured by
+              comin. If not null, the configuration is only deployed
+              when this specified machine-id is equal to the actual
+              machine-id.
+              This is mainly useful for server migration: this allows
+              to migrate a configuration from a machine to another
+              machine (with different hardware for instance) without
+              impacting both.
+              Note it is only used by comin at evaluation.
+            '';
+          };
         };
       };
       config = lib.mkIf cfg.services.comin.enable {
