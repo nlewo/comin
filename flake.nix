@@ -107,7 +107,7 @@
           };
         };
       };
-      config = {
+      config = lib.mkIf cfg.services.comin.enable {
         nixpkgs.overlays = [ self.overlay ];
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
