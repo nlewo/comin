@@ -32,10 +32,38 @@ func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 	}, nil
 }
 
+func loadState(stateFilepath string) (state types.State, err error) {
+	if _, err := os.Stat(stateFilepath); err == nil {
+		logrus.Debugf("Loading state file located at %s", stateFilepath)
+		content, err := ioutil.ReadFile(stateFilepath)
+		if err != nil {
+			return state, err
+		}
+		err = json.Unmarshal(content, &state)
+		if err != nil {
+			return state, err
+		}
+		logrus.Debugf("State is %#v", state)
+	}
+	return state, nil
+}
+
+func saveState(stateFilepath string, state types.State) error {
+	res, err := json.MarshalIndent(state, "", "\t")
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(stateFilepath, []byte(res), 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Deploy update the tracked repository, deploys the configuration and
 // update the state file.
 func (deployer Deployer) Deploy() error {
-	stateFile := filepath.Join(deployer.config.StateDir, "state.json")
+	stateFilepath := filepath.Join(deployer.config.StateDir, "state.json")
 	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository)
 	if err != nil {
 		return err
@@ -46,20 +74,12 @@ func (deployer Deployer) Deploy() error {
 		operation = "test"
 	}
 
-	var state types.State
-	if _, err := os.Stat(stateFile); err == nil {
-		logrus.Debugf("Loading state file")
-		content, err := ioutil.ReadFile(stateFile)
-		if err != nil {
-			return err
-		}
-		err = json.Unmarshal(content, &state)
-		if err != nil {
-			return err
-		}
-		logrus.Debugf("State is %#v", state)
+	state, err := loadState(stateFilepath)
+	if err != nil {
+		return err
 	}
 
+	// We skip the deployment if commit and operation are identical
 	if commitHash.String() == state.CommitId && state.Operation == operation {
 		return nil
 	}
@@ -68,20 +88,15 @@ func (deployer Deployer) Deploy() error {
 	err = nix.Deploy(deployer.config, deployer.repository.GitConfig.Path, operation, deployer.dryRun)
 	if err != nil {
 		logrus.Errorf("%s", err)
-		logrus.Infof("Deploy failed")
+		logrus.Infof("Deployment failed")
 	} else {
-		logrus.Infof("Deploy succeeded")
+		logrus.Infof("Deployment succeeded")
 	}
+
 	state.Deployed = err == nil
 	state.CommitId = commitHash.String()
 	state.Operation = operation
-
-	res, err := json.MarshalIndent(state, "", "\t")
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(stateFile, []byte(res), 0644)
-	if err != nil {
+	if err := saveState(stateFilepath, state); err != nil {
 		return err
 	}
 

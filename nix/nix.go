@@ -43,7 +43,7 @@ func getExpectedMachineId(path, hostname string) (isSet bool, machineId string, 
 		return
 	}
 	if machineIdPtr != nil {
- 		logrus.Debugf("Getting comin.machineId = %s", *machineIdPtr)
+		logrus.Debugf("Getting comin.machineId = %s", *machineIdPtr)
 		machineId = *machineIdPtr
 		isSet = true
 	} else {
@@ -162,7 +162,7 @@ func checkMachineId(path, hostname string) error {
 	isSet, expectedMachineId, err := getExpectedMachineId(path, hostname)
 	if err != nil {
 		return err
-	} else if (isSet) {
+	} else if isSet {
 		machineIdBytes, err := os.ReadFile("/etc/machine-id")
 		machineId := strings.TrimSuffix(string(machineIdBytes), "\n")
 		if err != nil {
@@ -172,6 +172,64 @@ func checkMachineId(path, hostname string) error {
 			return fmt.Errorf("Skip deployment because the comin expected machine id '%s' is not equal to the actual machine id '%s'",
 				expectedMachineId, machineId)
 		}
+	}
+	return nil
+}
+
+func setSystemProfile(operation string, outPath string, dryRun bool) error {
+	if operation == "switch" || operation == "boot" {
+		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
+		logrus.Infof("Running '%s'", cmdStr)
+		cmd := exec.Command("nix-env", "--profile", "/nix/var/nix/profiles/system", "--set", outPath)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if dryRun {
+			logrus.Infof("Dry-run enabled: '%s' has not been executed", cmdStr)
+		} else {
+			err := cmd.Run()
+			if err != nil {
+				return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+			}
+			logrus.Infof("Command '%s' succeeded", cmdStr)
+		}
+	}
+	return nil
+}
+
+func createGcRoot(stateDir, hostname, outPath string, dryRun bool) error {
+	gcRootDir := filepath.Join(stateDir, "gcroots")
+	gcRoot := filepath.Join(
+		gcRootDir,
+		fmt.Sprintf("switch-to-configuration-%s", hostname))
+	if dryRun {
+		logrus.Infof("Dry-run enabled: 'ln -s %s %s'", outPath, gcRoot)
+		return nil
+	}
+	if err := os.MkdirAll(gcRootDir, 0750); err != nil {
+		return err
+	}
+	// TODO: only remove if file already exists
+	os.Remove(gcRoot)
+	if err := os.Symlink(outPath, gcRoot); err != nil {
+		return fmt.Errorf("Failed to create symlink 'ln -s %s %s': %s", outPath, gcRoot, err)
+	}
+	logrus.Infof("Creating gcroot '%s'", gcRoot)
+	return nil
+}
+
+func switchToConfiguration(operation string, outPath string, dryRun bool) error {
+	switchToConfigurationExe := filepath.Join(outPath, "bin", "switch-to-configuration")
+	logrus.Infof("Running '%s %s'", switchToConfigurationExe, operation)
+	cmd := exec.Command(switchToConfigurationExe, operation)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if dryRun {
+		logrus.Infof("Dry-run enabled: '%s switch' has not been executed", switchToConfigurationExe)
+	} else {
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("Command %s switch fails with %s", switchToConfigurationExe, err)
+		}
+		logrus.Infof("Switch successfully terminated")
 	}
 	return nil
 }
@@ -191,52 +249,17 @@ func Deploy(config types.Configuration, path, operation string, dryRun bool) (er
 		return
 	}
 
-	if operation == "switch" || operation == "boot" {
-		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
-		logrus.Infof("Running '%s'", cmdStr)
-		cmd := exec.Command("nix-env", "--profile", "/nix/var/nix/profiles/system", "--set", outPath)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if dryRun {
-			logrus.Infof("Dry-run enabled: '%s' has not been executed", cmdStr)
-		} else {
-			err = cmd.Run()
-			if err != nil {
-				return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
-			}
-			logrus.Infof("Command '%s' succeeded", cmdStr)
-		}
+	// This is required to write boot entries
+	if err := setSystemProfile(operation, outPath, dryRun); err != nil {
+		return err
 	}
 
-	switchToConfiguration := filepath.Join(outPath, "bin", "switch-to-configuration")
-	logrus.Infof("Running '%s %s'", switchToConfiguration, operation)
-	cmd := exec.Command(switchToConfiguration, operation)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if dryRun {
-		logrus.Infof("Dry-run enabled: '%s switch' has not been executed", switchToConfiguration)
-	} else {
-		err = cmd.Run()
-		if err != nil {
-			return fmt.Errorf("Command %s switch fails with %s", switchToConfiguration, err)
-		}
-		logrus.Infof("Switch successfully terminated")
+	if err := switchToConfiguration(operation, outPath, dryRun); err != nil {
+		return err
+	}
 
-		gcRootDir := filepath.Join(config.StateDir, "gcroots")
-		err = os.MkdirAll(gcRootDir, 0750)
-		if err != nil {
-			return
-		}
-		gcRoot := filepath.Join(
-			gcRootDir,
-			fmt.Sprintf("switch-to-configuration-%s", config.Hostname))
-		// TODO: only remove if file already exists
-		os.Remove(gcRoot)
-		err = os.Symlink(outPath, gcRoot)
-		if err != nil {
-			return fmt.Errorf("Failed to create symlink 'ln -s %s %s': %s", outPath, gcRoot, err)
-		}
-		logrus.Infof("Creating gcroot '%s'", gcRoot)
+	if err := createGcRoot(config.StateDir, config.Hostname, outPath, dryRun); err != nil {
+		return err
 	}
 	return
 }
