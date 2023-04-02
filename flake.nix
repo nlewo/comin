@@ -127,8 +127,8 @@
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
           path = [ pkgs.nix pkgs.git ];
-          # FIXME find a better way to restart comin without breaking
-          # the current deployment executed by comin...
+          # The comin service is restart by comin itself when it
+          # detects the unit file changed.
           restartIfChanged = false;
           serviceConfig = {
             ExecStart =

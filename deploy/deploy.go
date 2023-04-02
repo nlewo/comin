@@ -1,6 +1,8 @@
 package deploy
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"github.com/nlewo/comin/config"
@@ -10,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -60,6 +63,32 @@ func saveState(stateFilepath string, state types.State) error {
 	return nil
 }
 
+func cominUnitFileHash() (string, error) {
+	logrus.Infof("Generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
+	cmd := exec.Command("systemctl", "cat", "comin.service")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("Command 'systemctl cat comin.service' fails with %s", err)
+	}
+	sum := sha256.Sum256(stdout.Bytes())
+	hash := fmt.Sprintf("%x", sum)
+	logrus.Infof("The comin.service unit file sha256 is '%s'", hash)
+	return hash, nil
+}
+
+func cominServiceRestart() error {
+	logrus.Infof("Restarting the systemd comin.service: 'systemctl restart --no-block comin.service'")
+	cmd := exec.Command("systemctl", "restart", "--no-block", "comin.service")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Command 'systemctl restart --no-block comin.service' fails with %s", err)
+	}
+	return nil
+}
+
 // Deploy update the tracked repository, deploys the configuration and
 // update the state file.
 func (deployer Deployer) Deploy() error {
@@ -84,6 +113,11 @@ func (deployer Deployer) Deploy() error {
 		return nil
 	}
 
+	beforeCominUnitFileHash, err := cominUnitFileHash()
+	if err != nil {
+		return err
+	}
+
 	logrus.Infof("Starting to deploy commit '%s'", commitHash)
 	err = nix.Deploy(deployer.config, deployer.repository.GitConfig.Path, operation, deployer.dryRun)
 	if err != nil {
@@ -98,6 +132,18 @@ func (deployer Deployer) Deploy() error {
 	state.Operation = operation
 	if err := saveState(stateFilepath, state); err != nil {
 		return err
+	}
+
+	afterCominUnitFileHash, err := cominUnitFileHash()
+	if err != nil {
+		return err
+	}
+	if beforeCominUnitFileHash != afterCominUnitFileHash {
+		logrus.Infof("The comin.service unit file changed. Comin systemd service is now restarted...")
+		err := cominServiceRestart()
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
