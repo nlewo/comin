@@ -42,6 +42,10 @@ func TestConfig(t *testing.T) {
 				Protected: false,
 			},
 		},
+		Webhook: types.Webhook{
+			Address: "127.0.0.1",
+			Port:    4242,
+		},
 	}
 	config, err := Read(configPath)
 	assert.Nil(t, err)
