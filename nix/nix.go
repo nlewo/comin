@@ -1,6 +1,7 @@
 package nix
 
 import (
+	"io"
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
@@ -16,6 +17,7 @@ const (
 	EXPECTED_MACHINE_ID_FILEPATH = "/etc/comin/expected-machine-id"
 )
 
+
 // GetExpectedMachineId evals
 // nixosConfigurations.MACHINE.config.services.comin.machineId and
 // returns (true, machine-id, nil) is comin.machineId is set, (false,
@@ -27,15 +29,10 @@ func getExpectedMachineId(path, hostname string) (isSet bool, machineId string, 
 		expr,
 		"--json",
 	}
-	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
-	logrus.Infof("Running '%s'", cmdStr)
-	cmd := exec.Command("nix", args...)
 	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	err = runNixCommand(args, &stdout, os.Stderr)
 	if err != nil {
-		return isSet, machineId, fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+		return
 	}
 	var machineIdPtr *string
 	err = json.Unmarshal(stdout.Bytes(), &machineIdPtr)
@@ -52,6 +49,21 @@ func getExpectedMachineId(path, hostname string) (isSet bool, machineId string, 
 	return
 }
 
+func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
+	commonArgs := []string{"--extra-experimental-features", "nix-command", "--extra-experimental-features", "flakes"}
+	args = append(commonArgs, args...)
+	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
+	logrus.Infof("Running '%s'", cmdStr)
+	cmd := exec.Command("nix", args...)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+	}
+	return nil
+}
+
 func showDerivation(path, hostname string) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", path, hostname)
 	args := []string{
@@ -59,17 +71,11 @@ func showDerivation(path, hostname string) (drvPath string, outPath string, err 
 		installable,
 		"-L",
 	}
-	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
-	logrus.Infof("Running '%s'", cmdStr)
-	cmd := exec.Command("nix", args...)
 	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	err = runNixCommand(args, &stdout, os.Stderr)
 	if err != nil {
-		return "", "", fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+		return
 	}
-	logrus.Infof("After '%s'", cmdStr)
 
 	var output map[string]Derivation
 	err = json.Unmarshal(stdout.Bytes(), &output)
@@ -108,15 +114,10 @@ func List() (hosts []string, err error) {
 		"flake",
 		"show",
 		"--json"}
-	logrus.Infof("Running 'nix %s'", strings.Join(args, " "))
-	cmd := exec.Command("nix", args...)
-
 	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	err = runNixCommand(args, &stdout, os.Stderr)
 	if err != nil {
-		return hosts, fmt.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
+		return
 	}
 
 	var output Show
@@ -142,13 +143,9 @@ func Build(path, hostname string) (outPath string, err error) {
 		drvPath,
 		"-L",
 		"--no-link"}
-	logrus.Infof("Running 'nix %s'", strings.Join(args, " "))
-	cmd := exec.Command("nix", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	err = runNixCommand(args, os.Stdout, os.Stderr)
 	if err != nil {
-		return outPath, fmt.Errorf("Command nix %s fails with %s", strings.Join(args, " "), err)
+		return
 	}
 	return
 }
