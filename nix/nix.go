@@ -2,9 +2,9 @@ package nix
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
@@ -217,6 +217,21 @@ func createGcRoot(stateDir, hostname, outPath string, dryRun bool) error {
 	return nil
 }
 
+func cominUnitFileHash() (string, error) {
+	logrus.Infof("Generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
+	cmd := exec.Command("systemctl", "cat", "comin.service")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("Command 'systemctl cat comin.service' fails with %s", err)
+	}
+	sum := sha256.Sum256(stdout.Bytes())
+	hash := fmt.Sprintf("%x", sum)
+	logrus.Infof("The comin.service unit file sha256 is '%s'", hash)
+	return hash, nil
+}
+
 func switchToConfiguration(operation string, outPath string, dryRun bool) error {
 	switchToConfigurationExe := filepath.Join(outPath, "bin", "switch-to-configuration")
 	logrus.Infof("Running '%s %s'", switchToConfigurationExe, operation)
@@ -234,32 +249,48 @@ func switchToConfiguration(operation string, outPath string, dryRun bool) error 
 	return nil
 }
 
-func Deploy(config types.Configuration, path, operation string, dryRun bool) (err error) {
-	err = os.MkdirAll(config.StateDir, 0750)
+func Deploy(hostname, stateDir, path, operation string, dryRun bool) (needToRestartComin bool, err error) {
+	err = os.MkdirAll(stateDir, 0750)
 	if err != nil {
 		return
 	}
 
-	if err := checkMachineId(path, config.Hostname); err != nil {
-		return err
+	if err = checkMachineId(path, hostname); err != nil {
+		return
 	}
 
-	outPath, err := Build(path, config.Hostname)
+	outPath, err := Build(path, hostname)
+	if err != nil {
+		return
+	}
+
+	beforeCominUnitFileHash, err := cominUnitFileHash()
 	if err != nil {
 		return
 	}
 
 	// This is required to write boot entries
-	if err := setSystemProfile(operation, outPath, dryRun); err != nil {
-		return err
+	if err = setSystemProfile(operation, outPath, dryRun); err != nil {
+		return
 	}
 
-	if err := switchToConfiguration(operation, outPath, dryRun); err != nil {
-		return err
+	if err = switchToConfiguration(operation, outPath, dryRun); err != nil {
+		return
 	}
 
-	if err := createGcRoot(config.StateDir, config.Hostname, outPath, dryRun); err != nil {
-		return err
+	afterCominUnitFileHash, err := cominUnitFileHash()
+	if err != nil {
+		return
 	}
+	if beforeCominUnitFileHash != afterCominUnitFileHash {
+		needToRestartComin = true
+	}
+
+	if err = createGcRoot(stateDir, hostname, outPath, dryRun); err != nil {
+		return
+	}
+
+	logrus.Infof("Deployment succeeded")
+
 	return
 }

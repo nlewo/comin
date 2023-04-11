@@ -12,6 +12,34 @@ import (
 	"io/ioutil"
 )
 
+func RepositoryClone(directory, url, commitId, accessToken string) error {
+	options := &git.CloneOptions{
+		URL:        url,
+		NoCheckout: true,
+	}
+	if accessToken != "" {
+		options.Auth = &http.BasicAuth{
+			Username: "comin",
+			Password: accessToken,
+		}
+	}
+	repository, err := git.PlainClone(directory, false, options)
+	if err != nil {
+		return err
+	}
+	worktree, err := repository.Worktree()
+	if err != nil {
+		return err
+	}
+	err = worktree.Checkout(&git.CheckoutOptions{
+		Hash: plumbing.NewHash(commitId),
+	})
+	if err != nil {
+		return fmt.Errorf("Cannot checkout the commit ID %s: '%s'", commitId, err)
+	}
+	return nil
+}
+
 // checkout only checkouts the branch under specific condition
 func RepositoryUpdate(r types.Repository) (newHead plumbing.Hash, fromBranch string, err error) {
 	var head, mainHead, remoteMainHead, remoteTestingHead plumbing.Hash

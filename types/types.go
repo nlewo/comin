@@ -4,17 +4,6 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
-// The state is only used to avoid unnecessary rebuilds and doesn't
-// need to be persisted.
-type State struct {
-	// Operation is the last nixos-rebuild operation
-	// (basically, test or switch)
-	Operation string
-	// The last commit that has been tried to be deployed
-	CommitId string
-	Deployed bool
-}
-
 type Config struct {
 	Hostname  string
 	StateDir  string

@@ -26,7 +26,7 @@
             p == "README.md"
           );
         };
-        vendorSha256 = "sha256-zhTRR0NQ67Hf4NyqZ+j8R7wHiVMQcCTBFsi344lJLUA=";
+        vendorSha256 = "sha256-tkP9sWWXoCOUTz+7JIQZz3Btehad6OgjruSOw6HTKVg=";
       };
     };
 
