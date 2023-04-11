@@ -27,6 +27,11 @@
           );
         };
         vendorSha256 = "sha256-tkP9sWWXoCOUTz+7JIQZz3Btehad6OgjruSOw6HTKVg=";
+        buildInputs = [ final.makeWrapper ];
+        postInstall = ''
+          # This is because Nix needs Git at runtime
+          wrapProgram $out/bin/comin --prefix PATH : ${final.git}/bin
+        '';
       };
     };
 
