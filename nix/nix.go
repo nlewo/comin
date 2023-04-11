@@ -214,19 +214,20 @@ func createGcRoot(stateDir, hostname, outPath string, dryRun bool) error {
 	return nil
 }
 
-func cominUnitFileHash() (string, error) {
+func cominUnitFileHash() string {
 	logrus.Infof("Generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
 	cmd := exec.Command("systemctl", "cat", "comin.service")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("Command 'systemctl cat comin.service' fails with %s", err)
+		logrus.Infof("Command 'systemctl cat comin.service' fails with '%s'", err)
+		return ""
 	}
 	sum := sha256.Sum256(stdout.Bytes())
 	hash := fmt.Sprintf("%x", sum)
 	logrus.Infof("The comin.service unit file sha256 is '%s'", hash)
-	return hash, nil
+	return hash
 }
 
 func switchToConfiguration(operation string, outPath string, dryRun bool) error {
@@ -261,10 +262,7 @@ func Deploy(hostname, stateDir, path, operation string, dryRun bool) (needToRest
 		return
 	}
 
-	beforeCominUnitFileHash, err := cominUnitFileHash()
-	if err != nil {
-		return
-	}
+	beforeCominUnitFileHash := cominUnitFileHash()
 
 	// This is required to write boot entries
 	if err = setSystemProfile(operation, outPath, dryRun); err != nil {
@@ -275,10 +273,8 @@ func Deploy(hostname, stateDir, path, operation string, dryRun bool) (needToRest
 		return
 	}
 
-	afterCominUnitFileHash, err := cominUnitFileHash()
-	if err != nil {
-		return
-	}
+	afterCominUnitFileHash := cominUnitFileHash()
+
 	if beforeCominUnitFileHash != afterCominUnitFileHash {
 		needToRestartComin = true
 	}
