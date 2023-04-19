@@ -40,104 +40,105 @@ func RepositoryClone(directory, url, commitId, accessToken string) error {
 	return nil
 }
 
-// checkout only checkouts the branch under specific condition
-func RepositoryUpdate(r types.Repository) (newHead plumbing.Hash, fromBranch string, err error) {
-	var head, mainHead, remoteMainHead, remoteTestingHead plumbing.Hash
-	err = fetch(r)
-	if err != nil {
-		return
-	}
-
-	// This is the checkouted commit and it is used to detect
-	// local updates.
-	headRef, err := r.Repository.Reference(plumbing.HEAD, true)
-	if headRef != nil && err == nil {
-		head = headRef.Hash()
-	}
-
-	remoteMainBranch := fmt.Sprintf("refs/remotes/%s/%s", r.GitConfig.Remote.Name, r.GitConfig.Main)
+func getRemoteCommitHash(r types.Repository, remote, branch string) (*plumbing.Hash, error) {
+	remoteMainBranch := fmt.Sprintf("refs/remotes/%s/%s", remote, branch)
 	remoteMainHeadRef, err := r.Repository.Reference(
 		plumbing.ReferenceName(remoteMainBranch),
 		true)
-	if err != nil || remoteMainHeadRef == nil {
-		return newHead, fromBranch, fmt.Errorf("The remote branch '%s' doesn't exist", remoteMainBranch)
+	if err != nil {
+		return nil, err
 	}
-	remoteMainHead = remoteMainHeadRef.Hash()
-	newHead = remoteMainHead
-	fromBranch = r.GitConfig.Main
+	if remoteMainHeadRef == nil {
+		return nil, nil
+	}
+	commitId := remoteMainHeadRef.Hash()
+	return &commitId, nil
+}
 
-	// The main branch can not be hard reseted: HEAD has to be an
-	// ancestor of the remote main branch. The main branch is used
-	// to ensure the remote branch has not been hard reset.
-	mainBranch := fmt.Sprintf("refs/heads/%s", r.GitConfig.Main)
-	mainHeadRef, err := r.Repository.Reference(
-		plumbing.ReferenceName(mainBranch),
-		true)
-	if err == nil && mainHeadRef != nil {
-		mainHead = mainHeadRef.Hash()
-	}
-	if mainHeadRef != nil && remoteMainHeadRef != nil && mainHead != remoteMainHead {
+func hasNotBeenHardReset(r types.Repository, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
+	if currentMainHash != nil && remoteMainHead != nil && *currentMainHash != *remoteMainHead {
 		var ok bool
-		ok, err = isAncestor(r.Repository, mainHead, remoteMainHead)
+		ok, err := isAncestor(r.Repository, *currentMainHash, *remoteMainHead)
 		if err != nil {
-			return
+			return err
 		}
 		if !ok {
-			return newHead, fromBranch, fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out", r.GitConfig.Main)
+			return fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out",
+				r.GitConfig.Main)
 		}
 	}
-	// Since we know the main remote branch has not been hard
-	// reset, we can pull remote main branch into the local main
-	// branch.
-	if remoteMainHead != mainHead {
-		logrus.Infof("The local branch '%s' has been reset on the remote branch '%s' (commit '%s')",
-			r.GitConfig.Main, r.GitConfig.Main, remoteMainHead)
-		ref := plumbing.NewHashReference(plumbing.ReferenceName(mainBranch), remoteMainHead)
-		err = r.Repository.Storer.SetReference(ref)
-		if err != nil {
-			return newHead, fromBranch, fmt.Errorf("Failed to set the reference '%s': '%s'", ref, err)
-		}
-	}
-	remoteTestingBranch := fmt.Sprintf("refs/remotes/%s/%s", r.GitConfig.Remote.Name, r.GitConfig.Testing)
-	remoteTestingHeadRef, err := r.Repository.Reference(
-		plumbing.ReferenceName(remoteTestingBranch),
-		true)
-	if err != nil || remoteTestingHeadRef == nil {
-		logrus.Debugf("The remote branch '%s' doesn't exist", remoteTestingBranch)
-	} else {
-		remoteTestingHead = remoteTestingHeadRef.Hash()
+	return nil
+}
+
+// checkout only checkouts the branch under specific condition
+func RepositoryUpdate(r types.Repository, currentMainCommitId string) (newHead plumbing.Hash, fromBranch string, err error) {
+	var head plumbing.Hash
+	var currentMainHash, remoteMainHead, remoteTestingHead *plumbing.Hash
+	fromBranch = r.GitConfig.Main
+	if currentMainCommitId != "" {
+		c := plumbing.NewHash(currentMainCommitId)
+		currentMainHash = &c
 	}
 
-	if remoteTestingHeadRef != nil {
+	if err = fetch(r); err != nil {
+		return
+	}
+
+	if remoteMainHead, err = getRemoteCommitHash(r, r.GitConfig.Remote.Name, r.GitConfig.Main); err != nil {
+		return
+	}
+	if remoteTestingHead, err = getRemoteCommitHash(r, r.GitConfig.Remote.Name, r.GitConfig.Testing); err != nil {
+		return
+	}
+
+	if remoteMainHead == nil {
+		// TODO: provide the exact branch name
+		return newHead, fromBranch, fmt.Errorf("The remote Main branch doesn't exist")
+	}
+
+	newHead = *remoteMainHead
+
+	if err = hasNotBeenHardReset(r, currentMainHash, remoteMainHead); err != nil {
+		return
+	}
+
+	if remoteTestingHead != nil {
 		// If the testing branch is on top of the main branch, we hard
 		// reset to the testing branch
 		var ancestor bool
-		ancestor, err = isAncestor(r.Repository, remoteMainHead, remoteTestingHead)
+		ancestor, err = isAncestor(r.Repository, *remoteMainHead, *remoteTestingHead)
 		if err != nil {
 			return
 		}
 		if ancestor {
-			newHead = remoteTestingHead
+			newHead = *remoteTestingHead
 			fromBranch = r.GitConfig.Testing
 		}
 	}
 
 	if newHead != head {
-		var w *git.Worktree
-		w, err = r.Repository.Worktree()
-		if err != nil {
-			return newHead, fromBranch, fmt.Errorf("Failed to get the worktree")
-		}
-		err = w.Checkout(&git.CheckoutOptions{
-			Hash:  newHead,
-			Force: true,
-		})
-		if err != nil {
-			return newHead, fromBranch, fmt.Errorf("git reset --hard %s fails: '%s'", newHead, err)
+		if err := hardReset(r, newHead); err != nil {
+			return newHead, fromBranch, err
 		}
 		logrus.Infof("The commit '%s' from branch '%s' has been checked out", newHead, fromBranch)
 	}
 	return newHead, fromBranch, nil
+}
+
+func hardReset(r types.Repository, newHead plumbing.Hash) error {
+	var w *git.Worktree
+	w, err := r.Repository.Worktree()
+	if err != nil {
+		return fmt.Errorf("Failed to get the worktree")
+	}
+	err = w.Checkout(&git.CheckoutOptions{
+		Hash:  newHead,
+		Force: true,
+	})
+	if err != nil {
+		return fmt.Errorf("git reset --hard %s fails: '%s'", newHead, err)
+	}
+	return nil
 }
 
 // fetch fetches the config.Remote

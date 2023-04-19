@@ -1,12 +1,12 @@
 package nix
 
 import (
-	"io"
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,7 +16,6 @@ import (
 const (
 	EXPECTED_MACHINE_ID_FILEPATH = "/etc/comin/expected-machine-id"
 )
-
 
 // GetExpectedMachineId evals
 // nixosConfigurations.MACHINE.config.services.comin.machineId and

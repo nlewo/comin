@@ -15,7 +15,12 @@ type State struct {
 	Operation string
 	// The last commit that has been tried to be deployed
 	CommitId string
-	Deployed bool
+	// If the current deployment is testing
+	IsTesting bool
+	Deployed  bool
+	// The last commit of the Main branch. This is used to
+	// garantees the main branch is only fast forwarded.
+	MainCommitId string
 }
 
 func Load(stateFilepath string) (state State, err error) {

@@ -35,7 +35,13 @@ func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 // update the state file.
 func (deployer Deployer) Deploy() (err error) {
 	stateFilepath := filepath.Join(deployer.config.StateDir, "state.json")
-	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository)
+
+	st, err := state.Load(stateFilepath)
+	if err != nil {
+		return
+	}
+
+	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository, st.MainCommitId)
 	if err != nil {
 		return
 	}
@@ -43,11 +49,12 @@ func (deployer Deployer) Deploy() (err error) {
 	operation := "switch"
 	if branch == deployer.repository.GitConfig.Testing {
 		operation = "test"
-	}
-
-	st, err := state.Load(stateFilepath)
-	if err != nil {
-		return
+		st.IsTesting = true
+	} else {
+		// When the main branch has been checked out, we
+		// update the state to avoid non fast forward future
+		// pulls.
+		st.MainCommitId = commitHash.String()
 	}
 
 	// We skip the deployment if commit and operation are identical
