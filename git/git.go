@@ -71,8 +71,7 @@ func hasNotBeenHardReset(r types.Repository, currentMainHash *plumbing.Hash, rem
 }
 
 // checkout only checkouts the branch under specific condition
-func RepositoryUpdate(r types.Repository, currentMainCommitId string) (newHead plumbing.Hash, fromBranch string, err error) {
-	var head plumbing.Hash
+func RepositoryUpdate(r types.Repository, currentMainCommitId string, lastDeployedCommitId string) (newHead plumbing.Hash, fromBranch string, err error) {
 	var currentMainHash, remoteMainHead, remoteTestingHead *plumbing.Hash
 	fromBranch = r.GitConfig.Main
 	if currentMainCommitId != "" {
@@ -116,7 +115,7 @@ func RepositoryUpdate(r types.Repository, currentMainCommitId string) (newHead p
 		}
 	}
 
-	if newHead != head {
+	if newHead.String() != lastDeployedCommitId {
 		if err := hardReset(r, newHead); err != nil {
 			return newHead, fromBranch, err
 		}

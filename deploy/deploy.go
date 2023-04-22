@@ -41,7 +41,7 @@ func (deployer Deployer) Deploy() (err error) {
 		return
 	}
 
-	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository, st.MainCommitId)
+	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository, st.MainCommitId, st.CommitId)
 	if err != nil {
 		return
 	}
