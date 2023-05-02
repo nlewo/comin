@@ -64,8 +64,12 @@
           };
         };
         poller.period = cfg.services.comin.pollerPeriod;
-      };
-      cominConfigYaml = yaml.generate "comin.yml" cominConfig;
+      } // (
+        if cfg.services.comin.inotifyRepositoryPath != null
+        then { inotify.repository_path = cfg.services.comin.inotifyRepositoryPath; }
+        else { }
+      );
+      cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
     in {
       options = {
         services.comin = {
@@ -124,6 +128,15 @@
               impacting both.
               Note it is only used by comin at evaluation.
             '';
+          };
+          inotifyRepositoryPath = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = ''
+              The path of a local repository to watch. On each commit,
+              the worker is triggered to fetch new commits. This
+              allows to have fast switch when the repository is local.
+          '';
           };
         };
       };

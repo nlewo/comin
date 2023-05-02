@@ -51,6 +51,10 @@ type Poller struct {
 	Period int `yaml:"period"`
 }
 
+type Inotify struct {
+	RepositoryPath string `yaml:"repository_path"`
+}
+
 type Webhook struct {
 	Address    string `yaml:"address"`
 	Port       int    `yaml:"port"`
@@ -65,4 +69,5 @@ type Configuration struct {
 	Branches Branches `yaml:"branches"`
 	Poller   Poller   `yaml:"poller"`
 	Webhook  Webhook  `yaml:"webhook"`
+	Inotify  Inotify   `yaml:"inotify"`
 }
