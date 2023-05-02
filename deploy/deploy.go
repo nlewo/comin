@@ -34,7 +34,7 @@ func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 // Deploy update the tracked repository, deploys the configuration and
 // update the state file.
 func (deployer Deployer) Deploy() (err error) {
-	stateFilepath := filepath.Join(deployer.config.StateDir, "state.json")
+	stateFilepath := filepath.Join(deployer.config.StateFilepath)
 
 	st, err := state.Load(stateFilepath)
 	if err != nil {

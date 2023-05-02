@@ -1,4 +1,4 @@
-package webhook
+package http
 
 import (
 	"fmt"
@@ -6,11 +6,28 @@ import (
 	"github.com/nlewo/comin/worker"
 	"github.com/sirupsen/logrus"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 )
 
-func Run(worker worker.Worker, cfg types.Webhook) {
+func handlerStatus(stateFilepath string, w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("Getting status request %s from %s", r.URL, r.RemoteAddr)
+	w.WriteHeader(http.StatusOK)
+	content, err := ioutil.ReadFile(stateFilepath)
+	if err != nil {
+		logrus.Debugf("Error while reading the statefile: ", err)
+		return
+	}
+	io.WriteString(w, string(content))
+	return
+}
+
+func Run(worker worker.Worker, cfg types.Webhook, stateFilepath string) {
+	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
+		handlerStatus(stateFilepath, w, r)
+		return
+	}
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		var secret string
 		logrus.Infof("Getting webhook request %s from %s", r.URL, r.RemoteAddr)
@@ -38,6 +55,7 @@ func Run(worker worker.Worker, cfg types.Webhook) {
 		}
 	}
 	http.HandleFunc("/deploy", handler)
+	http.HandleFunc("/status", handlerStatusFn)
 	url := fmt.Sprintf("%s:%d", cfg.Address, cfg.Port)
 	logrus.Infof("Starting the webhook server on %s", url)
 	if err := http.ListenAndServe(url, nil); err != nil {

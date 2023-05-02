@@ -240,7 +240,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 	assert.Equal(t, branch, "main")
 
 	// Without any new remote commits, the local repository is not updated
-	commitId, branch, err = RepositoryUpdate(cominRepository, commitId.String(),"")
+	commitId, branch, err = RepositoryUpdate(cominRepository, commitId.String(), "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
 	assert.Equal(t, branch, "main")

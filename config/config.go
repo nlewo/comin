@@ -43,6 +43,9 @@ func Read(path string) (config types.Configuration, err error) {
 		}
 		config.Webhook.Secret = string(content)
 	}
+	if config.StateFilepath == "" {
+		config.StateFilepath = filepath.Join(config.StateDir, "state.json")
+	}
 	logrus.Debugf("Config is '%#v'", config)
 	return
 }
