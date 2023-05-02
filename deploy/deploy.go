@@ -10,6 +10,7 @@ import (
 	"github.com/nlewo/comin/utils"
 	"github.com/sirupsen/logrus"
 	"path/filepath"
+	"time"
 )
 
 type Deployer struct {
@@ -41,7 +42,7 @@ func (deployer Deployer) Deploy() (err error) {
 		return
 	}
 
-	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository, st.MainCommitId, st.CommitId)
+	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository, st.MainCommitId, st.HeadCommitId)
 	if err != nil {
 		return
 	}
@@ -49,7 +50,7 @@ func (deployer Deployer) Deploy() (err error) {
 	operation := "switch"
 	if branch == deployer.repository.GitConfig.Testing {
 		operation = "test"
-		st.IsTesting = true
+		st.OnTesting = true
 	} else {
 		// When the main branch has been checked out, we
 		// update the state to avoid non fast forward future
@@ -58,7 +59,7 @@ func (deployer Deployer) Deploy() (err error) {
 	}
 
 	// We skip the deployment if commit and operation are identical
-	if commitHash.String() == st.CommitId && st.Operation == operation {
+	if commitHash.String() == st.HeadCommitId && st.LastOperation == operation {
 		return nil
 	}
 
@@ -73,12 +74,14 @@ func (deployer Deployer) Deploy() (err error) {
 	if err != nil {
 		logrus.Error(err)
 		logrus.Infof("Deployment failed")
+		st.HeadCommitDeployed = false
 	} else {
-		st.Deployed = true
+		st.HeadCommitDeployed = true
+		st.HeadCommitDeployedAt = time.Now()
 	}
 
-	st.CommitId = commitHash.String()
-	st.Operation = operation
+	st.HeadCommitId = commitHash.String()
+	st.LastOperation = operation
 	if err = state.Save(stateFilepath, st); err != nil {
 		return
 	}

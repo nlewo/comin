@@ -105,11 +105,13 @@ var bootstrapCmd = &cobra.Command{
 			logrus.Infof("Deployment failed")
 			return
 		} else {
-			st.Deployed = err == nil
+			st.HeadCommitDeployed = err == nil
 		}
 
-		st.CommitId = rev
-		st.Operation = operation
+		// This is to avoid non fast forward checkouts
+		st.MainCommitId = rev
+		st.HeadCommitId = rev
+		st.LastOperation = operation
 		if err := state.Save(stateFilepath, st); err != nil {
 			return
 		}
