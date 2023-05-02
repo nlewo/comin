@@ -7,20 +7,20 @@ import (
 	"os"
 )
 
-// The state is only used to avoid unnecessary rebuilds and doesn't
-// need to be persisted.
+// The state is used for security purposes and to avoid unnecessary
+// rebuilds.
 type State struct {
 	// Operation is the last nixos-rebuild operation
 	// (basically, test or switch)
-	Operation string
+	Operation string `json:"operation"`
 	// The last commit that has been tried to be deployed
-	CommitId string
+	CommitId string `json:"commit-id"`
 	// If the current deployment is testing
-	IsTesting bool
-	Deployed  bool
+	IsTesting bool `json:"is-testing"`
+	Deployed  bool `json:"deployed"`
 	// The last commit of the Main branch. This is used to
 	// garantees the main branch is only fast forwarded.
-	MainCommitId string
+	MainCommitId string `json:"main-commit-id"`
 }
 
 func Load(stateFilepath string) (state State, err error) {
