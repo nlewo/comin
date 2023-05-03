@@ -21,20 +21,28 @@ func Run(worker worker.Worker, cfg types.Inotify) {
 	}
 	defer watcher.Close()
 
+	gitDir := filepath.Join(cfg.RepositoryPath, ".git")
 	gitIndex := filepath.Join(cfg.RepositoryPath, ".git", "index")
-	logrus.Infof("Inotify is watching the file '%s'", gitIndex)
-	err = watcher.Add(gitIndex)
+	gitCommitEditMsg := filepath.Join(cfg.RepositoryPath, ".git", "COMMIT_EDITMSG")
+	logrus.Infof("Inotify is watching the directory '%s'", gitDir)
+	err = watcher.Add(gitDir)
 	if err != nil {
 		logrus.Fatal(err)
 	}
 	for {
 		select {
-		case _, ok := <-watcher.Events:
+		case event, ok := <-watcher.Events:
 			if !ok {
 				return
 			}
-			if worker.Beat() {
-				logrus.Infof("Inotify triggered a deployment because the file '%s' changed", gitIndex)
+			logrus.Debugf("fsnotify - event: %v", event)
+
+			isHardReset := event.Name == gitIndex
+			isCommit := event.Name == gitCommitEditMsg && event.Has(fsnotify.Rename)
+			if isHardReset || isCommit {
+				if worker.Beat() {
+					logrus.Infof("Inotify triggered a deployment because the directory '%s' changed", gitDir)
+				}
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
