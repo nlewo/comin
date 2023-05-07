@@ -56,6 +56,7 @@ func (deployer Deployer) Deploy() (err error) {
 		// update the state to avoid non fast forward future
 		// pulls.
 		st.MainCommitId = commitHash.String()
+		st.OnTesting = false
 	}
 
 	// We skip the deployment if commit and operation are identical
