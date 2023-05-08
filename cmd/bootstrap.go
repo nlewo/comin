@@ -85,6 +85,23 @@ var bootstrapCmd = &cobra.Command{
 			logrus.Errorf("Failed to clone the repository '%s' into '%s' with the error: '%s'", repo, tmpDir, err)
 			return
 		}
+
+		// We write the state in order to provide a commit ID
+		// for security reason: for future depoyment, this
+		// commit needs to be an ancestor to garantee fast
+		// forward pulls.
+		var st state.State
+		st.MainCommitId = rev
+		st.HeadCommitId = rev
+		st.LastOperation = operation
+		// We write the state before deploying the
+		// configuration because we can kill the comin process
+		// during bootstrap (when the bootstrap kill network
+		// connections while comin bootstrap is executed via SSH )
+		if err := state.Save(stateFilepath, st); err != nil {
+			return
+		}
+
 		logrus.Infof("Starting to deploy the configuration for machine %s\n", hostname)
 		cominNeedRestart, err := nix.Deploy(
 			hostname,
@@ -94,26 +111,15 @@ var bootstrapCmd = &cobra.Command{
 			false,
 		)
 
-		// We write the state in order to provide a commit ID
-		// for security reason: for future depoyment, this
-		// commit needs to be an ancestor to garantee fast
-		// forward pulls.
-		// FIXME: use the commit ID from the state in git/git.go.
-		var st state.State
 		if err != nil {
 			logrus.Error(err)
 			logrus.Infof("Deployment failed")
 			return
 		} else {
 			st.HeadCommitDeployed = err == nil
-		}
-
-		// This is to avoid non fast forward checkouts
-		st.MainCommitId = rev
-		st.HeadCommitId = rev
-		st.LastOperation = operation
-		if err := state.Save(stateFilepath, st); err != nil {
-			return
+			if err := state.Save(stateFilepath, st); err != nil {
+				return
+			}
 		}
 
 		if cominNeedRestart {
