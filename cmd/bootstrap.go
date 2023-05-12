@@ -92,8 +92,6 @@ var bootstrapCmd = &cobra.Command{
 		// forward pulls.
 		var st state.State
 		st.MainCommitId = rev
-		st.HeadCommitId = rev
-		st.LastOperation = operation
 		// We write the state before deploying the
 		// configuration because we can kill the comin process
 		// during bootstrap (when the bootstrap kill network
