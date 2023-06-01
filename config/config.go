@@ -53,7 +53,7 @@ func Read(path string) (config types.Configuration, err error) {
 func MkGitConfig(config types.Configuration) types.GitConfig {
 	return types.GitConfig{
 		Path:    filepath.Join(config.StateDir, "repository"),
-		Remote:  config.Remotes[0],
+		Remotes: config.Remotes,
 		Main:    config.Branches.Main.Name,
 		Testing: config.Branches.Testing.Name,
 	}

@@ -40,19 +40,19 @@ func RepositoryClone(directory, url, commitId, accessToken string) error {
 	return nil
 }
 
-func getRemoteCommitHash(r types.Repository, remote, branch string) (*plumbing.Hash, error) {
-	remoteMainBranch := fmt.Sprintf("refs/remotes/%s/%s", remote, branch)
-	remoteMainHeadRef, err := r.Repository.Reference(
-		plumbing.ReferenceName(remoteMainBranch),
+func getRemoteCommitHash(r types.Repository, remote, branch string) *plumbing.Hash {
+	remoteBranch := fmt.Sprintf("refs/remotes/%s/%s", remote, branch)
+	remoteHeadRef, err := r.Repository.Reference(
+		plumbing.ReferenceName(remoteBranch),
 		true)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	if remoteMainHeadRef == nil {
-		return nil, nil
+	if remoteHeadRef == nil {
+		return nil
 	}
-	commitId := remoteMainHeadRef.Hash()
-	return &commitId, nil
+	commitId := remoteHeadRef.Hash()
+	return &commitId
 }
 
 func hasNotBeenHardReset(r types.Repository, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
@@ -70,8 +70,7 @@ func hasNotBeenHardReset(r types.Repository, currentMainHash *plumbing.Hash, rem
 	return nil
 }
 
-// checkout only checkouts the branch under specific condition
-func RepositoryUpdate(r types.Repository, currentMainCommitId string, lastDeployedCommitId string) (newHead plumbing.Hash, fromBranch string, err error) {
+func getHeadFromRemote(r types.Repository, remoteName, currentMainCommitId string) (newHead plumbing.Hash, fromBranch string, err error) {
 	var currentMainHash, remoteMainHead, remoteTestingHead *plumbing.Hash
 	fromBranch = r.GitConfig.Main
 	if currentMainCommitId != "" {
@@ -79,16 +78,8 @@ func RepositoryUpdate(r types.Repository, currentMainCommitId string, lastDeploy
 		currentMainHash = &c
 	}
 
-	if err = fetch(r); err != nil {
-		return
-	}
-
-	if remoteMainHead, err = getRemoteCommitHash(r, r.GitConfig.Remote.Name, r.GitConfig.Main); err != nil {
-		return
-	}
-	if remoteTestingHead, err = getRemoteCommitHash(r, r.GitConfig.Remote.Name, r.GitConfig.Testing); err != nil {
-		return
-	}
+	remoteMainHead = getRemoteCommitHash(r, remoteName, r.GitConfig.Main)
+	remoteTestingHead = getRemoteCommitHash(r, remoteName, r.GitConfig.Testing)
 
 	if remoteMainHead == nil {
 		// TODO: provide the exact branch name
@@ -105,6 +96,9 @@ func RepositoryUpdate(r types.Repository, currentMainCommitId string, lastDeploy
 		// If the testing branch is on top of the main branch, we hard
 		// reset to the testing branch
 		var ancestor bool
+		// We previously ensured remoteMainHead is
+		// currentMainCommitId or on top of
+		// currentMainCommitId.
 		ancestor, err = isAncestor(r.Repository, *remoteMainHead, *remoteTestingHead)
 		if err != nil {
 			return
@@ -114,14 +108,50 @@ func RepositoryUpdate(r types.Repository, currentMainCommitId string, lastDeploy
 			fromBranch = r.GitConfig.Testing
 		}
 	}
+	return
+}
+
+// checkout only checkouts the branch under specific condition
+func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId string, lastDeployedCommitId string) (newHead plumbing.Hash, fromRemote, fromBranch string, err error) {
+	var remotes []types.Remote
+	var remote types.Remote
+
+	if remoteName != "" {
+		remote, err = getRemote(r, remoteName)
+		if err != nil {
+			return
+		}
+		remotes = append(remotes, remote)
+	} else {
+		remotes = r.GitConfig.Remotes
+	}
+
+	for _, remote := range remotes {
+		if err = fetch(r, remote); err != nil {
+			return
+		}
+	}
+
+	for _, remote := range r.GitConfig.Remotes {
+		newHead, fromBranch, err = getHeadFromRemote(r, remote.Name, currentMainCommitId)
+		fromRemote = remote.Name
+		if err != nil {
+			return
+		}
+		if newHead.String() != currentMainCommitId {
+			break
+		}
+	}
 
 	if newHead.String() != lastDeployedCommitId {
 		if err := hardReset(r, newHead); err != nil {
-			return newHead, fromBranch, err
+			return newHead, fromRemote, fromBranch, err
 		}
-		logrus.Infof("The commit '%s' from branch '%s' has been checked out", newHead, fromBranch)
+		logrus.Infof("The current main commit is '%s'", currentMainCommitId)
+		logrus.Infof("The last deployed commit was '%s'", lastDeployedCommitId)
+		logrus.Infof("The commit '%s' from '%s/%s' has been checked out", newHead, fromRemote, fromBranch)
 	}
-	return newHead, fromBranch, nil
+	return newHead, fromRemote, fromBranch, nil
 }
 
 func hardReset(r types.Repository, newHead plumbing.Hash) error {
@@ -140,32 +170,41 @@ func hardReset(r types.Repository, newHead plumbing.Hash) error {
 	return nil
 }
 
+func getRemote(r types.Repository, remoteName string) (remote types.Remote, err error) {
+	for _, remote := range r.GitConfig.Remotes {
+		if remote.Name == remoteName {
+			return remote, nil
+		}
+	}
+	return remote, fmt.Errorf("The remote '%s' doesn't exist", remoteName)
+}
+
 // fetch fetches the config.Remote
-func fetch(r types.Repository) (err error) {
-	logrus.Debugf("Fetching remote '%s'", r.GitConfig.Remote.Name)
+func fetch(r types.Repository, remote types.Remote) (err error) {
+	logrus.Debugf("Fetching remote '%s'", remote.Name)
 	fetchOptions := git.FetchOptions{
-		RemoteName: r.GitConfig.Remote.Name,
+		RemoteName: remote.Name,
 	}
 	// TODO: support several authentication methods
-	if r.GitConfig.Remote.Auth.AccessToken != "" {
+	if remote.Auth.AccessToken != "" {
 		fetchOptions.Auth = &http.BasicAuth{
 			// On GitLab, any non blank username is
 			// working.
 			Username: "comin",
-			Password: r.GitConfig.Remote.Auth.AccessToken,
+			Password: remote.Auth.AccessToken,
 		}
 	}
 
 	// TODO: should only fetch tracked branches
 	err = r.Repository.Fetch(&fetchOptions)
 	if err == nil {
-		logrus.Infof("New commits have been fetched from '%s'", r.GitConfig.Remote.URL)
+		logrus.Infof("New commits have been fetched from '%s'", remote.URL)
 		return nil
 	} else if err != git.NoErrAlreadyUpToDate {
-		logrus.Infof("Pull from remote '%s' failed: %s", r.GitConfig.Remote.Name, err)
-		return fmt.Errorf("'git fetch %s' fails: '%s'", r.GitConfig.Remote.Name, err)
+		logrus.Infof("Pull from remote '%s' failed: %s", remote.Name, err)
+		return fmt.Errorf("'git fetch %s' fails: '%s'", remote.Name, err)
 	} else {
-		logrus.Debugf("No new commits have been fetched")
+		logrus.Debugf("No new commits have been fetched from the remote '%s'", remote.Name)
 		return nil
 	}
 }
@@ -205,20 +244,29 @@ func RepositoryOpen(config types.GitConfig) (r types.Repository, err error) {
 	} else {
 		logrus.Infof("The local Git repository located at '%s' has been initialized", config.Path)
 	}
-	err = manageRemote(r.Repository, config)
+	err = manageRemotes(r.Repository, config.Remotes)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func manageRemote(r *git.Repository, config types.GitConfig) error {
-	remote, err := r.Remote(config.Remote.Name)
+func manageRemotes(r *git.Repository, remotes []types.Remote) error {
+	for _, remote := range remotes {
+		if err := manageRemote(r, remote); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func manageRemote(r *git.Repository, remote types.Remote) error {
+	gitRemote, err := r.Remote(remote.Name)
 	if err == git.ErrRemoteNotFound {
-		logrus.Infof("Adding remote '%s' with url '%s'", config.Remote.Name, config.Remote.URL)
+		logrus.Infof("Adding remote '%s' with url '%s'", remote.Name, remote.URL)
 		_, err = r.CreateRemote(&gitConfig.RemoteConfig{
-			Name: config.Remote.Name,
-			URLs: []string{config.Remote.URL},
+			Name: remote.Name,
+			URLs: []string{remote.URL},
 		})
 		if err != nil {
 			return err
@@ -228,15 +276,15 @@ func manageRemote(r *git.Repository, config types.GitConfig) error {
 		return err
 	}
 
-	remoteConfig := remote.Config()
-	if remoteConfig.URLs[0] != config.Remote.URL {
-		if err := r.DeleteRemote(config.Remote.Name); err != nil {
+	remoteConfig := gitRemote.Config()
+	if remoteConfig.URLs[0] != remote.URL {
+		if err := r.DeleteRemote(remote.Name); err != nil {
 			return err
 		}
-		logrus.Infof("Updating remote %s (%s)", config.Remote.Name, config.Remote.URL)
+		logrus.Infof("Updating remote %s (%s)", remote.Name, remote.URL)
 		_, err = r.CreateRemote(&gitConfig.RemoteConfig{
-			Name: config.Remote.Name,
-			URLs: []string{config.Remote.URL},
+			Name: remote.Name,
+			URLs: []string{remote.URL},
 		})
 		if err != nil {
 			return err

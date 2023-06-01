@@ -42,11 +42,11 @@ func (deployer Deployer) Deploy() (err error) {
 		return
 	}
 
-	commitHash, branch, err := cominGit.RepositoryUpdate(deployer.repository, st.MainCommitId, st.HeadCommitId)
+	commitHash, remote, branch, err := cominGit.RepositoryUpdate(deployer.repository, "", st.MainCommitId, st.HeadCommitId)
 	if err != nil {
 		return
 	}
-	logrus.Debugf("Commit is '%s' from branch '%s'", commitHash.String(), branch)
+	logrus.Debugf("Commit is '%s' from '%s/%s'", commitHash.String(), remote, branch)
 	operation := "switch"
 	if branch == deployer.repository.GitConfig.Testing {
 		operation = "test"

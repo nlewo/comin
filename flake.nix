@@ -44,15 +44,7 @@
       cominConfig = {
         hostname = config.networking.hostName;
         state_dir = "/var/lib/comin";
-        remotes = [
-          {
-            name = "origin";
-            url = cfg.services.comin.repository;
-            auth = {
-              access_token_path = cfg.services.comin.authFile;
-            };
-          }
-        ];
+        remotes = cfg.services.comin.remotes;
         branches = {
           main = {
             name = "main";
@@ -71,51 +63,72 @@
       );
       cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
     in {
-      options = {
+      options = with lib; {
         services.comin = {
-          enable = lib.mkOption {
-            type = lib.types.bool;
+          enable = mkOption {
+            type = types.bool;
             default = false;
             description = ''
               Whether to run the comin service.
             '';
           };
-          repository = lib.mkOption {
-            type = lib.types.str;
-            description = ''
-              The repository to poll.
-            '';
+          remotes = mkOption {
+            description = "Ordered list of repositories to pull";
+            type = with types; listOf (submodule {
+              options = {
+                name = mkOption {
+                  type = str;
+                  description = ''
+                    The name of the remote.
+                  '';
+                };
+                url = mkOption {
+                  type = str;
+                  description = ''
+                    The URL of the repository.
+                  '';
+                };
+                auth = mkOption {
+                  description = "Authentication options";
+                  default = {};
+                  type = with types; submodule {
+                    options = {
+                      access_token_path = mkOption {
+                        type = str;
+                        default = "";
+                        description = ''
+                          The path of the auth file.
+                        '';
+                      };
+                    };
+                  };
+                };
+              };
+            });
           };
-          authFile = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
-            default = null;
-            description = ''
-              The path of the auth file.
-            '';
-          };
-          testingBranch = lib.mkOption {
-            type = lib.types.str;
+          testingBranch = mkOption {
+            type = types.str;
             default = "testing-${cfg.networking.hostName}";
             description = ''
               The name of the testing branch.
             '';
           };
-          pollerPeriod = lib.mkOption {
-            type = lib.types.int;
+          pollerPeriod = mkOption {
+            type = types.int;
             default = 60;
             description = ''
               The poller period in seconds.
             '';
           };
-          debug = lib.mkOption {
-            type = lib.types.bool;
+          debug = mkOption {
+            type = types.bool;
             default = false;
             description = ''
               Whether to run comin in debug mode. Be careful, secrets are shown!.
             '';
           };
-          machineId = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
+          machineId = mkOption {
+            type = types.nullOr types.str;
             default = null;
             description = ''
               The expected machine-id of the machine configured by
@@ -129,8 +142,8 @@
               Note it is only used by comin at evaluation.
             '';
           };
-          inotifyRepositoryPath = lib.mkOption {
-            type = lib.types.nullOr lib.types.str;
+          inotifyRepositoryPath = mkOption {
+            type = types.nullOr types.str;
             default = null;
             description = ''
               The path of a local repository to watch. On each commit,

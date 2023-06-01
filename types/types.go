@@ -20,7 +20,6 @@ type Remote struct {
 type GitConfig struct {
 	// The repository Path
 	Path              string
-	Remote            Remote
 	Remotes           []Remote
 	GpgPublicKeyPaths []string
 	Main              string
