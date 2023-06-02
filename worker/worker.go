@@ -5,17 +5,21 @@ import (
 	"time"
 )
 
-type Worker struct {
-	signal chan struct{}
-	// works the function actually executed by the worker
-	work func() error
+type Params struct {
+	RemoteName string
 }
 
-func NewWorker(work func() error) (w Worker) {
-	signal := make(chan struct{})
+type Worker struct {
+	params chan Params
+	// works the function actually executed by the worker
+	work func(remoteName string) error
+}
+
+func NewWorker(work func(remoteName string) error) (w Worker) {
+	params := make(chan Params)
 
 	return Worker{
-		signal: signal,
+		params: params,
 		work:   work,
 	}
 }
@@ -23,14 +27,14 @@ func NewWorker(work func() error) (w Worker) {
 func Scheduler(w Worker, period int) {
 	logrus.Infof("Starting the scheduler with a period of %ds", period)
 	for {
-		w.Beat()
+		w.Beat(Params{})
 		time.Sleep(time.Duration(period) * time.Second)
 	}
 }
 
-func (w Worker) Beat() bool {
+func (w Worker) Beat(params Params) bool {
 	select {
-	case w.signal <- struct{}{}:
+	case w.params <- params:
 		logrus.Debugf("Beat: tick the worker")
 		return true
 	default:
@@ -42,9 +46,9 @@ func (w Worker) Beat() bool {
 func (w Worker) Run() {
 	logrus.Infof("Starting the worker")
 	for {
-		<-w.signal
+		params := <-w.params
 		logrus.Debugf("Starting the run the work function")
-		if err := w.work(); err != nil {
+		if err := w.work(params.RemoteName); err != nil {
 			logrus.Debugf("The work function failed: %s", err)
 		}
 	}

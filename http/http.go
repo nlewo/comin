@@ -23,35 +23,35 @@ func handlerStatus(stateFilepath string, w http.ResponseWriter, r *http.Request)
 	return
 }
 
-func Run(worker worker.Worker, cfg types.Webhook, stateFilepath string) {
+func Run(w worker.Worker, cfg types.Webhook, stateFilepath string) {
 	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
 		handlerStatus(stateFilepath, w, r)
 		return
 	}
-	handler := func(w http.ResponseWriter, r *http.Request) {
+	handler := func(rw http.ResponseWriter, r *http.Request) {
 		var secret string
 		logrus.Infof("Getting webhook request %s from %s", r.URL, r.RemoteAddr)
 		if cfg.Secret != "" {
 			secret = r.Header.Get("X-Gitlab-Token")
 			if secret == "" {
 				logrus.Infof("Webhook called from %s without the X-Gitlab-Token header", r.RemoteAddr)
-				w.WriteHeader(http.StatusUnauthorized)
-				io.WriteString(w, "The header X-Gitlab-Token is required\n")
+				rw.WriteHeader(http.StatusUnauthorized)
+				io.WriteString(rw, "The header X-Gitlab-Token is required\n")
 				return
 			}
 			if secret != cfg.Secret {
 				logrus.Infof("Webhook called from %s with the invalid secret %s", r.RemoteAddr, secret)
-				w.WriteHeader(http.StatusUnauthorized)
-				io.WriteString(w, "Invalid X-Gitlab-Token header value\n")
+				rw.WriteHeader(http.StatusUnauthorized)
+				io.WriteString(rw, "Invalid X-Gitlab-Token header value\n")
 				return
 			}
 		}
-		if worker.Beat() {
-			w.WriteHeader(http.StatusOK)
-			io.WriteString(w, "A deployment has been triggered\n")
+		if w.Beat(worker.Params{}) {
+			rw.WriteHeader(http.StatusOK)
+			io.WriteString(rw, "A deployment has been triggered\n")
 		} else {
-			w.WriteHeader(http.StatusConflict)
-			io.WriteString(w, "A deployment is already running\n")
+			rw.WriteHeader(http.StatusConflict)
+			io.WriteString(rw, "A deployment is already running\n")
 		}
 	}
 	http.HandleFunc("/deploy", handler)

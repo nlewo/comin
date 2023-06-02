@@ -10,7 +10,7 @@ import (
 
 // Run watches the cfg.RepositoryPath with inotify and beat the worker
 // when the file .git/index file change.
-func Run(worker worker.Worker, cfg types.Inotify) {
+func Run(w worker.Worker, cfg types.Inotify) {
 	if cfg.RepositoryPath == "" {
 		logrus.Info("Inotify is not enabled because it has not been configured")
 		return
@@ -40,7 +40,7 @@ func Run(worker worker.Worker, cfg types.Inotify) {
 			isHardReset := event.Name == gitIndex
 			isCommit := event.Name == gitCommitEditMsg && event.Has(fsnotify.Rename)
 			if isHardReset || isCommit {
-				if worker.Beat() {
+				if w.Beat(worker.Params{}) {
 					logrus.Infof("Inotify triggered a deployment because the directory '%s' changed", gitDir)
 				}
 			}

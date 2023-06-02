@@ -34,7 +34,8 @@ func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 
 // Deploy update the tracked repository, deploys the configuration and
 // update the state file.
-func (deployer Deployer) Deploy() (err error) {
+// If remoteName is "", all remotes are fetched.
+func (deployer Deployer) Deploy(remoteName string) (err error) {
 	stateFilepath := filepath.Join(deployer.config.StateFilepath)
 
 	st, err := state.Load(stateFilepath)
@@ -42,7 +43,7 @@ func (deployer Deployer) Deploy() (err error) {
 		return
 	}
 
-	commitHash, remote, branch, err := cominGit.RepositoryUpdate(deployer.repository, "", st.MainCommitId, st.HeadCommitId)
+	commitHash, remote, branch, err := cominGit.RepositoryUpdate(deployer.repository, remoteName, st.MainCommitId, st.HeadCommitId)
 	if err != nil {
 		return
 	}
