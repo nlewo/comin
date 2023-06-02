@@ -9,8 +9,9 @@ import (
 func TestConfig(t *testing.T) {
 	configPath := "./configuration.yaml"
 	expected := types.Configuration{
-		Hostname: "machine",
-		StateDir: "/var/lib/comin",
+		Hostname:      "machine",
+		StateDir:      "/var/lib/comin",
+		StateFilepath: "/var/lib/comin/state.json",
 		Poller: types.Poller{
 			Period: 10,
 		},
