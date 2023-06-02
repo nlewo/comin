@@ -47,7 +47,8 @@ type Branches struct {
 }
 
 type Poller struct {
-	Period int `yaml:"period"`
+	RemoteName string `yaml:"remote_name"`
+	Period     int    `yaml:"period"`
 }
 
 type Inotify struct {
@@ -67,7 +68,7 @@ type Configuration struct {
 	StateFilepath string   `yaml:"state_filepath"`
 	Remotes       []Remote `yaml:"remotes"`
 	Branches      Branches `yaml:"branches"`
-	Poller        Poller   `yaml:"poller"`
+	Pollers       []Poller `yaml:"pollers"`
 	Webhook       Webhook  `yaml:"webhook"`
 	Inotify       Inotify  `yaml:"inotify"`
 }

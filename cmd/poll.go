@@ -31,7 +31,7 @@ var pollCmd = &cobra.Command{
 		}
 
 		wk := worker.NewWorker(deployer.Deploy)
-		go worker.Scheduler(wk, config.Poller.Period)
+		go worker.Scheduler(wk, config.Pollers)
 		// FIXME: the state should be available from somewhere else...
 		go http.Run(wk, config.Webhook, config.StateFilepath)
 		go inotify.Run(wk, config.Inotify)

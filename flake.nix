@@ -55,7 +55,7 @@
             protected = false;
           };
         };
-        poller.period = cfg.services.comin.pollerPeriod;
+        pollers = cfg.services.comin.pollers;
       } // (
         if cfg.services.comin.inotifyRepositoryPath != null
         then { inotify.repository_path = cfg.services.comin.inotifyRepositoryPath; }
@@ -93,6 +93,7 @@
                   default = {};
                   type = with types; submodule {
                     options = {
+                      # FIXME: use camelCase
                       access_token_path = mkOption {
                         type = str;
                         default = "";
@@ -113,12 +114,27 @@
               The name of the testing branch.
             '';
           };
-          pollerPeriod = mkOption {
-            type = types.int;
-            default = 60;
-            description = ''
-              The poller period in seconds.
-            '';
+          pollers = mkOption {
+            description = "List of pollers";
+            default = [];
+            type = with types; listOf (submodule {
+              options = {
+                # FIXME: use camelCase
+                remote_name = mkOption {
+                  type = str;
+                  description = ''
+                    The name of a remote to poll.
+                  '';
+                };
+                period = mkOption {
+                  type = types.int;
+                  default = 60;
+                  description = ''
+                    The poller period in seconds.
+                  '';
+                };
+              };
+            });
           };
           debug = mkOption {
             type = types.bool;
