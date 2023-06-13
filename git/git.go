@@ -55,7 +55,7 @@ func getRemoteCommitHash(r types.Repository, remote, branch string) *plumbing.Ha
 	return &commitId
 }
 
-func hasNotBeenHardReset(r types.Repository, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
+func hasNotBeenHardReset(r types.Repository, branchName string, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
 	if currentMainHash != nil && remoteMainHead != nil && *currentMainHash != *remoteMainHead {
 		var ok bool
 		ok, err := isAncestor(r.Repository, *currentMainHash, *remoteMainHead)
@@ -64,7 +64,7 @@ func hasNotBeenHardReset(r types.Repository, currentMainHash *plumbing.Hash, rem
 		}
 		if !ok {
 			return fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out",
-				r.GitConfig.Main)
+				branchName)
 		}
 	}
 	return nil
@@ -72,14 +72,18 @@ func hasNotBeenHardReset(r types.Repository, currentMainHash *plumbing.Hash, rem
 
 func getHeadFromRemote(r types.Repository, remoteName, currentMainCommitId string) (newHead plumbing.Hash, fromBranch string, err error) {
 	var currentMainHash, remoteMainHead, remoteTestingHead *plumbing.Hash
-	fromBranch = r.GitConfig.Main
+	remote, err := getRemote(r, remoteName)
+	if err != nil {
+		return newHead, fromBranch, err
+	}
+	fromBranch = remote.Branches.Main.Name
 	if currentMainCommitId != "" {
 		c := plumbing.NewHash(currentMainCommitId)
 		currentMainHash = &c
 	}
 
-	remoteMainHead = getRemoteCommitHash(r, remoteName, r.GitConfig.Main)
-	remoteTestingHead = getRemoteCommitHash(r, remoteName, r.GitConfig.Testing)
+	remoteMainHead = getRemoteCommitHash(r, remoteName, remote.Branches.Main.Name)
+	remoteTestingHead = getRemoteCommitHash(r, remoteName, remote.Branches.Testing.Name)
 
 	if remoteMainHead == nil {
 		// TODO: provide the exact branch name
@@ -88,7 +92,7 @@ func getHeadFromRemote(r types.Repository, remoteName, currentMainCommitId strin
 
 	newHead = *remoteMainHead
 
-	if err = hasNotBeenHardReset(r, currentMainHash, remoteMainHead); err != nil {
+	if err = hasNotBeenHardReset(r, remote.Branches.Main.Name, currentMainHash, remoteMainHead); err != nil {
 		return
 	}
 
@@ -105,13 +109,14 @@ func getHeadFromRemote(r types.Repository, remoteName, currentMainCommitId strin
 		}
 		if ancestor {
 			newHead = *remoteTestingHead
-			fromBranch = r.GitConfig.Testing
+			fromBranch = remote.Branches.Testing.Name
 		}
 	}
 	return
 }
 
 // checkout only checkouts the branch under specific condition
+// If remoteName is "", all remotes are fetched
 func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId string, lastDeployedCommitId string) (newHead plumbing.Hash, fromRemote, fromBranch string, err error) {
 	var remotes []types.Remote
 	var remote types.Remote
@@ -138,7 +143,7 @@ func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId
 		if err != nil {
 			return
 		}
-		if newHead.String() != currentMainCommitId {
+		if newHead.String() != lastDeployedCommitId {
 			break
 		}
 	}
@@ -168,6 +173,14 @@ func hardReset(r types.Repository, newHead plumbing.Hash) error {
 		return fmt.Errorf("git reset --hard %s fails: '%s'", newHead, err)
 	}
 	return nil
+}
+
+func IsTesting(r types.Repository, remoteName, branchName string) bool {
+	remote, err := getRemote(r, remoteName)
+	if err != nil {
+		return false
+	}
+	return remote.Branches.Testing.Name == branchName
 }
 
 func getRemote(r types.Repository, remoteName string) (remote types.Remote, err error) {

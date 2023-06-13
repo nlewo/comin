@@ -125,10 +125,16 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 			types.Remote{
 				Name: "origin",
 				URL:  remoteRepositoryDir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 		},
-		Main:    "main",
-		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
 	assert.Nil(t, err)
@@ -145,8 +151,8 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	assert.Nil(t, err)
 	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", "f8c4e82c08aa789bb7a28f16a9070026cd7eb077", "")
 	assert.Nil(t, err)
-	assert.Equal(t, commitId, commitId4)
-	assert.Equal(t, branch, "testing")
+	assert.Equal(t, commitId4, commitId)
+	assert.Equal(t, "testing", branch)
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
@@ -187,10 +193,16 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 			types.Remote{
 				Name: "origin",
 				URL:  remoteRepositoryDir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 		},
-		Main:    "main",
-		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
 	assert.Nil(t, err)
@@ -233,10 +245,16 @@ func TestRepositoryUpdateMain(t *testing.T) {
 			types.Remote{
 				Name: "origin",
 				URL:  remoteRepositoryDir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 		},
-		Main:    "main",
-		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
 	assert.Nil(t, err)
@@ -286,10 +304,16 @@ func TestWithoutTesting(t *testing.T) {
 			types.Remote{
 				Name: "r1",
 				URL:  r1Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 		},
-		Main:    "main",
-		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
 	assert.Nil(t, err)
@@ -315,14 +339,28 @@ func TestMultipleRemote(t *testing.T) {
 			types.Remote{
 				Name: "r1",
 				URL:  r1Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 			types.Remote{
 				Name: "r2",
 				URL:  r2Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 		},
-		Main:    "main",
-		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
 	assert.Nil(t, err)
@@ -437,14 +475,28 @@ func TestTestingSwitch(t *testing.T) {
 			types.Remote{
 				Name: "r1",
 				URL:  r1Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 			types.Remote{
 				Name: "r2",
 				URL:  r2Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
 			},
 		},
-		Main:    "main",
-		Testing: "testing",
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
 	assert.Nil(t, err)
@@ -479,4 +531,56 @@ func TestTestingSwitch(t *testing.T) {
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "testing", branch)
 	assert.Equal(t, "r2", remote)
+}
+
+func TestPreferMain(t *testing.T) {
+	var err error
+	r1Dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	r1, err := initRemoteRepostiory(r1Dir, true)
+	cMain := "f8c4e82c08aa789bb7a28f16a9070026cd7eb077"
+	gitConfig := types.GitConfig{
+		Path: cominRepositoryDir,
+		Remotes: []types.Remote{
+			types.Remote{
+				Name: "r1",
+				URL:  r1Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
+			},
+		},
+	}
+	cominRepository, err := RepositoryOpen(gitConfig)
+	assert.Nil(t, err)
+	// r1/main: c1 - c2 - *c3
+	// r1/testing: c1 - c2 - c3
+	commitId, remote, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	assert.Nil(t, err)
+	assert.Equal(t, cMain, commitId.String())
+	assert.Equal(t, "main", branch)
+	assert.Equal(t, "r1", remote)
+
+	// r1/main: c1 - c2 - c3
+	// r1/testing: c1 - c2 - c3 - *c4
+	c4, err := commitFile(r1, r1Dir, "testing", "file-4")
+	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
+	assert.Nil(t, err)
+	assert.Equal(t, c4, commitId)
+	assert.Equal(t, "testing", branch)
+	assert.Equal(t, "r1", remote)
+
+	// r1/main: c1 - c2 - c3 - *c4
+	// r1/testing: c1 - c2 - c3 - c4
+	c4, err = commitFile(r1, r1Dir, "main", "file-4")
+	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
+	assert.Nil(t, err)
+	assert.Equal(t, c4, commitId)
+	assert.Equal(t, "main", branch)
+	assert.Equal(t, "r1", remote)
 }

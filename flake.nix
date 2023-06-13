@@ -45,16 +45,6 @@
         hostname = config.networking.hostName;
         state_dir = "/var/lib/comin";
         remotes = cfg.services.comin.remotes;
-        branches = {
-          main = {
-            name = "main";
-            protected = true;
-          };
-          testing = {
-            name = cfg.services.comin.testingBranch;
-            protected = false;
-          };
-        };
         pollers = cfg.services.comin.pollers;
       } // (
         if cfg.services.comin.inotifyRepositoryPath != null
@@ -63,7 +53,7 @@
       );
       cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
     in {
-      options = with lib; {
+      options = with lib; with types; {
         services.comin = {
           enable = mkOption {
             type = types.bool;
@@ -74,7 +64,7 @@
           };
           remotes = mkOption {
             description = "Ordered list of repositories to pull";
-            type = with types; listOf (submodule {
+            type = listOf (submodule {
               options = {
                 name = mkOption {
                   type = str;
@@ -91,9 +81,8 @@
                 auth = mkOption {
                   description = "Authentication options";
                   default = {};
-                  type = with types; submodule {
+                  type = submodule {
                     options = {
-                      # FIXME: use camelCase
                       access_token_path = mkOption {
                         type = str;
                         default = "";
@@ -104,15 +93,40 @@
                     };
                   };
                 };
+                branches = mkOption {
+                  description = "Branches to pull";
+                  default = {};
+                  type = submodule {
+                    options = {
+                      main = mkOption {
+                        default = {};
+                        type = submodule {
+                          options = {
+                            name = mkOption {
+                              type = str;
+                              default = "main";
+                              description = "The name of the main branch.";
+                            };
+                          };
+                        };
+                      };
+                      testing = mkOption {
+                        default = {};
+                        type = submodule {
+                          options = {
+                            name = mkOption {
+                              type = str;
+                              default = "testing-${cfg.networking.hostName}";
+                              description = "The name of the testing branch.";
+                            };
+                          };
+                        };
+                      };
+                    };
+                  };
+                };
               };
             });
-          };
-          testingBranch = mkOption {
-            type = types.str;
-            default = "testing-${cfg.networking.hostName}";
-            description = ''
-              The name of the testing branch.
-            '';
           };
           pollers = mkOption {
             description = "List of pollers";

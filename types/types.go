@@ -12,9 +12,10 @@ type Config struct {
 }
 
 type Remote struct {
-	Name string
-	URL  string
-	Auth Auth
+	Name     string
+	URL      string
+	Auth     Auth
+	Branches Branches `yaml:"branches"`
 }
 
 type GitConfig struct {
@@ -22,8 +23,6 @@ type GitConfig struct {
 	Path              string
 	Remotes           []Remote
 	GpgPublicKeyPaths []string
-	Main              string
-	Testing           string
 }
 
 type Auth struct {
@@ -37,8 +36,9 @@ type Repository struct {
 }
 
 type Branch struct {
-	Name      string `yaml:"name"`
-	Protected bool   `yaml:"protected"`
+	Name string `yaml:"name"`
+	// TODO: use it
+	Protected bool `yaml:"protected"`
 }
 
 type Branches struct {
@@ -67,7 +67,6 @@ type Configuration struct {
 	StateDir      string   `yaml:"state_dir"`
 	StateFilepath string   `yaml:"state_filepath"`
 	Remotes       []Remote `yaml:"remotes"`
-	Branches      Branches `yaml:"branches"`
 	Pollers       []Poller `yaml:"pollers"`
 	Webhook       Webhook  `yaml:"webhook"`
 	Inotify       Inotify  `yaml:"inotify"`

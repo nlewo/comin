@@ -49,7 +49,7 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 	}
 	logrus.Debugf("Commit is '%s' from '%s/%s'", commitHash.String(), remote, branch)
 	operation := "switch"
-	if branch == deployer.repository.GitConfig.Testing {
+	if cominGit.IsTesting(deployer.repository, remote, branch) {
 		operation = "test"
 		st.OnTesting = true
 	} else {

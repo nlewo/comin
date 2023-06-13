@@ -54,7 +54,5 @@ func MkGitConfig(config types.Configuration) types.GitConfig {
 	return types.GitConfig{
 		Path:    filepath.Join(config.StateDir, "repository"),
 		Remotes: config.Remotes,
-		Main:    config.Branches.Main.Name,
-		Testing: config.Branches.Testing.Name,
 	}
 }
