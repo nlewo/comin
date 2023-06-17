@@ -86,8 +86,7 @@ func getHeadFromRemote(r types.Repository, remoteName, currentMainCommitId strin
 	remoteTestingHead = getRemoteCommitHash(r, remoteName, remote.Branches.Testing.Name)
 
 	if remoteMainHead == nil {
-		// TODO: provide the exact branch name
-		return newHead, fromBranch, fmt.Errorf("The remote Main branch doesn't exist")
+		return newHead, fromBranch, fmt.Errorf("The branch '%s/%s' doesn't exist", remoteName, remote.Branches.Main.Name)
 	}
 
 	newHead = *remoteMainHead

@@ -45,7 +45,6 @@
         hostname = config.networking.hostName;
         state_dir = "/var/lib/comin";
         remotes = cfg.services.comin.remotes;
-        pollers = cfg.services.comin.pollers;
       } // (
         if cfg.services.comin.inotifyRepositoryPath != null
         then { inotify.repository_path = cfg.services.comin.inotifyRepositoryPath; }
@@ -125,27 +124,19 @@
                     };
                   };
                 };
-              };
-            });
-          };
-          pollers = mkOption {
-            description = "List of pollers";
-            default = [];
-            type = with types; listOf (submodule {
-              options = {
-                # FIXME: use camelCase
-                remote_name = mkOption {
-                  type = str;
-                  description = ''
-                    The name of a remote to poll.
-                  '';
-                };
-                period = mkOption {
-                  type = types.int;
-                  default = 60;
-                  description = ''
-                    The poller period in seconds.
-                  '';
+                poller = mkOption {
+                  default = {};
+                  type = submodule {
+                    options = {
+                      period = mkOption {
+                        type = types.int;
+                        default = 60;
+                        description = ''
+                          The poller period in seconds.
+                        '';
+                      };
+                    };
+                  };
                 };
               };
             });

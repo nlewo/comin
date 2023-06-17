@@ -1,9 +1,7 @@
 package worker
 
 import (
-	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 type Params struct {
@@ -22,23 +20,6 @@ func NewWorker(work func(remoteName string) error) (w Worker) {
 	return Worker{
 		params: params,
 		work:   work,
-	}
-}
-
-func Scheduler(w Worker, pollers []types.Poller) {
-	logrus.Infof("Starting the scheduler")
-	counter := 0
-	for {
-		for _, poller := range pollers {
-			if counter%poller.Period == 0 {
-				params := Params{
-					RemoteName: poller.RemoteName,
-				}
-				w.Beat(params)
-			}
-		}
-		time.Sleep(time.Second)
-		counter += 1
 	}
 }
 

@@ -16,6 +16,12 @@ type Remote struct {
 	URL      string
 	Auth     Auth
 	Branches Branches `yaml:"branches"`
+	// The period to poll the remote in second
+	Poller Poller `yaml:"poller"`
+}
+
+type Poller struct {
+	Period int `yaml:"period"`
 }
 
 type GitConfig struct {
@@ -46,11 +52,6 @@ type Branches struct {
 	Testing Branch `yaml:"testing"`
 }
 
-type Poller struct {
-	RemoteName string `yaml:"remote_name"`
-	Period     int    `yaml:"period"`
-}
-
 type Inotify struct {
 	RepositoryPath string `yaml:"repository_path"`
 }
@@ -67,7 +68,6 @@ type Configuration struct {
 	StateDir      string   `yaml:"state_dir"`
 	StateFilepath string   `yaml:"state_filepath"`
 	Remotes       []Remote `yaml:"remotes"`
-	Pollers       []Poller `yaml:"pollers"`
 	Webhook       Webhook  `yaml:"webhook"`
 	Inotify       Inotify  `yaml:"inotify"`
 }
