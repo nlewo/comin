@@ -97,6 +97,7 @@ var bootstrapCmd = &cobra.Command{
 		// during bootstrap (when the bootstrap kill network
 		// connections while comin bootstrap is executed via SSH )
 		if err := state.Save(stateFilepath, st); err != nil {
+			logrus.Errorf("Failed to save the state to '%s': '%s'", stateFilepath, err)
 			return
 		}
 
