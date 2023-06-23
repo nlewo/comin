@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func commitFile(remoteRepository *git.Repository, dir, branch, content string) (hash plumbing.Hash, err error) {
+func commitFile(remoteRepository *git.Repository, dir, branch, content string) (commitId string, err error) {
 	w, err := remoteRepository.Worktree()
 	if err != nil {
 		return
@@ -31,7 +31,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 	if err != nil {
 		return
 	}
-	hash, err = w.Commit(content, &git.CommitOptions{
+	hash, err := w.Commit(content, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "John Doe",
 			Email: "john@doe.org",
@@ -41,7 +41,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 	if err != nil {
 		return
 	}
-	return
+	return hash.String(), nil
 }
 
 func initRemoteRepostiory(dir string, initTesting bool) (remoteRepository *git.Repository, err error) {
@@ -140,16 +140,16 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	assert.Nil(t, err)
 
 	// The remote repository is initially checkouted on main
-	commitId, _, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	commitId, _, branch, _, err := RepositoryUpdate(cominRepository, "", "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, commitId, "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
 	assert.Equal(t, branch, "main")
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
 	commitId4, err := commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
 	assert.Nil(t, err)
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", "f8c4e82c08aa789bb7a28f16a9070026cd7eb077", "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", "f8c4e82c08aa789bb7a28f16a9070026cd7eb077", "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId4, commitId)
 	assert.Equal(t, "testing", branch)
@@ -158,7 +158,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	// repository is updated
 	commitId5, err := commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
 	assert.Nil(t, err)
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", "f8c4e82c08aa789bb7a28f16a9070026cd7eb077", "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", "f8c4e82c08aa789bb7a28f16a9070026cd7eb077", "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId, commitId5)
 	assert.Equal(t, branch, "testing")
@@ -173,7 +173,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	if err != nil {
 		return
 	}
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", commitId5.String(), "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", commitId5, "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId, commitId5)
 	assert.Equal(t, branch, "main")
@@ -208,9 +208,9 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 	assert.Nil(t, err)
 
 	// The remote repository is initially checkouted
-	commitId, _, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	commitId, _, branch, _, err := RepositoryUpdate(cominRepository, "", "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, commitId, "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
 	assert.Equal(t, branch, "main")
 
 	// Two commits are added to get a previous commit hash in
@@ -218,18 +218,18 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 	previousHash, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
 	newCommitId, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-5")
 
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", "f8c4e82c08aa789bb7a28f16a9070026cd7eb077", "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", "f8c4e82c08aa789bb7a28f16a9070026cd7eb077", "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId, newCommitId)
 	assert.Equal(t, branch, "main")
 
 	// The last commit of the main branch is removed.
-	ref := plumbing.NewHashReference("refs/heads/main", previousHash)
+	ref := plumbing.NewHashReference("refs/heads/main", plumbing.NewHash(previousHash))
 	err = remoteRepository.Storer.SetReference(ref)
 	if err != nil {
 		return
 	}
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, "")
 	assert.ErrorContains(t, err, "No valid Main branch found on all remotes")
 }
 
@@ -260,22 +260,22 @@ func TestRepositoryUpdateMain(t *testing.T) {
 	assert.Nil(t, err)
 
 	// The remote repository is initially checkouted
-	commitId, _, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	commitId, _, branch, _, err := RepositoryUpdate(cominRepository, "", "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, commitId, "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
 	assert.Equal(t, branch, "main")
 
 	// Without any new remote commits, the local repository is not updated
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, "")
 	assert.Nil(t, err)
-	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, commitId, "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
 	assert.Equal(t, branch, "main")
 
 	// A new commit is pushed to the remote repository: the local
 	// repository is updated
 	newCommitId, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
 	assert.Nil(t, err)
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId, newCommitId)
 	assert.Equal(t, branch, "main")
@@ -284,7 +284,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 	// behind the main branch: the repository is not updated
 	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
 	assert.Nil(t, err)
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId, newCommitId)
 	assert.Equal(t, branch, "main")
@@ -317,9 +317,9 @@ func TestWithoutTesting(t *testing.T) {
 	}
 	cominRepository, err := RepositoryOpen(gitConfig)
 	assert.Nil(t, err)
-	commitId, remote, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	commitId, remote, branch, _, err := RepositoryUpdate(cominRepository, "", "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, commitId, "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
 	assert.Equal(t, branch, "main")
 	assert.Equal(t, remote, "r1")
 }
@@ -366,9 +366,9 @@ func TestMultipleRemote(t *testing.T) {
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r2/main: c1 - c2 - c3
-	commitId, remote, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	commitId, remote, branch, _, err := RepositoryUpdate(cominRepository, "", "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, commitId.String(), "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
+	assert.Equal(t, commitId, "f8c4e82c08aa789bb7a28f16a9070026cd7eb077")
 	assert.Equal(t, branch, "main")
 	assert.Equal(t, remote, "r1")
 
@@ -376,7 +376,7 @@ func TestMultipleRemote(t *testing.T) {
 	// r2/main: c1 - c2 - c3
 	newCommitId, err := commitFile(r1, r1Dir, "main", "file-4")
 	assert.Nil(t, err)
-	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), "")
+	commitId, _, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, "")
 	assert.Nil(t, err)
 	assert.Equal(t, commitId, newCommitId)
 	assert.Equal(t, branch, "main")
@@ -388,7 +388,7 @@ func TestMultipleRemote(t *testing.T) {
 	commitFile(r2, r2Dir, "main", "file-4")
 	newCommitId, err = commitFile(r2, r2Dir, "main", "file-5")
 	assert.Nil(t, err)
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), commitId.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, commitId)
 	assert.Nil(t, err)
 	assert.Equal(t, newCommitId, commitId)
 	assert.Equal(t, "main", branch)
@@ -398,7 +398,7 @@ func TestMultipleRemote(t *testing.T) {
 	// r2/main: c1 - c2 - c3 - c4 - c5
 	newCommitId, err = commitFile(r1, r1Dir, "main", "file-5")
 	assert.Nil(t, err)
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), commitId.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, commitId)
 	assert.Nil(t, err)
 	assert.Equal(t, newCommitId, commitId)
 	assert.Equal(t, "main", branch)
@@ -413,7 +413,7 @@ func TestMultipleRemote(t *testing.T) {
 	commitFile(r2, r2Dir, "testing", "file-5")
 	commitFile(r2, r2Dir, "testing", "file-6")
 	c7, _ := commitFile(r2, r2Dir, "testing", "file-7")
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), commitId.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", commitId, commitId)
 	assert.Nil(t, err)
 	assert.Equal(t, c7, commitId)
 	assert.Equal(t, "testing", branch)
@@ -422,7 +422,7 @@ func TestMultipleRemote(t *testing.T) {
 	// r1/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - *c7
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", c6.String(), c6.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", c6, c6)
 	assert.Nil(t, err)
 	assert.Equal(t, c7, commitId)
 	assert.Equal(t, "testing", branch)
@@ -433,7 +433,7 @@ func TestMultipleRemote(t *testing.T) {
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - c7
 	c8, _ := commitFile(r1, r1Dir, "main", "file-8")
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", c6.String(), c7.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", c6, c7)
 	assert.Nil(t, err)
 	assert.Equal(t, c8, commitId)
 	assert.Equal(t, "main", branch)
@@ -444,7 +444,7 @@ func TestMultipleRemote(t *testing.T) {
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - c7
 	c9, _ := commitFile(r1, r1Dir, "main", "file-9")
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "r2", c6.String(), c7.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "r2", c6, c7)
 	assert.Nil(t, err)
 	assert.Equal(t, c8, commitId)
 	assert.Equal(t, "main", branch)
@@ -454,7 +454,7 @@ func TestMultipleRemote(t *testing.T) {
 	// r1/main: c1 - c2 - c3 - c4 - c5 - c6 - c8 - *c9
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - c7
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "r1", c6.String(), c7.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "r1", c6, c7)
 	assert.Nil(t, err)
 	assert.Equal(t, c9, commitId)
 	assert.Equal(t, "main", branch)
@@ -504,9 +504,9 @@ func TestTestingSwitch(t *testing.T) {
 	// r1/testing: c1 - c2 - c3
 	// r2/main: c1 - c2 - c3
 	// r2/testing: c1 - c2 - c3
-	commitId, remote, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	commitId, remote, branch, _, err := RepositoryUpdate(cominRepository, "", "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, cMain, commitId.String())
+	assert.Equal(t, cMain, commitId)
 	assert.Equal(t, "main", branch)
 	assert.Equal(t, "r1", remote)
 
@@ -516,7 +516,7 @@ func TestTestingSwitch(t *testing.T) {
 	// r2/testing: c1 - c2 - c3 - *c4
 	c4, err := commitFile(r2, r2Dir, "testing", "file-4")
 	assert.Nil(t, err)
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
 	assert.Nil(t, err)
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "testing", branch)
@@ -526,7 +526,7 @@ func TestTestingSwitch(t *testing.T) {
 	// r1/testing: c1 - c2 - c3
 	// r2/main: c1 - c2 - c3
 	// r2/testing: c1 - c2 - c3 - *c4
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", cMain, c4.String())
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", cMain, c4)
 	assert.Nil(t, err)
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "testing", branch)
@@ -560,16 +560,16 @@ func TestPreferMain(t *testing.T) {
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3
-	commitId, remote, branch, err := RepositoryUpdate(cominRepository, "", "", "")
+	commitId, remote, branch, _, err := RepositoryUpdate(cominRepository, "", "", "")
 	assert.Nil(t, err)
-	assert.Equal(t, cMain, commitId.String())
+	assert.Equal(t, cMain, commitId)
 	assert.Equal(t, "main", branch)
 	assert.Equal(t, "r1", remote)
 
 	// r1/main: c1 - c2 - c3
 	// r1/testing: c1 - c2 - c3 - *c4
 	c4, err := commitFile(r1, r1Dir, "testing", "file-4")
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
 	assert.Nil(t, err)
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "testing", branch)
@@ -578,7 +578,7 @@ func TestPreferMain(t *testing.T) {
 	// r1/main: c1 - c2 - c3 - *c4
 	// r1/testing: c1 - c2 - c3 - c4
 	c4, err = commitFile(r1, r1Dir, "main", "file-4")
-	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
+	commitId, remote, branch, _, err = RepositoryUpdate(cominRepository, "", cMain, cMain)
 	assert.Nil(t, err)
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "main", branch)
@@ -629,7 +629,7 @@ func TestContinueIfHardReset(t *testing.T) {
 	// r2/main: c1 - c2 - c3
 	// r2/testing: c1 - c2 - c3 - *c4
 	c4, _ := commitFile(r2, r2Dir, "testing", "file-4")
-	commitId, remote, branch, _ := RepositoryUpdate(cominRepository, "", cMain, cMain)
+	commitId, remote, branch, _, _ := RepositoryUpdate(cominRepository, "", cMain, cMain)
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "testing", branch)
 	assert.Equal(t, "r2", remote)
@@ -639,8 +639,46 @@ func TestContinueIfHardReset(t *testing.T) {
 	// r2/main: c1 - c2 - c3 - *c4
 	// r2/testing: c1 - c2 - c3 - ^c4
 	c4, _ = commitFile(r2, r2Dir, "main", "file-4")
-	commitId, remote, branch, _ = RepositoryUpdate(cominRepository, "", cMain, c4.String())
+	commitId, remote, branch, _, _ = RepositoryUpdate(cominRepository, "", cMain, c4)
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "main", branch)
 	assert.Equal(t, "r2", remote)
+}
+
+
+func TestMainCommitId(t *testing.T) {
+	r1Dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	r1, _ := initRemoteRepostiory(r1Dir, true)
+	cMain := "f8c4e82c08aa789bb7a28f16a9070026cd7eb077"
+	gitConfig := types.GitConfig{
+		Path: cominRepositoryDir,
+		Remotes: []types.Remote{
+			types.Remote{
+				Name: "r1",
+				URL:  r1Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
+			},
+		},
+	}
+	cominRepository, _ := RepositoryOpen(gitConfig)
+	RepositoryUpdate(cominRepository, "", "", "")
+
+	// r1/main: c1 - c2 - c3 - c4
+	// r1/testing: c1 - c2 - c3 - c4 -c5
+	c4, _ := commitFile(r1, r1Dir, "main", "file-4")
+	commitFile(r1, r1Dir, "testing", "file-4")
+	c5, _ := commitFile(r1, r1Dir, "testing", "file-5")
+	commitId, remote, branch, mainCommitId, _ := RepositoryUpdate(cominRepository, "", cMain, cMain)
+	assert.Equal(t, c4, mainCommitId)
+	assert.Equal(t, c5, commitId)
+	assert.Equal(t, "testing", branch)
+	assert.Equal(t, "r1", remote)
 }

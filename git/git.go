@@ -89,7 +89,8 @@ func getHeadFromRemoteAndBranch(r types.Repository, remoteName, branchName, curr
 
 // checkout only checkouts the branch under specific condition
 // If remoteName is "", all remotes are fetched
-func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId string, lastDeployedCommitId string) (nextHead plumbing.Hash, nextRemote, nextBranch string, err error) {
+// mainCommitId is the commit ID of the Main branch, It is used to ensure fast forward only
+func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId string, lastDeployedCommitId string) (nextHead string, nextRemote, nextBranch string, mainCommitId string, err error) {
 	var remotes []types.Remote
 	var remote types.Remote
 
@@ -109,46 +110,46 @@ func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId
 		}
 	}
 
-	emptyHash := plumbing.Hash{}
 	for _, remote := range r.GitConfig.Remotes {
 		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Main.Name, currentMainCommitId)
 		if err != nil {
 			logrus.Info(err)
 			continue
 		}
-		if nextHead == emptyHash {
+		if nextHead == "" {
 			nextRemote = remote.Name
 			nextBranch = remote.Branches.Main.Name
-			nextHead = head
+			nextHead = head.String()
 		}
 		if head.String() != currentMainCommitId {
 			nextRemote = remote.Name
 			nextBranch = remote.Branches.Main.Name
-			nextHead = head
+			nextHead = head.String()
 			break
 		}
 	}
-	if nextHead == emptyHash {
+	if nextHead == "" {
 		err = fmt.Errorf("No valid Main branch found on all remotes")
 		return
 	}
+	mainCommitId = nextHead
 
 	for _, remote := range r.GitConfig.Remotes {
-		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Testing.Name, nextHead.String())
+		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Testing.Name, nextHead)
 		if err != nil {
 			logrus.Info(err)
 			continue
 		}
-		if head != nextHead {
+		if head.String() != nextHead {
 			nextRemote = remote.Name
 			nextBranch = remote.Branches.Testing.Name
-			nextHead = head
+			nextHead = head.String()
 			break
 		}
 	}
 
-	if nextHead.String() != lastDeployedCommitId {
-		if err = hardReset(r, nextHead); err != nil {
+	if nextHead != lastDeployedCommitId {
+		if err = hardReset(r, plumbing.NewHash(nextHead)); err != nil {
 			return
 		}
 		logrus.Infof("The current main commit is '%s'", currentMainCommitId)

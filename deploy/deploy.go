@@ -43,11 +43,11 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 		return
 	}
 
-	commitHash, remote, branch, err := cominGit.RepositoryUpdate(deployer.repository, remoteName, st.MainCommitId, st.HeadCommitId)
+	commitId, remote, branch, mainCommitId, err := cominGit.RepositoryUpdate(deployer.repository, remoteName, st.MainCommitId, st.HeadCommitId)
 	if err != nil {
 		return
 	}
-	logrus.Debugf("Commit is '%s' from '%s/%s'", commitHash.String(), remote, branch)
+	logrus.Debugf("Commit is '%s' from '%s/%s'", commitId, remote, branch)
 	operation := "switch"
 	if cominGit.IsTesting(deployer.repository, remote, branch) {
 		operation = "test"
@@ -56,16 +56,15 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 		// When the main branch has been checked out, we
 		// update the state to avoid non fast forward future
 		// pulls.
-		st.MainCommitId = commitHash.String()
 		st.OnTesting = false
 	}
 
 	// We skip the deployment if commit and operation are identical
-	if commitHash.String() == st.HeadCommitId && st.LastOperation == operation {
+	if commitId == st.HeadCommitId && st.LastOperation == operation {
 		return nil
 	}
 
-	logrus.Infof("Starting to deploy commit '%s'", commitHash)
+	logrus.Infof("Starting to deploy commit '%s'", commitId)
 	cominNeedRestart, err := nix.Deploy(
 		deployer.config.Hostname,
 		deployer.config.StateDir,
@@ -82,7 +81,8 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 		st.HeadCommitDeployedAt = time.Now()
 	}
 
-	st.HeadCommitId = commitHash.String()
+	st.MainCommitId = mainCommitId
+	st.HeadCommitId = commitId
 	st.LastOperation = operation
 	if err = state.Save(stateFilepath, st); err != nil {
 		return
