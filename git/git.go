@@ -113,7 +113,8 @@ func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId
 	for _, remote := range r.GitConfig.Remotes {
 		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Main.Name, currentMainCommitId)
 		if err != nil {
-			logrus.Info(err)
+			// We shoud print an Info log message but only a single time and not on each fetch.
+			logrus.Debug(err)
 			continue
 		}
 		if nextHead == "" {
