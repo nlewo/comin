@@ -230,7 +230,7 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 		return
 	}
 	commitId, _, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), "")
-	assert.ErrorContains(t, err, "hard reset")
+	assert.ErrorContains(t, err, "No valid Main branch found on all remotes")
 }
 
 func TestRepositoryUpdateMain(t *testing.T) {
@@ -394,20 +394,19 @@ func TestMultipleRemote(t *testing.T) {
 	assert.Equal(t, "main", branch)
 	assert.Equal(t, "r2", remote)
 
-	// r1/main: c1 - c2 - c3 - c4 - c5
-	// r2/main: c1 - c2 - c3 - c4 - *c5
+	// r1/main: c1 - c2 - c3 - c4 - *c5
+	// r2/main: c1 - c2 - c3 - c4 - c5
 	newCommitId, err = commitFile(r1, r1Dir, "main", "file-5")
 	assert.Nil(t, err)
 	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), commitId.String())
 	assert.Nil(t, err)
 	assert.Equal(t, newCommitId, commitId)
 	assert.Equal(t, "main", branch)
-	assert.Equal(t, "r2", remote)
+	assert.Equal(t, "r1", remote)
 
-	// TODO: it would be better to directly fetch c7 but implementation is much more complex
-	// r1/main: c1 - c2 - c3 - c4 - c5 - *c6
+	// r1/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
-	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - c7
+	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - *c7
 	c6, _ := commitFile(r1, r1Dir, "main", "file-6")
 	commitFile(r2, r2Dir, "main", "file-6")
 	commitFile(r2, r2Dir, "testing", "file-4")
@@ -416,9 +415,9 @@ func TestMultipleRemote(t *testing.T) {
 	c7, _ := commitFile(r2, r2Dir, "testing", "file-7")
 	commitId, remote, branch, err = RepositoryUpdate(cominRepository, "", commitId.String(), commitId.String())
 	assert.Nil(t, err)
-	assert.Equal(t, c6, commitId)
-	assert.Equal(t, "main", branch)
-	assert.Equal(t, "r1", remote)
+	assert.Equal(t, c7, commitId)
+	assert.Equal(t, "testing", branch)
+	assert.Equal(t, "r2", remote)
 
 	// r1/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
@@ -429,6 +428,7 @@ func TestMultipleRemote(t *testing.T) {
 	assert.Equal(t, "testing", branch)
 	assert.Equal(t, "r2", remote)
 
+	// TODO we should return the main commit ID in order to store it in the state
 	// r1/main: c1 - c2 - c3 - c4 - c5 - c6 - *c8
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - c7
@@ -583,4 +583,64 @@ func TestPreferMain(t *testing.T) {
 	assert.Equal(t, c4, commitId)
 	assert.Equal(t, "main", branch)
 	assert.Equal(t, "r1", remote)
+}
+
+func TestContinueIfHardReset(t *testing.T) {
+	r1Dir := t.TempDir()
+	r2Dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	_, _ = initRemoteRepostiory(r1Dir, true)
+	r2, _ := initRemoteRepostiory(r2Dir, true)
+	cMain := "f8c4e82c08aa789bb7a28f16a9070026cd7eb077"
+	gitConfig := types.GitConfig{
+		Path: cominRepositoryDir,
+		Remotes: []types.Remote{
+			types.Remote{
+				Name: "r1",
+				URL:  r1Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
+			},
+			types.Remote{
+				Name: "r2",
+				URL:  r2Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
+			},
+		},
+	}
+	cominRepository, _ := RepositoryOpen(gitConfig)
+	RepositoryUpdate(cominRepository, "", "", "")
+
+	// r1/main: c1 - c2 - ^c3
+	// r1/testing: c1 - c2 - c3
+	// r2/main: c1 - c2 - c3
+	// r2/testing: c1 - c2 - c3 - *c4
+	c4, _ := commitFile(r2, r2Dir, "testing", "file-4")
+	commitId, remote, branch, _ := RepositoryUpdate(cominRepository, "", cMain, cMain)
+	assert.Equal(t, c4, commitId)
+	assert.Equal(t, "testing", branch)
+	assert.Equal(t, "r2", remote)
+
+	// r1/main: c1 - c2 - c3
+	// r1/testing: c1 - c2 - c3
+	// r2/main: c1 - c2 - c3 - *c4
+	// r2/testing: c1 - c2 - c3 - ^c4
+	c4, _ = commitFile(r2, r2Dir, "main", "file-4")
+	commitId, remote, branch, _ = RepositoryUpdate(cominRepository, "", cMain, c4.String())
+	assert.Equal(t, c4, commitId)
+	assert.Equal(t, "main", branch)
+	assert.Equal(t, "r2", remote)
 }

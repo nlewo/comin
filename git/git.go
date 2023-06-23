@@ -70,53 +70,26 @@ func hasNotBeenHardReset(r types.Repository, branchName string, currentMainHash 
 	return nil
 }
 
-func getHeadFromRemote(r types.Repository, remoteName, currentMainCommitId string) (newHead plumbing.Hash, fromBranch string, err error) {
-	var currentMainHash, remoteMainHead, remoteTestingHead *plumbing.Hash
-	remote, err := getRemote(r, remoteName)
-	if err != nil {
-		return newHead, fromBranch, err
+func getHeadFromRemoteAndBranch(r types.Repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, err error) {
+	var currentMainHash *plumbing.Hash
+	head := getRemoteCommitHash(r, remoteName, branchName)
+	if head == nil {
+		return newHead, fmt.Errorf("The branch '%s/%s' doesn't exist", remoteName, branchName)
 	}
-	fromBranch = remote.Branches.Main.Name
 	if currentMainCommitId != "" {
 		c := plumbing.NewHash(currentMainCommitId)
 		currentMainHash = &c
 	}
 
-	remoteMainHead = getRemoteCommitHash(r, remoteName, remote.Branches.Main.Name)
-	remoteTestingHead = getRemoteCommitHash(r, remoteName, remote.Branches.Testing.Name)
-
-	if remoteMainHead == nil {
-		return newHead, fromBranch, fmt.Errorf("The branch '%s/%s' doesn't exist", remoteName, remote.Branches.Main.Name)
-	}
-
-	newHead = *remoteMainHead
-
-	if err = hasNotBeenHardReset(r, remote.Branches.Main.Name, currentMainHash, remoteMainHead); err != nil {
+	if err = hasNotBeenHardReset(r, branchName, currentMainHash, head); err != nil {
 		return
 	}
-
-	if remoteTestingHead != nil {
-		// If the testing branch is on top of the main branch, we hard
-		// reset to the testing branch
-		var ancestor bool
-		// We previously ensured remoteMainHead is
-		// currentMainCommitId or on top of
-		// currentMainCommitId.
-		ancestor, err = isAncestor(r.Repository, *remoteMainHead, *remoteTestingHead)
-		if err != nil {
-			return
-		}
-		if ancestor {
-			newHead = *remoteTestingHead
-			fromBranch = remote.Branches.Testing.Name
-		}
-	}
-	return
+	return *head, nil
 }
 
 // checkout only checkouts the branch under specific condition
 // If remoteName is "", all remotes are fetched
-func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId string, lastDeployedCommitId string) (newHead plumbing.Hash, fromRemote, fromBranch string, err error) {
+func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId string, lastDeployedCommitId string) (nextHead plumbing.Hash, nextRemote, nextBranch string, err error) {
 	var remotes []types.Remote
 	var remote types.Remote
 
@@ -136,26 +109,53 @@ func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId
 		}
 	}
 
+	emptyHash := plumbing.Hash{}
 	for _, remote := range r.GitConfig.Remotes {
-		newHead, fromBranch, err = getHeadFromRemote(r, remote.Name, currentMainCommitId)
-		fromRemote = remote.Name
+		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Main.Name, currentMainCommitId)
 		if err != nil {
-			return
+			logrus.Info(err)
+			continue
 		}
-		if newHead.String() != lastDeployedCommitId {
+		if nextHead == emptyHash {
+			nextRemote = remote.Name
+			nextBranch = remote.Branches.Main.Name
+			nextHead = head
+		}
+		if head.String() != currentMainCommitId {
+			nextRemote = remote.Name
+			nextBranch = remote.Branches.Main.Name
+			nextHead = head
+			break
+		}
+	}
+	if nextHead == emptyHash {
+		err = fmt.Errorf("No valid Main branch found on all remotes")
+		return
+	}
+
+	for _, remote := range r.GitConfig.Remotes {
+		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Testing.Name, nextHead.String())
+		if err != nil {
+			logrus.Info(err)
+			continue
+		}
+		if head != nextHead {
+			nextRemote = remote.Name
+			nextBranch = remote.Branches.Testing.Name
+			nextHead = head
 			break
 		}
 	}
 
-	if newHead.String() != lastDeployedCommitId {
-		if err := hardReset(r, newHead); err != nil {
-			return newHead, fromRemote, fromBranch, err
+	if nextHead.String() != lastDeployedCommitId {
+		if err = hardReset(r, nextHead); err != nil {
+			return
 		}
 		logrus.Infof("The current main commit is '%s'", currentMainCommitId)
 		logrus.Infof("The last deployed commit was '%s'", lastDeployedCommitId)
-		logrus.Infof("The commit '%s' from '%s/%s' has been checked out", newHead, fromRemote, fromBranch)
+		logrus.Infof("The commit '%s' from '%s/%s' has been checked out", nextHead, nextRemote, nextBranch)
 	}
-	return newHead, fromRemote, fromBranch, nil
+	return
 }
 
 func hardReset(r types.Repository, newHead plumbing.Hash) error {
