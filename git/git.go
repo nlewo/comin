@@ -136,6 +136,9 @@ func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId
 	mainCommitId = nextHead
 
 	for _, remote := range r.GitConfig.Remotes {
+		if remote.Branches.Testing.Name == "" {
+			continue
+		}
 		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Testing.Name, nextHead)
 		if err != nil {
 			logrus.Info(err)
