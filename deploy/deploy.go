@@ -14,16 +14,23 @@ import (
 )
 
 type Deployer struct {
-	repository types.Repository
+	repository *cominGit.Repository
 	config     types.Configuration
 	dryRun     bool
 }
 
 func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 	gitConfig := config.MkGitConfig(cfg)
-	repository, err := cominGit.RepositoryOpen(gitConfig)
+	stateFilepath := filepath.Join(cfg.StateFilepath)
+
+	st, err := state.Load(stateFilepath)
 	if err != nil {
-		return Deployer{}, fmt.Errorf("Failed to open the repository: %s", err)
+		return Deployer{}, err
+	}
+
+	repository, err := cominGit.New(gitConfig, st.RepositoryStatus)
+	if err != nil {
+		return Deployer{}, fmt.Errorf("Failed to initialize the repository: %s", err)
 	}
 	return Deployer{
 		repository: repository,
@@ -43,28 +50,33 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 		return
 	}
 
-	commitId, remote, branch, mainCommitId, err := cominGit.RepositoryUpdate(deployer.repository, remoteName, st.MainCommitId, st.HeadCommitId)
+	repositoryStatusInitial := deployer.repository.RepositoryStatus
+
+	err = deployer.repository.Fetch(remoteName)
 	if err != nil {
 		return
 	}
-	logrus.Debugf("Commit is '%s' from '%s/%s'", commitId, remote, branch)
+	err = deployer.repository.Update()
+	if err != nil {
+		return
+	}
+
+	if err != nil {
+		logrus.Errorf("Error while deploying: %s", err)
+		return
+	}
 	operation := "switch"
-	if cominGit.IsTesting(deployer.repository, remote, branch) {
+	if deployer.repository.RepositoryStatus.IsTesting() {
 		operation = "test"
-		st.OnTesting = true
-	} else {
-		// When the main branch has been checked out, we
-		// update the state to avoid non fast forward future
-		// pulls.
-		st.OnTesting = false
 	}
 
 	// We skip the deployment if commit and operation are identical
-	if commitId == st.HeadCommitId && st.LastOperation == operation {
+	if repositoryStatusInitial.SelectedCommitId == deployer.repository.RepositoryStatus.SelectedCommitId && st.LastOperation == operation {
 		return nil
 	}
 
-	logrus.Infof("Starting to deploy commit '%s'", commitId)
+	logrus.Debugf("Starting to deploy: repositoryStatusInitial.SelectedCommitId = '%s'; deployer.repository.RepositoryStatus.SelectedCommitId = '%s'; st.LastOperation = '%s'; operation = '%s'", repositoryStatusInitial.SelectedCommitId, deployer.repository.RepositoryStatus.SelectedCommitId, st.LastOperation, operation)
+
 	cominNeedRestart, err := nix.Deploy(
 		deployer.config.Hostname,
 		deployer.config.StateDir,
@@ -81,9 +93,7 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 		st.HeadCommitDeployedAt = time.Now()
 	}
 
-	st.MainCommitId = mainCommitId
-	st.HeadCommitId = commitId
-	st.LastOperation = operation
+	st.RepositoryStatus = deployer.repository.RepositoryStatus
 	if err = state.Save(stateFilepath, st); err != nil {
 		return
 	}

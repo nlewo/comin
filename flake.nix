@@ -198,7 +198,7 @@
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
     in pkgs.mkShell {
       buildInputs = [
-        pkgs.go pkgs.godef
+        pkgs.go pkgs.godef pkgs.gopls
       ];
     };
   };

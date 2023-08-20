@@ -40,7 +40,7 @@ func RepositoryClone(directory, url, commitId, accessToken string) error {
 	return nil
 }
 
-func getRemoteCommitHash(r types.Repository, remote, branch string) *plumbing.Hash {
+func getRemoteCommitHash(r Repository, remote, branch string) *plumbing.Hash {
 	remoteBranch := fmt.Sprintf("refs/remotes/%s/%s", remote, branch)
 	remoteHeadRef, err := r.Repository.Reference(
 		plumbing.ReferenceName(remoteBranch),
@@ -55,7 +55,7 @@ func getRemoteCommitHash(r types.Repository, remote, branch string) *plumbing.Ha
 	return &commitId
 }
 
-func hasNotBeenHardReset(r types.Repository, branchName string, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
+func hasNotBeenHardReset(r Repository, branchName string, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
 	if currentMainHash != nil && remoteMainHead != nil && *currentMainHash != *remoteMainHead {
 		var ok bool
 		ok, err := isAncestor(r.Repository, *currentMainHash, *remoteMainHead)
@@ -63,14 +63,14 @@ func hasNotBeenHardReset(r types.Repository, branchName string, currentMainHash 
 			return err
 		}
 		if !ok {
-			return fmt.Errorf("The remote main branch '%s' has been hard reset, refusing to check it out",
-				branchName)
+			return fmt.Errorf("This branch has been hard reset: its head '%s' is not on top of '%s'",
+				remoteMainHead.String(), currentMainHash.String())
 		}
 	}
 	return nil
 }
 
-func getHeadFromRemoteAndBranch(r types.Repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, err error) {
+func getHeadFromRemoteAndBranch(r Repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, err error) {
 	var currentMainHash *plumbing.Hash
 	head := getRemoteCommitHash(r, remoteName, branchName)
 	if head == nil {
@@ -87,83 +87,7 @@ func getHeadFromRemoteAndBranch(r types.Repository, remoteName, branchName, curr
 	return *head, nil
 }
 
-// checkout only checkouts the branch under specific condition
-// If remoteName is "", all remotes are fetched
-// mainCommitId is the commit ID of the Main branch, It is used to ensure fast forward only
-func RepositoryUpdate(r types.Repository, remoteName string, currentMainCommitId string, lastDeployedCommitId string) (nextHead string, nextRemote, nextBranch string, mainCommitId string, err error) {
-	var remotes []types.Remote
-	var remote types.Remote
-
-	if remoteName != "" {
-		remote, err = getRemote(r, remoteName)
-		if err != nil {
-			return
-		}
-		remotes = append(remotes, remote)
-	} else {
-		remotes = r.GitConfig.Remotes
-	}
-
-	for _, remote := range remotes {
-		if err = fetch(r, remote); err != nil {
-			return
-		}
-	}
-
-	for _, remote := range r.GitConfig.Remotes {
-		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Main.Name, currentMainCommitId)
-		if err != nil {
-			// We shoud print an Info log message but only a single time and not on each fetch.
-			logrus.Debug(err)
-			continue
-		}
-		if nextHead == "" {
-			nextRemote = remote.Name
-			nextBranch = remote.Branches.Main.Name
-			nextHead = head.String()
-		}
-		if head.String() != currentMainCommitId {
-			nextRemote = remote.Name
-			nextBranch = remote.Branches.Main.Name
-			nextHead = head.String()
-			break
-		}
-	}
-	if nextHead == "" {
-		err = fmt.Errorf("No valid Main branch found on all remotes")
-		return
-	}
-	mainCommitId = nextHead
-
-	for _, remote := range r.GitConfig.Remotes {
-		if remote.Branches.Testing.Name == "" {
-			continue
-		}
-		head, err := getHeadFromRemoteAndBranch(r, remote.Name, remote.Branches.Testing.Name, nextHead)
-		if err != nil {
-			logrus.Info(err)
-			continue
-		}
-		if head.String() != nextHead {
-			nextRemote = remote.Name
-			nextBranch = remote.Branches.Testing.Name
-			nextHead = head.String()
-			break
-		}
-	}
-
-	if nextHead != lastDeployedCommitId {
-		if err = hardReset(r, plumbing.NewHash(nextHead)); err != nil {
-			return
-		}
-		logrus.Infof("The current main commit is '%s'", currentMainCommitId)
-		logrus.Infof("The last deployed commit was '%s'", lastDeployedCommitId)
-		logrus.Infof("The commit '%s' from '%s/%s' has been checked out", nextHead, nextRemote, nextBranch)
-	}
-	return
-}
-
-func hardReset(r types.Repository, newHead plumbing.Hash) error {
+func hardReset(r Repository, newHead plumbing.Hash) error {
 	var w *git.Worktree
 	w, err := r.Repository.Worktree()
 	if err != nil {
@@ -179,25 +103,9 @@ func hardReset(r types.Repository, newHead plumbing.Hash) error {
 	return nil
 }
 
-func IsTesting(r types.Repository, remoteName, branchName string) bool {
-	remote, err := getRemote(r, remoteName)
-	if err != nil {
-		return false
-	}
-	return remote.Branches.Testing.Name == branchName
-}
-
-func getRemote(r types.Repository, remoteName string) (remote types.Remote, err error) {
-	for _, remote := range r.GitConfig.Remotes {
-		if remote.Name == remoteName {
-			return remote, nil
-		}
-	}
-	return remote, fmt.Errorf("The remote '%s' doesn't exist", remoteName)
-}
 
 // fetch fetches the config.Remote
-func fetch(r types.Repository, remote types.Remote) (err error) {
+func fetch(r Repository, remote types.Remote) (err error) {
 	logrus.Debugf("Fetching remote '%s'", remote.Name)
 	fetchOptions := git.FetchOptions{
 		RemoteName: remote.Name,
@@ -247,23 +155,16 @@ func isAncestor(r *git.Repository, base, top plumbing.Hash) (found bool, err err
 	return
 }
 
-// openOrInit inits the repository if it's not already a Git
-// repository and opens it otherwise
-func RepositoryOpen(config types.GitConfig) (r types.Repository, err error) {
-	r.GitConfig = config
-	r.Repository, err = git.PlainInit(config.Path, false)
+func repositoryOpen(config types.GitConfig) (r *git.Repository, err error) {
+	r, err = git.PlainInit(config.Path, false)
 	if err != nil {
-		r.Repository, err = git.PlainOpen(config.Path)
+		r, err = git.PlainOpen(config.Path)
 		if err != nil {
 			return
 		}
 		logrus.Debugf("The local Git repository located at '%s' has been opened", config.Path)
 	} else {
 		logrus.Infof("The local Git repository located at '%s' has been initialized", config.Path)
-	}
-	err = manageRemotes(r.Repository, config.Remotes)
-	if err != nil {
-		return
 	}
 	return
 }

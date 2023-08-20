@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"time"
+	cominGit "github.com/nlewo/comin/git"
 )
 
 // The state is used for security purposes and to avoid unnecessary
@@ -14,15 +15,9 @@ type State struct {
 	// Operation is the last nixos-rebuild operation
 	// (basically, test or switch)
 	LastOperation string `json:"last_operation"`
-	// The last commit that has been tried to be deployed
-	HeadCommitId string `json:"head_commit_id"`
-	// If the current deployment is testing
-	OnTesting            bool      `json:"on_testing"`
 	HeadCommitDeployed   bool      `json:"head_commit_deployed"`
 	HeadCommitDeployedAt time.Time `json:"head_commit_deployed_at"`
-	// The last commit of the Main branch. This is used to
-	// garantees the main branch is only fast forwarded.
-	MainCommitId string `json:"main_commit_id"`
+	RepositoryStatus cominGit.RepositoryStatus `json:"repository_status"`
 }
 
 func Load(stateFilepath string) (state State, err error) {
