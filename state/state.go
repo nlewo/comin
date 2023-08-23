@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"time"
-	cominGit "github.com/nlewo/comin/git"
+	"github.com/nlewo/comin/repository"
 )
 
 // The state is used for security purposes and to avoid unnecessary
@@ -17,7 +17,7 @@ type State struct {
 	LastOperation string `json:"last_operation"`
 	HeadCommitDeployed   bool      `json:"head_commit_deployed"`
 	HeadCommitDeployedAt time.Time `json:"head_commit_deployed_at"`
-	RepositoryStatus cominGit.RepositoryStatus `json:"repository_status"`
+	RepositoryStatus repository.RepositoryStatus `json:"repository_status"`
 }
 
 func Load(stateFilepath string) (state State, err error) {

@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nlewo/comin/git"
+	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/nix"
 	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/utils"
@@ -80,7 +80,7 @@ var bootstrapCmd = &cobra.Command{
 		defer os.RemoveAll(tmpDir)
 
 		logrus.Infof("Cloning the repository '%s' with rev '%s'\n", repo, rev)
-		err = git.RepositoryClone(tmpDir, repo, rev, accessToken)
+		err = repository.RepositoryClone(tmpDir, repo, rev, accessToken)
 		if err != nil {
 			logrus.Errorf("Failed to clone the repository '%s' into '%s' with the error: '%s'", repo, tmpDir, err)
 			return
@@ -91,7 +91,7 @@ var bootstrapCmd = &cobra.Command{
 		// commit needs to be an ancestor to garantee fast
 		// forward pulls.
 		var st state.State
-		st.RepositoryStatus = git.RepositoryStatus{MainCommitId: rev}
+		st.RepositoryStatus = repository.RepositoryStatus{MainCommitId: rev}
 		// We write the state before deploying the
 		// configuration because we can kill the comin process
 		// during bootstrap (when the bootstrap kill network

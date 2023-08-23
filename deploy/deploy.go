@@ -3,7 +3,7 @@ package deploy
 import (
 	"fmt"
 	"github.com/nlewo/comin/config"
-	cominGit "github.com/nlewo/comin/git"
+	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/nix"
 	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/types"
@@ -14,7 +14,7 @@ import (
 )
 
 type Deployer struct {
-	repository *cominGit.Repository
+	repository *repository.Repository
 	config     types.Configuration
 	dryRun     bool
 }
@@ -28,7 +28,7 @@ func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 		return Deployer{}, err
 	}
 
-	repository, err := cominGit.New(gitConfig, st.RepositoryStatus)
+	repository, err := repository.New(gitConfig, st.RepositoryStatus)
 	if err != nil {
 		return Deployer{}, fmt.Errorf("Failed to initialize the repository: %s", err)
 	}
@@ -93,6 +93,7 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 		st.HeadCommitDeployedAt = time.Now()
 	}
 
+	st.LastOperation = operation
 	st.RepositoryStatus = deployer.repository.RepositoryStatus
 	if err = state.Save(stateFilepath, st); err != nil {
 		return

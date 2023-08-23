@@ -1,4 +1,4 @@
-package git
+package repository
 
 import (
 // 	"github.com/go-git/go-git/v5"
