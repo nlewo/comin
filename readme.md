@@ -1,5 +1,7 @@
 # Comin
 
+**warning: comin is an experimentation and should not be used (yet)**
+
 Comin is a deployment tool running in the pull mode: it periodically
 polls a Git repository and deploys the NixOS configuration found in
 this repository on the machine where it is running.
