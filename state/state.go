@@ -68,8 +68,8 @@ func (sm StateManager) Get() State {
 	return state
 }
 
-func (sm StateManager) Set(State) {
-	sm.chSet <- sm.state
+func (sm StateManager) Set(state State) {
+	sm.chSet <- state
 }
 
 func Load(stateFilepath string) (state State, err error) {
@@ -89,6 +89,7 @@ func Load(stateFilepath string) (state State, err error) {
 }
 
 func Save(stateFilepath string, state State) error {
+	logrus.Debugf("Writing the state to '%s'", stateFilepath)
 	res, err := json.MarshalIndent(state, "", "\t")
 	if err != nil {
 		return err
