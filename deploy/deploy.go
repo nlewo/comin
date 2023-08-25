@@ -17,18 +17,21 @@ type Deployer struct {
 	repository *repository.Repository
 	config     types.Configuration
 	dryRun     bool
+	stateManager state.StateManager
 }
 
 func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 	gitConfig := config.MkGitConfig(cfg)
 	stateFilepath := filepath.Join(cfg.StateFilepath)
 
-	st, err := state.Load(stateFilepath)
+	stateManager, err := state.New(stateFilepath)
 	if err != nil {
 		return Deployer{}, err
 	}
+	stateManager.Start()
 
-	repository, err := repository.New(gitConfig, st.RepositoryStatus)
+	state := stateManager.Get()
+	repository, err := repository.New(gitConfig, state.RepositoryStatus)
 	if err != nil {
 		return Deployer{}, fmt.Errorf("Failed to initialize the repository: %s", err)
 	}
@@ -36,6 +39,7 @@ func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 		repository: repository,
 		config:     cfg,
 		dryRun:     dryRun,
+		stateManager: stateManager,
 	}, nil
 }
 
@@ -43,12 +47,7 @@ func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
 // update the state file.
 // If remoteName is "", all remotes are fetched.
 func (deployer Deployer) Deploy(remoteName string) (err error) {
-	stateFilepath := filepath.Join(deployer.config.StateFilepath)
-
-	st, err := state.Load(stateFilepath)
-	if err != nil {
-		return
-	}
+	st := deployer.stateManager.Get()
 
 	repositoryStatusInitial := deployer.repository.RepositoryStatus
 
@@ -95,9 +94,7 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 
 	st.LastOperation = operation
 	st.RepositoryStatus = deployer.repository.RepositoryStatus
-	if err = state.Save(stateFilepath, st); err != nil {
-		return
-	}
+	deployer.stateManager.Set(st)
 
 	if cominNeedRestart {
 		if err = utils.CominServiceRestart(); err != nil {

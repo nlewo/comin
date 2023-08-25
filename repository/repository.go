@@ -55,7 +55,7 @@ func (r *Repository) Fetch(remoteName string) (err error) {
 		} else {
 			repositoryStatusRemote.Fetched = true
 		}
-		repositoryStatusRemote.FetchedAt = time.Now()
+	repositoryStatusRemote.FetchedAt = time.Now()
 	}
 	return
 }
