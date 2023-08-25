@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"fmt"
+	"time"
 	"github.com/nlewo/comin/config"
 	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/nix"
@@ -9,8 +10,6 @@ import (
 	"github.com/nlewo/comin/types"
 	"github.com/nlewo/comin/utils"
 	"github.com/sirupsen/logrus"
-	"path/filepath"
-	"time"
 )
 
 type Deployer struct {
@@ -20,15 +19,8 @@ type Deployer struct {
 	stateManager state.StateManager
 }
 
-func NewDeployer(dryRun bool, cfg types.Configuration) (Deployer, error) {
+func NewDeployer(dryRun bool, cfg types.Configuration, stateManager state.StateManager) (Deployer, error) {
 	gitConfig := config.MkGitConfig(cfg)
-	stateFilepath := filepath.Join(cfg.StateFilepath)
-
-	stateManager, err := state.New(stateFilepath)
-	if err != nil {
-		return Deployer{}, err
-	}
-	stateManager.Start()
 
 	state := stateManager.Get()
 	repository, err := repository.New(gitConfig, state.RepositoryStatus)

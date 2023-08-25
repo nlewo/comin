@@ -4,28 +4,26 @@ import (
 	"fmt"
 	"github.com/nlewo/comin/types"
 	"github.com/nlewo/comin/worker"
+	"github.com/nlewo/comin/state"
 	"github.com/sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
+	"encoding/json"
 )
 
-func handlerStatus(stateFilepath string, w http.ResponseWriter, r *http.Request) {
+func handlerStatus(stateManager state.StateManager, w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("Getting status request %s from %s", r.URL, r.RemoteAddr)
 	w.WriteHeader(http.StatusOK)
-	content, err := ioutil.ReadFile(stateFilepath)
-	if err != nil {
-		logrus.Debugf("Error while reading the statefile: ", err)
-		return
-	}
-	io.WriteString(w, string(content))
+	state := stateManager.Get()
+	stateJson, _ := json.MarshalIndent(state, "", "\t")
+	io.WriteString(w, string(stateJson))
 	return
 }
 
-func Run(w worker.Worker, cfg types.Webhook, stateFilepath string) {
+func Run(w worker.Worker, cfg types.Webhook, stateManager state.StateManager ) {
 	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
-		handlerStatus(stateFilepath, w, r)
+		handlerStatus(stateManager, w, r)
 		return
 	}
 	handler := func(rw http.ResponseWriter, r *http.Request) {

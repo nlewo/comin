@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/nlewo/comin/config"
+	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/deploy"
 	"github.com/nlewo/comin/http"
 	"github.com/nlewo/comin/inotify"
@@ -9,6 +10,7 @@ import (
 	"github.com/nlewo/comin/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"path/filepath"
 	"os"
 )
 
@@ -25,16 +27,25 @@ var pollCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		deployer, err := deploy.NewDeployer(dryRun, config)
+		stateManager, err := state.New(filepath.Join(config.StateFilepath))
+		if err != nil {
+			logrus.Error(err)
+			os.Exit(1)
+		}
+		stateManager.Start()
+
+		deployer, err := deploy.NewDeployer(dryRun, config, stateManager)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
 		}
 
 		wk := worker.NewWorker(deployer.Deploy)
+
+		
 		go poller.Poller(wk, config.Remotes)
 		// FIXME: the state should be available from somewhere else...
-		go http.Run(wk, config.Webhook, config.StateFilepath)
+		go http.Run(wk, config.Webhook, stateManager)
 		go inotify.Run(wk, config.Inotify)
 		wk.Run()
 	},
