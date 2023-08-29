@@ -5,6 +5,7 @@ import (
 	"time"
 	"github.com/nlewo/comin/config"
 	"github.com/nlewo/comin/repository"
+	"github.com/nlewo/comin/generation"
 	"github.com/nlewo/comin/nix"
 	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/types"
@@ -16,22 +17,31 @@ type Deployer struct {
 	repository *repository.Repository
 	config     types.Configuration
 	dryRun     bool
-	stateManager state.StateManager
+	stateManager *state.StateManager
+	generations *generation.Generations
 }
 
-func NewDeployer(dryRun bool, cfg types.Configuration, stateManager state.StateManager) (Deployer, error) {
+func NewDeployer(dryRun bool, cfg types.Configuration, stateManager *state.StateManager) (Deployer, error) {
 	gitConfig := config.MkGitConfig(cfg)
 
 	state := stateManager.Get()
-	repository, err := repository.New(gitConfig, state.RepositoryStatus)
+	repositoryStatus := repository.RepositoryStatus{}
+	if len(state.Generations) > 0 {
+		repositoryStatus = state.Generations[0].RepositoryStatus
+	}
+	repository, err := repository.New(gitConfig, repositoryStatus)
 	if err != nil {
 		return Deployer{}, fmt.Errorf("Failed to initialize the repository: %s", err)
 	}
+	// FIXME: the generation limit number should come from the configuration
+	generations := generation.NewGenerations(100, state.Generations)
+
 	return Deployer{
 		repository: repository,
 		config:     cfg,
 		dryRun:     dryRun,
 		stateManager: stateManager,
+		generations: generations,
 	}, nil
 }
 
@@ -40,8 +50,6 @@ func NewDeployer(dryRun bool, cfg types.Configuration, stateManager state.StateM
 // If remoteName is "", all remotes are fetched.
 func (deployer Deployer) Deploy(remoteName string) (err error) {
 	st := deployer.stateManager.Get()
-
-	repositoryStatusInitial := deployer.repository.RepositoryStatus
 
 	err = deployer.repository.Fetch(remoteName)
 	if err != nil {
@@ -62,11 +70,19 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 	}
 
 	// We skip the deployment if commit and operation are identical
-	if repositoryStatusInitial.SelectedCommitId == deployer.repository.RepositoryStatus.SelectedCommitId && st.LastOperation == operation {
+	if len(st.Generations) > 0 && st.Generations[0].RepositoryStatus.SelectedCommitId == deployer.repository.RepositoryStatus.SelectedCommitId && st.Generations[0].SwitchOperation == operation {
 		return nil
 	}
 
-	logrus.Debugf("Starting to deploy: repositoryStatusInitial.SelectedCommitId = '%s'; deployer.repository.RepositoryStatus.SelectedCommitId = '%s'; st.LastOperation = '%s'; operation = '%s'", repositoryStatusInitial.SelectedCommitId, deployer.repository.RepositoryStatus.SelectedCommitId, st.LastOperation, operation)
+	gen := generation.Generation{
+		SwitchOperation: operation,
+		Status: "running",
+		RepositoryStatus: deployer.repository.RepositoryStatus,
+		DeploymentStartedAt: time.Now(),
+	}
+	deployer.generations.InsertNewGeneration(gen)
+	st.Generations = deployer.generations.Generations
+	deployer.stateManager.Set(st)
 
 	cominNeedRestart, err := nix.Deploy(
 		deployer.config.Hostname,
@@ -78,14 +94,14 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 	if err != nil {
 		logrus.Error(err)
 		logrus.Infof("Deployment failed")
-		st.HeadCommitDeployed = false
+		gen.Status = "failed"
 	} else {
-		st.HeadCommitDeployed = true
-		st.HeadCommitDeployedAt = time.Now()
+		gen.Status = "succeeded"
 	}
 
-	st.LastOperation = operation
-	st.RepositoryStatus = deployer.repository.RepositoryStatus
+	gen.DeploymentEndedAt = time.Now()
+	deployer.generations.ReplaceGenerationAt(0, gen)
+	st.Generations = deployer.generations.Generations
 	deployer.stateManager.Set(st)
 
 	if cominNeedRestart {

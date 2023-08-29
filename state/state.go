@@ -5,71 +5,48 @@ import (
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
-	"time"
-	"github.com/nlewo/comin/repository"
+	"github.com/nlewo/comin/generation"
+	"sync"
 )
 
-// The state is used for security purposes and to avoid unnecessary
-// rebuilds.
 type State struct {
-	// Operation is the last nixos-rebuild operation
-	// (basically, test or switch)
-	LastOperation string `json:"last_operation"`
-	HeadCommitDeployed   bool      `json:"head_commit_deployed"`
-	HeadCommitDeployedAt time.Time `json:"head_commit_deployed_at"`
-	RepositoryStatus repository.RepositoryStatus `json:"repository_status"`
+	Generations []generation.Generation  `json:"generations"`
 }
 
 type StateManager struct {
 	state State
+	mu sync.Mutex
 	filepath string
-	chGet chan State
-	chSet chan State
 }
 
-func New(stateFilepath string) (StateManager, error) {
-	chSet := make(chan State, 1)
-	chGet := make(chan State, 1)
+func New(stateFilepath string) (*StateManager, error) {
 	state, err := Load(stateFilepath)
 	if err != nil {
-		return StateManager{}, err
+		return &StateManager{}, err
 	}
-
-	return StateManager{
-		chGet: chGet,
-		chSet: chSet,
+	return &StateManager{
 		filepath: stateFilepath,
 		state: state,
 	}, nil
 }
 
-func (sm StateManager) Start() {
-	manager := func () {
-		for {
-			select {
-			case state := <- sm.chSet:
-				sm.state = state
-				err := Save(sm.filepath, sm.state)
-				if err != nil {
-					logrus.Errorf("Could not save the state file: %s", err)
-				}
-				
-			case sm.chGet <- sm.state:
-				continue
-			}
-		}
-	}
-	logrus.Infof("Starting the state manager")
-	go manager()
-}
-
-func (sm StateManager) Get() State {
-	state := <- sm.chGet
+func (sm *StateManager) Get() State {
+	sm.mu.Lock()
+	state := sm.state
+	logrus.Debugf("Get the state: %#v", state)
+	defer sm.mu.Unlock()
 	return state
 }
 
-func (sm StateManager) Set(state State) {
-	sm.chSet <- state
+func (sm *StateManager) Set(state State) {
+	logrus.Debugf("Set the state: %#v", state)
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.state = state
+	err := Save(sm.filepath, sm.state)
+	if err != nil {
+		logrus.Errorf("Could not save the state file: %s", err)
+	}
 }
 
 func Load(stateFilepath string) (state State, err error) {

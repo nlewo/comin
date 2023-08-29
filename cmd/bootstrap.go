@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/nix"
-	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"os"
-	"path/filepath"
 )
 
 var baseDir string
@@ -51,7 +49,7 @@ var bootstrapCmd = &cobra.Command{
 		var err error
 		repo := args[0]
 		rev := args[1]
-		stateFilepath := filepath.Join(baseDir, "state.json")
+		// stateFilepath := filepath.Join(baseDir, "state.json")
 
 		fmt.Printf("You are bootstraping this NixOS machine with Comin!\n\n")
 		fmt.Printf("We will automatically proceed to the following steps:\n\n")
@@ -86,20 +84,21 @@ var bootstrapCmd = &cobra.Command{
 			return
 		}
 
+		// FIXME: need to be implemented
 		// We write the state in order to provide a commit ID
 		// for security reason: for future depoyment, this
 		// commit needs to be an ancestor to garantee fast
 		// forward pulls.
-		var st state.State
-		st.RepositoryStatus = repository.RepositoryStatus{MainCommitId: rev}
+		// var st state.State
+		// st.RepositoryStatus = repository.RepositoryStatus{MainCommitId: rev}
 		// We write the state before deploying the
 		// configuration because we can kill the comin process
 		// during bootstrap (when the bootstrap kill network
 		// connections while comin bootstrap is executed via SSH )
-		if err := state.Save(stateFilepath, st); err != nil {
-			logrus.Errorf("Failed to save the state to '%s': '%s'", stateFilepath, err)
-			return
-		}
+		// if err := state.Save(stateFilepath, st); err != nil {
+		//	logrus.Errorf("Failed to save the state to '%s': '%s'", stateFilepath, err)
+		//	return
+		// }
 
 		logrus.Infof("Starting to deploy the configuration for machine %s\n", hostname)
 		cominNeedRestart, err := nix.Deploy(
@@ -115,10 +114,10 @@ var bootstrapCmd = &cobra.Command{
 			logrus.Infof("Deployment failed")
 			return
 		} else {
-			st.HeadCommitDeployed = err == nil
-			if err := state.Save(stateFilepath, st); err != nil {
-				return
-			}
+			// st.HeadCommitDeployed = err == nil
+			// if err := state.Save(stateFilepath, st); err != nil {
+			//	return
+			// }
 		}
 
 		if cominNeedRestart {

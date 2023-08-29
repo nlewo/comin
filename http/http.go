@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 )
 
-func handlerStatus(stateManager state.StateManager, w http.ResponseWriter, r *http.Request) {
+func handlerStatus(stateManager *state.StateManager, w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("Getting status request %s from %s", r.URL, r.RemoteAddr)
 	w.WriteHeader(http.StatusOK)
 	state := stateManager.Get()
@@ -21,7 +21,7 @@ func handlerStatus(stateManager state.StateManager, w http.ResponseWriter, r *ht
 	return
 }
 
-func Run(w worker.Worker, cfg types.Webhook, stateManager state.StateManager ) {
+func Run(w worker.Worker, cfg types.Webhook, stateManager *state.StateManager ) {
 	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
 		handlerStatus(stateManager, w, r)
 		return

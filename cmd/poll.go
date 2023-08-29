@@ -32,7 +32,6 @@ var pollCmd = &cobra.Command{
 			logrus.Error(err)
 			os.Exit(1)
 		}
-		stateManager.Start()
 
 		deployer, err := deploy.NewDeployer(dryRun, config, stateManager)
 		if err != nil {
