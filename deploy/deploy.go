@@ -2,23 +2,23 @@ package deploy
 
 import (
 	"fmt"
-	"time"
 	"github.com/nlewo/comin/config"
-	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/generation"
 	"github.com/nlewo/comin/nix"
+	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/types"
 	"github.com/nlewo/comin/utils"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type Deployer struct {
-	repository *repository.Repository
-	config     types.Configuration
-	dryRun     bool
+	repository   *repository.Repository
+	config       types.Configuration
+	dryRun       bool
 	stateManager *state.StateManager
-	generations *generation.Generations
+	generations  *generation.Generations
 }
 
 func NewDeployer(dryRun bool, cfg types.Configuration, stateManager *state.StateManager) (Deployer, error) {
@@ -37,11 +37,11 @@ func NewDeployer(dryRun bool, cfg types.Configuration, stateManager *state.State
 	generations := generation.NewGenerations(100, state.Generations)
 
 	return Deployer{
-		repository: repository,
-		config:     cfg,
-		dryRun:     dryRun,
+		repository:   repository,
+		config:       cfg,
+		dryRun:       dryRun,
 		stateManager: stateManager,
-		generations: generations,
+		generations:  generations,
 	}, nil
 }
 
@@ -75,9 +75,9 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 	}
 
 	gen := generation.Generation{
-		SwitchOperation: operation,
-		Status: "running",
-		RepositoryStatus: deployer.repository.RepositoryStatus,
+		SwitchOperation:     operation,
+		Status:              "running",
+		RepositoryStatus:    deployer.repository.RepositoryStatus,
 		DeploymentStartedAt: time.Now(),
 	}
 	deployer.generations.InsertNewGeneration(gen)

@@ -1,21 +1,21 @@
 package generation
 
 import (
-	"time"
 	"github.com/nlewo/comin/repository"
+	"time"
 )
 
 type Generations struct {
-	Limit int
+	Limit       int
 	Generations []Generation `json:"generations"`
 }
 
 type Generation struct {
-	SwitchOperation string `json:"switch_operation"`
-	Status string `json:"status"`
-	DeploymentStartedAt time.Time `json:"deployment_started_at"`
-	DeploymentEndedAt time.Time `json:"deployment_ended_at"`
-	RepositoryStatus repository.RepositoryStatus `json:"repository_status"`
+	SwitchOperation     string                      `json:"switch_operation"`
+	Status              string                      `json:"status"`
+	DeploymentStartedAt time.Time                   `json:"deployment_started_at"`
+	DeploymentEndedAt   time.Time                   `json:"deployment_ended_at"`
+	RepositoryStatus    repository.RepositoryStatus `json:"repository_status"`
 }
 
 func NewGenerations(limit int, generations []Generation) *Generations {
@@ -26,7 +26,7 @@ func NewGenerations(limit int, generations []Generation) *Generations {
 		g = append(g, generations...)
 	}
 	return &Generations{
-		Limit: limit,
+		Limit:       limit,
 		Generations: g,
 	}
 }
@@ -41,8 +41,7 @@ func (generations *Generations) InsertNewGeneration(generation Generation) {
 	}
 }
 
-
-func (generations *Generations) GetGenerationAt(index int)  Generation {
+func (generations *Generations) GetGenerationAt(index int) Generation {
 	return generations.Generations[index]
 }
 

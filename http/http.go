@@ -1,15 +1,15 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/types"
 	"github.com/nlewo/comin/worker"
-	"github.com/nlewo/comin/state"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"os"
-	"encoding/json"
 )
 
 func handlerStatus(stateManager *state.StateManager, w http.ResponseWriter, r *http.Request) {
@@ -21,7 +21,7 @@ func handlerStatus(stateManager *state.StateManager, w http.ResponseWriter, r *h
 	return
 }
 
-func Run(w worker.Worker, cfg types.Webhook, stateManager *state.StateManager ) {
+func Run(w worker.Worker, cfg types.Webhook, stateManager *state.StateManager) {
 	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
 		handlerStatus(stateManager, w, r)
 		return

@@ -103,7 +103,6 @@ func hardReset(r Repository, newHead plumbing.Hash) error {
 	return nil
 }
 
-
 // fetch fetches the config.Remote
 func fetch(r Repository, remote types.Remote) (err error) {
 	logrus.Debugf("Fetching remote '%s'", remote.Name)

@@ -2,20 +2,20 @@ package state
 
 import (
 	"encoding/json"
+	"github.com/nlewo/comin/generation"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
-	"github.com/nlewo/comin/generation"
 	"sync"
 )
 
 type State struct {
-	Generations []generation.Generation  `json:"generations"`
+	Generations []generation.Generation `json:"generations"`
 }
 
 type StateManager struct {
-	state State
-	mu sync.Mutex
+	state    State
+	mu       sync.Mutex
 	filepath string
 }
 
@@ -26,7 +26,7 @@ func New(stateFilepath string) (*StateManager, error) {
 	}
 	return &StateManager{
 		filepath: stateFilepath,
-		state: state,
+		state:    state,
 	}, nil
 }
 

@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/nix"
+	"github.com/nlewo/comin/repository"
 	"github.com/nlewo/comin/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

@@ -2,16 +2,16 @@ package repository
 
 import (
 	"fmt"
-	"time"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
 type Repository struct {
-	Repository *git.Repository
-	GitConfig  types.GitConfig
+	Repository       *git.Repository
+	GitConfig        types.GitConfig
 	RepositoryStatus RepositoryStatus
 }
 
@@ -55,7 +55,7 @@ func (r *Repository) Fetch(remoteName string) (err error) {
 		} else {
 			repositoryStatusRemote.Fetched = true
 		}
-	repositoryStatusRemote.FetchedAt = time.Now()
+		repositoryStatusRemote.FetchedAt = time.Now()
 	}
 	return
 }

@@ -1,15 +1,15 @@
 package repository
 
 import (
-// 	"github.com/go-git/go-git/v5"
- 	"github.com/go-git/go-git/v5/plumbing"
-// 	"github.com/go-git/go-git/v5/plumbing/object"
+	// 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	// 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/nlewo/comin/types"
- 	"github.com/stretchr/testify/assert"
-// 	"io/ioutil"
-// 	"path/filepath"
- 	"testing"
-// 	"time"
+	"github.com/stretchr/testify/assert"
+	// 	"io/ioutil"
+	// 	"path/filepath"
+	"testing"
+	// 	"time"
 )
 
 // func TestNew(t *testing.T) {
@@ -627,4 +627,3 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "origin", r.RepositoryStatus.SelectedRemoteName)
 }
-
