@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/json"
 	"github.com/nlewo/comin/generation"
+	"github.com/nlewo/comin/repository"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
@@ -10,7 +11,8 @@ import (
 )
 
 type State struct {
-	Generations []generation.Generation `json:"generations"`
+	RepositoryStatus repository.RepositoryStatus `json:"repository_status"`
+	Generations      []generation.Generation     `json:"generations"`
 }
 
 type StateManager struct {

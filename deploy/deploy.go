@@ -60,6 +60,9 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 		return
 	}
 
+	st.RepositoryStatus = deployer.repository.RepositoryStatus
+	deployer.stateManager.Set(st)
+
 	if err != nil {
 		logrus.Errorf("Error while deploying: %s", err)
 		return
