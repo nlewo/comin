@@ -411,6 +411,17 @@ func TestTestingSwitch(t *testing.T) {
 	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "testing", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r2", r.RepositoryStatus.SelectedRemoteName)
+
+	// r1/main: c1 - c2 - c3
+	// r1/testing: c1 - c2 - c3
+	// r2/main: c1 - c2 - c3 - *c4
+	// r2/testing: c1 - c2 - c3 - c4
+	commitFile(r2, r2Dir, "main", "file-4")
+	_ = r.Fetch("")
+	_ = r.Update()
+	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
+	assert.Equal(t, "r2", r.RepositoryStatus.SelectedRemoteName)
 }
 
 func TestWithoutTesting(t *testing.T) {
