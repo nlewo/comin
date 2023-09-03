@@ -53,6 +53,7 @@ func (r *Repository) Fetch(remoteName string) (err error) {
 		if err = fetch(*r, remote); err != nil {
 			repositoryStatusRemote.FetchErrorMsg = err.Error()
 		} else {
+			repositoryStatusRemote.FetchErrorMsg = ""
 			repositoryStatusRemote.Fetched = true
 		}
 		repositoryStatusRemote.FetchedAt = time.Now()
@@ -83,6 +84,8 @@ func (r *Repository) Update() error {
 			remote.Main.ErrorMsg = err.Error()
 			logrus.Debugf("Failed to getHeadFromRemoteAndBranch: %s", err)
 			continue
+		} else {
+			remote.Main.ErrorMsg = ""
 		}
 
 		remote.Main.CommitId = head.String()
@@ -128,6 +131,8 @@ func (r *Repository) Update() error {
 			remote.Testing.ErrorMsg = err.Error()
 			logrus.Debugf("Failed to getHeadFromRemoteAndBranch: %s", err)
 			continue
+		} else {
+			remote.Testing.ErrorMsg = ""
 		}
 
 		remote.Testing.CommitId = head.String()
