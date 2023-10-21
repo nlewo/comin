@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nlewo/comin/types"
+	deepcopy "github.com/barkimedes/go-deepcopy"
 	"time"
 )
 
@@ -90,4 +91,12 @@ func (r RepositoryStatus) GetRemote(remoteName string) *Remote {
 		}
 	}
 	return nil
+}
+
+func (r RepositoryStatus) Copy() RepositoryStatus {
+	rs, err := deepcopy.Anything(r)
+	if err != nil {
+		return RepositoryStatus{}
+	}
+	return rs.(RepositoryStatus)
 }

@@ -80,7 +80,7 @@ func (deployer Deployer) Deploy(remoteName string) (err error) {
 	gen := generation.Generation{
 		SwitchOperation:     operation,
 		Status:              "running",
-		RepositoryStatus:    deployer.repository.RepositoryStatus,
+		RepositoryStatus:    deployer.repository.RepositoryStatus.Copy(),
 		DeploymentStartedAt: time.Now(),
 	}
 	deployer.generations.InsertNewGeneration(gen)
