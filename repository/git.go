@@ -70,11 +70,11 @@ func hasNotBeenHardReset(r Repository, branchName string, currentMainHash *plumb
 	return nil
 }
 
-func getHeadFromRemoteAndBranch(r Repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, err error) {
+func getHeadFromRemoteAndBranch(r Repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, msg string, err error) {
 	var currentMainHash *plumbing.Hash
 	head := getRemoteCommitHash(r, remoteName, branchName)
 	if head == nil {
-		return newHead, fmt.Errorf("The branch '%s/%s' doesn't exist", remoteName, branchName)
+		return newHead, "", fmt.Errorf("The branch '%s/%s' doesn't exist", remoteName, branchName)
 	}
 	if currentMainCommitId != "" {
 		c := plumbing.NewHash(currentMainCommitId)
@@ -84,7 +84,13 @@ func getHeadFromRemoteAndBranch(r Repository, remoteName, branchName, currentMai
 	if err = hasNotBeenHardReset(r, branchName, currentMainHash, head); err != nil {
 		return
 	}
-	return *head, nil
+
+	commitObject, err := r.Repository.CommitObject(*head)
+	if err != nil {
+		return
+	}
+
+	return *head, commitObject.Message, nil
 }
 
 func hardReset(r Repository, newHead plumbing.Hash) error {

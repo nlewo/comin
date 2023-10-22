@@ -75,7 +75,7 @@ func (r *Repository) Update() error {
 				remote.FetchErrorMsg)
 			continue
 		}
-		head, err := getHeadFromRemoteAndBranch(
+		head, msg, err := getHeadFromRemoteAndBranch(
 			*r,
 			remote.Name,
 			remote.Main.Name,
@@ -89,6 +89,7 @@ func (r *Repository) Update() error {
 		}
 
 		remote.Main.CommitId = head.String()
+		remote.Main.CommitMsg = msg
 		remote.Main.OnTopOf = r.RepositoryStatus.MainCommitId
 
 		if r.RepositoryStatus.SelectedCommitId == "" {
@@ -122,7 +123,7 @@ func (r *Repository) Update() error {
 			continue
 		}
 
-		head, err := getHeadFromRemoteAndBranch(
+		head, msg, err := getHeadFromRemoteAndBranch(
 			*r,
 			remote.Name,
 			remote.Testing.Name,
@@ -136,6 +137,7 @@ func (r *Repository) Update() error {
 		}
 
 		remote.Testing.CommitId = head.String()
+		remote.Testing.CommitMsg = msg
 		remote.Testing.OnTopOf = r.RepositoryStatus.MainCommitId
 
 		if head.String() != r.RepositoryStatus.SelectedCommitId && head.String() != r.RepositoryStatus.MainCommitId {

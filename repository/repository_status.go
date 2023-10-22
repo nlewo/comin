@@ -11,6 +11,7 @@ import (
 type MainBranch struct {
 	Name     string `json:"name,omitempty"`
 	CommitId string `json:"commit_id,omitempty"`
+	CommitMsg string `json:"commit_msg,omitempty"`
 	ErrorMsg string `json:"error_msg,omitempty"`
 	OnTopOf  string `json:"on_top_of,omitempty"`
 }
@@ -18,6 +19,7 @@ type MainBranch struct {
 type TestingBranch struct {
 	Name     string `json:"name,omitempty"`
 	CommitId string `json:"commit_id,omitempty"`
+	CommitMsg string `json:"commit_msg,omitempty"`
 	ErrorMsg string `json:"error_msg,omitempty"`
 	OnTopOf  string `json:"on_top_of,omitempty"`
 }
