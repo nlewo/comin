@@ -176,6 +176,7 @@
       };
       config = lib.mkIf cfg.services.comin.enable {
         nixpkgs.overlays = [ self.overlay ];
+        environment.systemPackages = [ pkgs.comin ];
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
           path = [ pkgs.nix pkgs.git ];
