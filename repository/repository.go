@@ -94,12 +94,14 @@ func (r *Repository) Update() error {
 
 		if r.RepositoryStatus.SelectedCommitId == "" {
 			r.RepositoryStatus.SelectedCommitId = head.String()
+			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
 			r.RepositoryStatus.SelectedBranchIsTesting = false
 		}
 		if head.String() != r.RepositoryStatus.MainCommitId {
 			r.RepositoryStatus.SelectedCommitId = head.String()
+			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
 			r.RepositoryStatus.SelectedBranchIsTesting = false
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
@@ -142,6 +144,7 @@ func (r *Repository) Update() error {
 
 		if head.String() != r.RepositoryStatus.SelectedCommitId && head.String() != r.RepositoryStatus.MainCommitId {
 			r.RepositoryStatus.SelectedCommitId = head.String()
+			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Testing.Name
 			r.RepositoryStatus.SelectedBranchIsTesting = true
 			r.RepositoryStatus.SelectedRemoteName = remote.Name

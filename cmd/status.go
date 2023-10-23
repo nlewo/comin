@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+	"strings"
 )
 
 func getStatus() (state state.State, err error) {
@@ -48,8 +49,16 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		fmt.Printf("Commit ID is %s\n", state.RepositoryStatus.SelectedCommitId)
-		fmt.Printf("Deployed from '%s/%s'\n",
+		fmt.Printf("- The commit ID is %s\n", state.RepositoryStatus.SelectedCommitId)
+		fmt.Printf("- The commit msg is\n    %s\n",
+			strings.Replace(
+				state.RepositoryStatus.SelectedCommitMsg,
+				"\n",
+				"\n    ",
+				-1,
+			),
+		)
+		fmt.Printf("- Deployed from '%s/%s'\n",
 			state.RepositoryStatus.SelectedBranchName,
 			state.RepositoryStatus.SelectedRemoteName,
 		)

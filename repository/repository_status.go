@@ -38,6 +38,7 @@ type RepositoryStatus struct {
 	// This is the deployed Main commit ID. It is used to ensure
 	// fast forward
 	SelectedCommitId        string    `json:"selected_commit_id"`
+	SelectedCommitMsg       string    `json:"selected_commit_msg"`
 	SelectedRemoteName      string    `json:"selected_remote_name"`
 	SelectedBranchName      string    `json:"selected_branch_name"`
 	SelectedBranchIsTesting bool      `json:"selected_branch_is_testing"`
