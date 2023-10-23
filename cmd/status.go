@@ -8,14 +8,14 @@ import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"net/http"
-	"time"
 	"strings"
+	"time"
 )
 
 func getStatus() (state state.State, err error) {
 	url := "http://localhost:4242/status"
 	client := http.Client{
-		Timeout: time.Second * 2, // Timeout after 2 seconds
+		Timeout: time.Second * 2,
 	}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
