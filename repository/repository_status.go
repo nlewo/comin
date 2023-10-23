@@ -3,25 +3,25 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nlewo/comin/types"
 	deepcopy "github.com/barkimedes/go-deepcopy"
+	"github.com/nlewo/comin/types"
 	"time"
 )
 
 type MainBranch struct {
-	Name     string `json:"name,omitempty"`
-	CommitId string `json:"commit_id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	CommitId  string `json:"commit_id,omitempty"`
 	CommitMsg string `json:"commit_msg,omitempty"`
-	ErrorMsg string `json:"error_msg,omitempty"`
-	OnTopOf  string `json:"on_top_of,omitempty"`
+	ErrorMsg  string `json:"error_msg,omitempty"`
+	OnTopOf   string `json:"on_top_of,omitempty"`
 }
 
 type TestingBranch struct {
-	Name     string `json:"name,omitempty"`
-	CommitId string `json:"commit_id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	CommitId  string `json:"commit_id,omitempty"`
 	CommitMsg string `json:"commit_msg,omitempty"`
-	ErrorMsg string `json:"error_msg,omitempty"`
-	OnTopOf  string `json:"on_top_of,omitempty"`
+	ErrorMsg  string `json:"error_msg,omitempty"`
+	OnTopOf   string `json:"on_top_of,omitempty"`
 }
 
 type Remote struct {

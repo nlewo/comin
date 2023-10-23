@@ -139,7 +139,7 @@ func Build(path, hostname string) (outPath string, err error) {
 
 	args := []string{
 		"build",
-		fmt.Sprintf("%s^*",drvPath),
+		fmt.Sprintf("%s^*", drvPath),
 		"-L",
 		"--no-link"}
 	err = runNixCommand(args, os.Stdout, os.Stderr)
