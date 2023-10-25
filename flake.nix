@@ -26,7 +26,7 @@
             p == "README.md"
           );
         };
-        vendorSha256 = "sha256-gRjInrWN+SWZ7ftPnSMz1dWDjW/gkAdnLia8sxAG0bE=";
+        vendorSha256 = "sha256-HBc7BK3ZYCfHUIFSpYASm6LaRlCUzsf1cg23ZQdJppY=";
         buildInputs = [ final.makeWrapper ];
         postInstall = ''
           # This is because Nix needs Git at runtime
