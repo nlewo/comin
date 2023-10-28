@@ -63,8 +63,8 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 	return nil
 }
 
-func ShowDerivation(path, hostname string) (drvPath string, outPath string, err error) {
-	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", path, hostname)
+func ShowDerivation(flakeUrl, hostname string) (drvPath string, outPath string, err error) {
+	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
 	args := []string{
 		"show-derivation",
 		installable,
