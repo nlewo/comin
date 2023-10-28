@@ -12,6 +12,7 @@ import (
 
 var debug bool
 var hostname string
+var flakeUrl string
 
 var rootCmd = &cobra.Command{
 	Use:   "comin",

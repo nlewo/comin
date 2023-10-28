@@ -108,11 +108,13 @@ type Show struct {
 	NixosConfigurations map[string]struct{} `json:"nixosConfigurations"`
 }
 
-func List() (hosts []string, err error) {
+func List(flakeUrl string) (hosts []string, err error) {
 	args := []string{
 		"flake",
 		"show",
-		"--json"}
+		"--json",
+		flakeUrl,
+	}
 	var stdout bytes.Buffer
 	err = runNixCommand(args, &stdout, os.Stderr)
 	if err != nil {
