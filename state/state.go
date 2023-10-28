@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/nlewo/comin/generation"
 	"github.com/nlewo/comin/repository"
+	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
@@ -11,6 +12,7 @@ import (
 )
 
 type State struct {
+	Hostname         string                      `json:"hostname"`
 	RepositoryStatus repository.RepositoryStatus `json:"repository_status"`
 	Generations      []generation.Generation     `json:"generations"`
 }
@@ -21,13 +23,14 @@ type StateManager struct {
 	filepath string
 }
 
-func New(stateFilepath string) (*StateManager, error) {
-	state, err := Load(stateFilepath)
+func New(config types.Configuration) (*StateManager, error) {
+	state, err := Load(config.StateFilepath)
+	state.Hostname = config.Hostname
 	if err != nil {
 		return &StateManager{}, err
 	}
 	return &StateManager{
-		filepath: stateFilepath,
+		filepath: config.StateFilepath,
 		state:    state,
 	}, nil
 }

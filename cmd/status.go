@@ -49,6 +49,7 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
+		fmt.Printf("Status of the machine '%s':\n", state.Hostname)
 		fmt.Printf("- The commit ID is %s\n", state.RepositoryStatus.SelectedCommitId)
 		fmt.Printf("- The commit msg is\n    %s\n",
 			strings.Replace(

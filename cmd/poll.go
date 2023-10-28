@@ -11,7 +11,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
-	"path/filepath"
 )
 
 var configFilepath string
@@ -27,7 +26,7 @@ var pollCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		stateManager, err := state.New(filepath.Join(config.StateFilepath))
+		stateManager, err := state.New(config)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
