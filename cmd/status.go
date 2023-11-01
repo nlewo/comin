@@ -50,18 +50,21 @@ var statusCmd = &cobra.Command{
 			logrus.Fatal(err)
 		}
 		fmt.Printf("Status of the machine '%s':\n", state.Hostname)
-		fmt.Printf("- The commit ID is %s\n", state.RepositoryStatus.SelectedCommitId)
+		fmt.Printf("- The last deployment operation is '%s'\n", state.Generations[0].SwitchOperation)
+		fmt.Printf("- The last deployment status is '%s'\n", state.Generations[0].Status)
+		fmt.Printf("- The last deployment terminated at '%s'\n", state.Generations[0].DeploymentEndedAt)
+		fmt.Printf("- The deployed commit ID is '%s'\n", state.Generations[0].RepositoryStatus.SelectedCommitId)
 		fmt.Printf("- The commit msg is\n    %s\n",
 			strings.Replace(
-				state.RepositoryStatus.SelectedCommitMsg,
+				state.Generations[0].RepositoryStatus.SelectedCommitMsg,
 				"\n",
 				"\n    ",
 				-1,
 			),
 		)
 		fmt.Printf("- Deployed from '%s/%s'\n",
-			state.RepositoryStatus.SelectedBranchName,
-			state.RepositoryStatus.SelectedRemoteName,
+			state.Generations[0].RepositoryStatus.SelectedRemoteName,
+			state.Generations[0].RepositoryStatus.SelectedBranchName,
 		)
 	},
 }
