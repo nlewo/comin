@@ -4,7 +4,6 @@ import (
 	"github.com/nlewo/comin/config"
 	"github.com/nlewo/comin/deploy"
 	"github.com/nlewo/comin/http"
-	"github.com/nlewo/comin/inotify"
 	"github.com/nlewo/comin/poller"
 	"github.com/nlewo/comin/state"
 	"github.com/nlewo/comin/worker"
@@ -43,7 +42,6 @@ var pollCmd = &cobra.Command{
 		go poller.Poller(wk, config.Remotes)
 		// FIXME: the state should be available from somewhere else...
 		go http.Run(wk, config.Webhook, stateManager)
-		go inotify.Run(wk, config.Inotify)
 		wk.Run()
 	},
 }
