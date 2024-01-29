@@ -1,23 +1,29 @@
 package repository
 
 import (
+	"context"
 	"fmt"
+	"time"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
-type Repository struct {
+type repository struct {
 	Repository       *git.Repository
 	GitConfig        types.GitConfig
 	RepositoryStatus RepositoryStatus
 }
 
+type Repository interface {
+	FetchAndUpdate(ctx context.Context, remoteName string) (rsCh chan RepositoryStatus)
+}
+
 // repositoryStatus is the last saved repositoryStatus
-func New(config types.GitConfig, repositoryStatus RepositoryStatus) (r *Repository, err error) {
-	r = &Repository{}
+func New(config types.GitConfig, repositoryStatus RepositoryStatus) (r *repository, err error) {
+	r = &repository{}
 	r.GitConfig = config
 	r.Repository, err = repositoryOpen(config)
 	if err != nil {
@@ -31,9 +37,23 @@ func New(config types.GitConfig, repositoryStatus RepositoryStatus) (r *Reposito
 	return
 }
 
-func (r *Repository) Fetch(remoteName string) (err error) {
+func (r *repository) FetchAndUpdate(ctx context.Context, remoteName string) (rsCh chan RepositoryStatus) {
+	rsCh = make(chan RepositoryStatus)
+	go func() {
+		// FIXME: switch to the FetchContext to clean resource up on timeout
+		err := r.Fetch(remoteName)
+		if err == nil {
+			r.Update()
+		}
+		rsCh <- r.RepositoryStatus
+	}()
+	return rsCh
+}
+
+func (r *repository) Fetch(remoteName string) (err error) {
 	var remotes []types.Remote
 	var found bool
+	r.RepositoryStatus.Error = nil
 	if remoteName != "" {
 		for _, remote := range r.GitConfig.Remotes {
 			if remote.Name == remoteName {
@@ -42,6 +62,7 @@ func (r *Repository) Fetch(remoteName string) (err error) {
 			}
 		}
 		if !found {
+			r.RepositoryStatus.Error = err
 			return fmt.Errorf("The remote '%s' doesn't exist", remoteName)
 		}
 	} else {
@@ -61,7 +82,7 @@ func (r *Repository) Fetch(remoteName string) (err error) {
 	return
 }
 
-func (r *Repository) Update() error {
+func (r *repository) Update() error {
 	// We first walk on all Main branches in order to get a commit
 	// from a Main branch. Once found, we could then walk on all
 	// Testing branches to get a testing commit on top of the Main
@@ -153,6 +174,7 @@ func (r *Repository) Update() error {
 	}
 
 	if err := hardReset(*r, plumbing.NewHash(r.RepositoryStatus.SelectedCommitId)); err != nil {
+		r.RepositoryStatus.Error = err
 		return err
 	}
 	return nil

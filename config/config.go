@@ -4,7 +4,6 @@ import (
 	"github.com/nlewo/comin/types"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -22,7 +21,7 @@ func Read(path string) (config types.Configuration, err error) {
 	}
 	for i, remote := range config.Remotes {
 		if remote.Auth.AccessTokenPath != "" {
-			content, err := ioutil.ReadFile(remote.Auth.AccessTokenPath)
+			content, err := os.ReadFile(remote.Auth.AccessTokenPath)
 			if err != nil {
 				return config, err
 			}
@@ -30,18 +29,11 @@ func Read(path string) (config types.Configuration, err error) {
 		}
 	}
 
-	if config.Webhook.Address == "" {
-		config.Webhook.Address = "127.0.0.1"
+	if config.HttpServer.Address == "" {
+		config.HttpServer.Address = "127.0.0.1"
 	}
-	if config.Webhook.Port == 0 {
-		config.Webhook.Port = 4242
-	}
-	if config.Webhook.SecretPath != "" {
-		content, err := ioutil.ReadFile(config.Webhook.SecretPath)
-		if err != nil {
-			return config, err
-		}
-		config.Webhook.Secret = string(content)
+	if config.HttpServer.Port == 0 {
+		config.HttpServer.Port = 4242
 	}
 	if config.StateFilepath == "" {
 		config.StateFilepath = filepath.Join(config.StateDir, "state.json")

@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 lewo <lewo@abesis.fr>
-
 */
 package cmd
 

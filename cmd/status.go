@@ -3,16 +3,19 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nlewo/comin/state"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/dustin/go-humanize"
+
+	"github.com/nlewo/comin/manager"
+	"github.com/nlewo/comin/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"io/ioutil"
-	"net/http"
-	"strings"
-	"time"
 )
 
-func getStatus() (state state.State, err error) {
+func getStatus() (status manager.State, err error) {
 	url := "http://localhost:4242/status"
 	client := http.Client{
 		Timeout: time.Second * 2,
@@ -28,12 +31,11 @@ func getStatus() (state state.State, err error) {
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return
 	}
-
-	err = json.Unmarshal(body, &state)
+	err = json.Unmarshal(body, &status)
 	if err != nil {
 		return
 	}
@@ -45,27 +47,26 @@ var statusCmd = &cobra.Command{
 	Short: "Get the status of the local machine",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		state, err := getStatus()
+		status, err := getStatus()
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		fmt.Printf("Status of the machine '%s':\n", state.Hostname)
-		fmt.Printf("- The last deployment operation is '%s'\n", state.Generations[0].SwitchOperation)
-		fmt.Printf("- The last deployment status is '%s'\n", state.Generations[0].Status)
-		fmt.Printf("- The last deployment terminated at '%s'\n", state.Generations[0].DeploymentEndedAt)
-		fmt.Printf("- The deployed commit ID is '%s'\n", state.Generations[0].RepositoryStatus.SelectedCommitId)
-		fmt.Printf("- The commit msg is\n    %s\n",
-			strings.Replace(
-				state.Generations[0].RepositoryStatus.SelectedCommitMsg,
-				"\n",
-				"\n    ",
-				-1,
-			),
+		fmt.Printf("Status of the machine '%s':\n", status.Hostname)
+		fmt.Printf("  Deployment status is '%s'\n", status.Deployment.Status)
+		fmt.Printf("  Deployed from '%s/%s'\n",
+			status.Deployment.Generation.RepositoryStatus.SelectedRemoteName,
+			status.Deployment.Generation.RepositoryStatus.SelectedBranchName,
 		)
-		fmt.Printf("- Deployed from '%s/%s'\n",
-			state.Generations[0].RepositoryStatus.SelectedRemoteName,
-			state.Generations[0].RepositoryStatus.SelectedBranchName,
+		fmt.Printf("  Deployed commit ID is '%s'\n", status.Deployment.Generation.RepositoryStatus.SelectedCommitId)
+		fmt.Printf("  Deployed commit msg is\n    %s\n",
+			utils.FormatCommitMsg(status.Deployment.Generation.RepositoryStatus.SelectedCommitMsg),
 		)
+		fmt.Printf("  Deployed %s\n", humanize.Time(status.Deployment.EndAt))
+		for _, r := range status.RepositoryStatus.Remotes {
+			fmt.Printf("  Remote %s fetched %s\n",
+				r.Url, humanize.Time(r.FetchedAt),
+			)
+		}
 	},
 }
 

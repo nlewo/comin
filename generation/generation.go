@@ -1,50 +1,97 @@
 package generation
 
 import (
-	"github.com/nlewo/comin/repository"
+	"context"
+	"fmt"
 	"time"
+
+	"github.com/nlewo/comin/repository"
 )
 
-type Generations struct {
-	Limit       int
-	Generations []Generation `json:"generations"`
-}
-
+// We consider each created genration is legit to be deployed: hard
+// reset is ensured at RepositoryStatus creation.
 type Generation struct {
-	SwitchOperation     string                      `json:"switch_operation"`
-	Status              string                      `json:"status"`
-	DeploymentStartedAt time.Time                   `json:"deployment_started_at"`
-	DeploymentEndedAt   time.Time                   `json:"deployment_ended_at"`
-	RepositoryStatus    repository.RepositoryStatus `json:"repository_status"`
+	flakeUrl  string
+	hostname  string
+	machineId string
+
+	RepositoryStatus repository.RepositoryStatus
+
+	EvalStartedAt time.Time
+	EvalResult    EvalResult
+	evalTimeout   time.Duration
+	evalFunc      EvalFunc
+
+	BuildStartedAt time.Time
+	BuildResult    BuildResult
+	buildFunc      BuildFunc
 }
 
-func NewGenerations(limit int, generations []Generation) *Generations {
-	g := make([]Generation, 0)
-	if len(generations) > limit {
-		g = append(g, generations[:limit]...)
-	} else {
-		g = append(g, generations...)
+type EvalFunc func(ctx context.Context, flakeUrl string, hostname string) (drvPath string, outPath string, machineId string, err error)
+type BuildFunc func(ctx context.Context, drvPath string) error
+
+type BuildResult struct {
+	EndAt time.Time
+	Err   error
+}
+
+type EvalResult struct {
+	EndAt     time.Time
+	OutPath   string
+	DrvPath   string
+	MachineId string
+	Err       error
+}
+
+func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machineId string, evalFunc EvalFunc, buildFunc BuildFunc) Generation {
+	return Generation{
+		RepositoryStatus: repositoryStatus,
+		evalTimeout:      6 * time.Second,
+		evalFunc:         evalFunc,
+		buildFunc:        buildFunc,
+		flakeUrl:         flakeUrl,
+		hostname:         hostname,
+		machineId:        machineId,
 	}
-	return &Generations{
-		Limit:       limit,
-		Generations: g,
+}
+
+func (g Generation) Eval(ctx context.Context) (result chan EvalResult) {
+	result = make(chan EvalResult)
+	fn := func() {
+		ctx, cancel := context.WithTimeout(ctx, g.evalTimeout)
+		defer cancel()
+		drvPath, outPath, machineId, err := g.evalFunc(ctx, g.flakeUrl, g.hostname)
+		evaluationResult := EvalResult{
+			EndAt: time.Now(),
+		}
+		if err == nil {
+			evaluationResult.DrvPath = drvPath
+			evaluationResult.OutPath = outPath
+			if g.machineId != "" && g.machineId != machineId {
+				evaluationResult.Err = fmt.Errorf("The defined comin.machineId (%s) is different to the machine id (%s) of this machine",
+					g.machineId, machineId)
+			}
+		} else {
+			evaluationResult.Err = err
+		}
+		result <- evaluationResult
 	}
+	go fn()
+	return result
 }
 
-func (generations *Generations) InsertNewGeneration(generation Generation) {
-	g := make([]Generation, 1)
-	g[0] = generation
-	if len(generations.Generations) > generations.Limit {
-		generations.Generations = append(g, generations.Generations[:generations.Limit-1]...)
-	} else {
-		generations.Generations = append(g, generations.Generations...)
+func (g Generation) Build(ctx context.Context) (result chan BuildResult) {
+	result = make(chan BuildResult)
+	fn := func() {
+		ctx, cancel := context.WithTimeout(ctx, g.evalTimeout)
+		defer cancel()
+		err := g.buildFunc(ctx, g.EvalResult.DrvPath)
+		buildResult := BuildResult{
+			EndAt: time.Now(),
+		}
+		buildResult.Err = err
+		result <- buildResult
 	}
-}
-
-func (generations *Generations) GetGenerationAt(index int) Generation {
-	return generations.Generations[index]
-}
-
-func (generations *Generations) ReplaceGenerationAt(index int, generation Generation) {
-	generations.Generations[index] = generation
+	go fn()
+	return result
 }

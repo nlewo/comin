@@ -52,22 +52,15 @@ type Branches struct {
 	Testing Branch `yaml:"testing"`
 }
 
-type Inotify struct {
-	RepositoryPath string `yaml:"repository_path"`
-}
-
-type Webhook struct {
-	Address    string `yaml:"address"`
-	Port       int    `yaml:"port"`
-	Secret     string
-	SecretPath string `yaml:"secret_path"`
+type HttpServer struct {
+	Address string `yaml:"address"`
+	Port    int    `yaml:"port"`
 }
 
 type Configuration struct {
-	Hostname      string   `yaml:"hostname"`
-	StateDir      string   `yaml:"state_dir"`
-	StateFilepath string   `yaml:"state_filepath"`
-	Remotes       []Remote `yaml:"remotes"`
-	Webhook       Webhook  `yaml:"webhook"`
-	Inotify       Inotify  `yaml:"inotify"`
+	Hostname      string     `yaml:"hostname"`
+	StateDir      string     `yaml:"state_dir"`
+	StateFilepath string     `yaml:"state_filepath"`
+	Remotes       []Remote   `yaml:"remotes"`
+	HttpServer    HttpServer `yaml:"http_server"`
 }

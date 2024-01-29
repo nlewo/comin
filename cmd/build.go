@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/nlewo/comin/nix"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -11,6 +13,7 @@ var buildCmd = &cobra.Command{
 	Short: "Build a machine configuration",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.TODO()
 		hosts := make([]string, 1)
 		if hostname != "" {
 			hosts[0] = hostname
@@ -19,7 +22,12 @@ var buildCmd = &cobra.Command{
 		}
 		for _, host := range hosts {
 			logrus.Infof("Building the NixOS configuration of machine '%s'", host)
-			_, err := nix.Build(flakeUrl, host)
+
+			drvPath, _, err := nix.ShowDerivation(ctx, flakeUrl, host)
+			if err != nil {
+				logrus.Errorf("Failed to evaluate the configuration '%s': '%s'", host, err)
+			}
+			err = nix.Build(ctx, drvPath)
 			if err != nil {
 				logrus.Errorf("Failed to build the configuration '%s': '%s'", host, err)
 			}

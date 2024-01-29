@@ -40,7 +40,7 @@ func RepositoryClone(directory, url, commitId, accessToken string) error {
 	return nil
 }
 
-func getRemoteCommitHash(r Repository, remote, branch string) *plumbing.Hash {
+func getRemoteCommitHash(r repository, remote, branch string) *plumbing.Hash {
 	remoteBranch := fmt.Sprintf("refs/remotes/%s/%s", remote, branch)
 	remoteHeadRef, err := r.Repository.Reference(
 		plumbing.ReferenceName(remoteBranch),
@@ -55,7 +55,7 @@ func getRemoteCommitHash(r Repository, remote, branch string) *plumbing.Hash {
 	return &commitId
 }
 
-func hasNotBeenHardReset(r Repository, branchName string, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
+func hasNotBeenHardReset(r repository, branchName string, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
 	if currentMainHash != nil && remoteMainHead != nil && *currentMainHash != *remoteMainHead {
 		var ok bool
 		ok, err := isAncestor(r.Repository, *currentMainHash, *remoteMainHead)
@@ -70,7 +70,7 @@ func hasNotBeenHardReset(r Repository, branchName string, currentMainHash *plumb
 	return nil
 }
 
-func getHeadFromRemoteAndBranch(r Repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, msg string, err error) {
+func getHeadFromRemoteAndBranch(r repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, msg string, err error) {
 	var currentMainHash *plumbing.Hash
 	head := getRemoteCommitHash(r, remoteName, branchName)
 	if head == nil {
@@ -93,7 +93,7 @@ func getHeadFromRemoteAndBranch(r Repository, remoteName, branchName, currentMai
 	return *head, commitObject.Message, nil
 }
 
-func hardReset(r Repository, newHead plumbing.Hash) error {
+func hardReset(r repository, newHead plumbing.Hash) error {
 	var w *git.Worktree
 	w, err := r.Repository.Worktree()
 	if err != nil {
@@ -110,7 +110,7 @@ func hardReset(r Repository, newHead plumbing.Hash) error {
 }
 
 // fetch fetches the config.Remote
-func fetch(r Repository, remote types.Remote) (err error) {
+func fetch(r repository, remote types.Remote) (err error) {
 	logrus.Debugf("Fetching remote '%s'", remote.Name)
 	fetchOptions := git.FetchOptions{
 		RemoteName: remote.Name,

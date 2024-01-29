@@ -1,10 +1,13 @@
-# Comin
+# Comin - Deploy NixOS machines with Git push
 
-**warning: comin is an experimentation and should not be used (yet)**
+Comin is a deployment tool working in the pull mode. Running on a
+machine, it periodically polls Git repositories and deploys the NixOS
+configuration associated to this machine.
 
-Comin is a deployment tool running in the pull mode: it periodically
-polls a Git repository and deploys the NixOS configuration found in
-this repository on the machine where it is running.
+- Git push to deploy a NixOS configuration
+- Support testing branches to try changes
+- Easy to use
+- Support multiple Git remotes
 
 ## Getting started
 
@@ -12,23 +15,17 @@ In your `configuration.nix` file:
 
     services.comin = {
       enable = true;
-      repository = "https://gitlab.com/your/infra.git";
+      remotes = [
+	    {
+	      name = "origin";
+          url = "https://gitlab.com/your/infra.git";
+        }
+	  ]
     };
 
 This enables a systemd service, which periodically pulls the `main`
 branch of the repository `https://gitlab.com/your/infra.git` and
 deploys the NixOS configuration corresponding to the machine hostname.
-
-## Bootstrap Comin
-
-Deploying your configuration on a new NixOS machine can be pretty
-tedious. The `comin bootstrap` command allows to easily bootstrap
-Comin. It pulls a repository and deploys the configuration.
-
-    comin bootstrap <YOUR-REPOSITORY> <A-COMMIT-ID>
-
-Note the commit ID is required to securely initialize Comin since it
-garantees you are deploying what you expect.
 
 ## How to test a configuration without having to commit to main
 
@@ -88,3 +85,5 @@ algorithm to determine which commit we want to deploy.
 4. Get the first Testing commit strictly on top of the previously
    chosen Main commit ID. If not found, use the previously chosen Main
    commit ID.
+
+

@@ -12,11 +12,8 @@ func TestConfig(t *testing.T) {
 		Hostname:      "machine",
 		StateDir:      "/var/lib/comin",
 		StateFilepath: "/var/lib/comin/state.json",
-		Poller: types.Poller{
-			Period: 10,
-		},
 		Remotes: []types.Remote{
-			types.Remote{
+			{
 				Name: "origin",
 				URL:  "https://framagit.org/owner/infra",
 				Auth: types.Auth{
@@ -24,7 +21,7 @@ func TestConfig(t *testing.T) {
 					AccessTokenPath: "./secret",
 				},
 			},
-			types.Remote{
+			{
 				Name: "local",
 				URL:  "/home/owner/git/infra",
 				Auth: types.Auth{
@@ -33,17 +30,7 @@ func TestConfig(t *testing.T) {
 				},
 			},
 		},
-		Branches: types.Branches{
-			Main: types.Branch{
-				Name:      "main",
-				Protected: true,
-			},
-			Testing: types.Branch{
-				Name:      "testing-machine",
-				Protected: false,
-			},
-		},
-		Webhook: types.Webhook{
+		HttpServer: types.HttpServer{
 			Address: "127.0.0.1",
 			Port:    4242,
 		},

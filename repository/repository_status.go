@@ -46,6 +46,7 @@ type RepositoryStatus struct {
 	MainRemoteName          string    `json:"main_remote_name"`
 	MainBranchName          string    `json:"main_branch_name"`
 	Remotes                 []*Remote `json:"remotes"`
+	Error                   error
 }
 
 func NewRepositoryStatus(config types.GitConfig, repositoryStatus RepositoryStatus) RepositoryStatus {
@@ -97,9 +98,14 @@ func (r RepositoryStatus) GetRemote(remoteName string) *Remote {
 }
 
 func (r RepositoryStatus) Copy() RepositoryStatus {
+	fmt.Printf("%v", r)
 	rs, err := deepcopy.Anything(r)
 	if err != nil {
 		return RepositoryStatus{}
 	}
 	return rs.(RepositoryStatus)
+}
+
+func (r1 RepositoryStatus) Equal(r2 RepositoryStatus) bool {
+	return r1.SelectedCommitId == r2.SelectedCommitId && r1.IsTesting() == r2.IsTesting()
 }

@@ -26,7 +26,7 @@
             p == "README.md"
           );
         };
-        vendorSha256 = "sha256-HBc7BK3ZYCfHUIFSpYASm6LaRlCUzsf1cg23ZQdJppY=";
+        vendorSha256 = "sha256-kyj0CbB3IfRvrNXsO9JEVYJ8Hr5e747i+ZKcbR6WfKM=";
         buildInputs = [ final.makeWrapper ];
         postInstall = ''
           # This is because Nix needs Git at runtime
@@ -187,7 +187,7 @@
             ExecStart =
               "${pkgs.comin}/bin/comin "
               + (lib.optionalString cfg.services.comin.debug "--debug ")
-              + " poll "
+              + " run "
               + "--config ${cominConfigYaml}";
               Restart = "always";
           };

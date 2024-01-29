@@ -2,26 +2,23 @@ package nix
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-)
 
-const (
-	EXPECTED_MACHINE_ID_FILEPATH = "/etc/comin/expected-machine-id"
+	"github.com/sirupsen/logrus"
 )
 
 // GetExpectedMachineId evals
 // nixosConfigurations.MACHINE.config.services.comin.machineId and
-// returns (true, machine-id, nil) is comin.machineId is set, (false,
-// "", nil) otherwise.
-func getExpectedMachineId(path, hostname string) (isSet bool, machineId string, err error) {
+// returns (machine-id, nil) is comin.machineId is set, ("", nil) otherwise.
+func getExpectedMachineId(path, hostname string) (machineId string, err error) {
 	expr := fmt.Sprintf("%s#nixosConfigurations.%s.config.services.comin.machineId", path, hostname)
 	args := []string{
 		"eval",
@@ -41,9 +38,9 @@ func getExpectedMachineId(path, hostname string) (isSet bool, machineId string, 
 	if machineIdPtr != nil {
 		logrus.Debugf("Getting comin.machineId = %s", *machineIdPtr)
 		machineId = *machineIdPtr
-		isSet = true
 	} else {
 		logrus.Debugf("Getting comin.machineId = null (not set)")
+		machineId = ""
 	}
 	return
 }
@@ -63,7 +60,16 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 	return nil
 }
 
-func ShowDerivation(flakeUrl, hostname string) (drvPath string, outPath string, err error) {
+func Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
+	drvPath, outPath, err = ShowDerivation(ctx, flakeUrl, hostname)
+	if err != nil {
+		return
+	}
+	machineId, err = getExpectedMachineId(flakeUrl, hostname)
+	return
+}
+
+func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
 	args := []string{
 		"show-derivation",
@@ -133,12 +139,7 @@ func List(flakeUrl string) (hosts []string, err error) {
 	return
 }
 
-func Build(path, hostname string) (outPath string, err error) {
-	drvPath, outPath, err := ShowDerivation(path, hostname)
-	if err != nil {
-		return
-	}
-
+func Build(ctx context.Context, drvPath string) (err error) {
 	args := []string{
 		"build",
 		fmt.Sprintf("%s^*", drvPath),
@@ -156,20 +157,18 @@ func Build(path, hostname string) (outPath string, err error) {
 // being configured. If not, it returns an error. Note this is
 // optional: if the comin.machineId option is not set, this check is
 // skipped.
-func checkMachineId(path, hostname string) error {
-	isSet, expectedMachineId, err := getExpectedMachineId(path, hostname)
+func checkMachineId(expectedMachineId string) error {
+	if expectedMachineId == "" {
+		return nil
+	}
+	machineIdBytes, err := os.ReadFile("/etc/machine-id")
+	machineId := strings.TrimSuffix(string(machineIdBytes), "\n")
 	if err != nil {
-		return err
-	} else if isSet {
-		machineIdBytes, err := os.ReadFile("/etc/machine-id")
-		machineId := strings.TrimSuffix(string(machineIdBytes), "\n")
-		if err != nil {
-			return fmt.Errorf("Can not read file '/etc/machine-id': %s", err)
-		}
-		if expectedMachineId != machineId {
-			return fmt.Errorf("Skip deployment because the comin expected machine id '%s' is not equal to the actual machine id '%s'",
-				expectedMachineId, machineId)
-		}
+		return fmt.Errorf("Can not read file '/etc/machine-id': %s", err)
+	}
+	if expectedMachineId != machineId {
+		return fmt.Errorf("Skip deployment because the comin expected machine id '%s' is not equal to the actual machine id '%s'",
+			expectedMachineId, machineId)
 	}
 	return nil
 }
@@ -194,11 +193,11 @@ func setSystemProfile(operation string, outPath string, dryRun bool) error {
 	return nil
 }
 
-func createGcRoot(stateDir, hostname, outPath string, dryRun bool) error {
+func createGcRoot(stateDir, outPath string, dryRun bool) error {
 	gcRootDir := filepath.Join(stateDir, "gcroots")
 	gcRoot := filepath.Join(
 		gcRootDir,
-		fmt.Sprintf("switch-to-configuration-%s", hostname))
+		fmt.Sprintf("switch-to-configuration"))
 	if dryRun {
 		logrus.Infof("Dry-run enabled: 'ln -s %s %s'", outPath, gcRoot)
 		return nil
@@ -248,29 +247,20 @@ func switchToConfiguration(operation string, outPath string, dryRun bool) error 
 	return nil
 }
 
-func Deploy(hostname, stateDir, path, operation string, dryRun bool) (needToRestartComin bool, err error) {
-	err = os.MkdirAll(stateDir, 0750)
-	if err != nil {
-		return
-	}
-
-	if err = checkMachineId(path, hostname); err != nil {
-		return
-	}
-
-	outPath, err := Build(path, hostname)
-	if err != nil {
+func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (needToRestartComin bool, err error) {
+	if err = checkMachineId(expectedMachineId); err != nil {
 		return
 	}
 
 	beforeCominUnitFileHash := cominUnitFileHash()
 
 	// This is required to write boot entries
-	if err = setSystemProfile(operation, outPath, dryRun); err != nil {
+	// Only do this is operation is switch or boot
+	if err = setSystemProfile(operation, outPath, false); err != nil {
 		return
 	}
 
-	if err = switchToConfiguration(operation, outPath, dryRun); err != nil {
+	if err = switchToConfiguration(operation, outPath, false); err != nil {
 		return
 	}
 
@@ -278,10 +268,6 @@ func Deploy(hostname, stateDir, path, operation string, dryRun bool) (needToRest
 
 	if beforeCominUnitFileHash != afterCominUnitFileHash {
 		needToRestartComin = true
-	}
-
-	if err = createGcRoot(stateDir, hostname, outPath, dryRun); err != nil {
-		return
 	}
 
 	logrus.Infof("Deployment succeeded")

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/nlewo/comin/nix"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -12,6 +14,7 @@ var evalCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		hosts := make([]string, 1)
+		ctx := context.TODO()
 		if hostname != "" {
 			hosts[0] = hostname
 		} else {
@@ -19,7 +22,7 @@ var evalCmd = &cobra.Command{
 		}
 		for _, host := range hosts {
 			logrus.Infof("Evaluating the NixOS configuration of machine '%s'", host)
-			_, _, err := nix.ShowDerivation(flakeUrl, host)
+			_, _, err := nix.ShowDerivation(ctx, flakeUrl, host)
 			if err != nil {
 				logrus.Errorf("Failed to eval the configuration '%s': '%s'", host, err)
 			}

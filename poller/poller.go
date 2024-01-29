@@ -1,13 +1,14 @@
 package poller
 
 import (
-	"github.com/nlewo/comin/types"
-	"github.com/nlewo/comin/worker"
-	"github.com/sirupsen/logrus"
 	"time"
+
+	"github.com/nlewo/comin/manager"
+	"github.com/nlewo/comin/types"
+	"github.com/sirupsen/logrus"
 )
 
-func Poller(w worker.Worker, remotes []types.Remote) {
+func Poller(m manager.Manager, remotes []types.Remote) {
 	poll := false
 	for _, remote := range remotes {
 		if remote.Poller.Period != 0 {
@@ -22,10 +23,7 @@ func Poller(w worker.Worker, remotes []types.Remote) {
 	for {
 		for _, remote := range remotes {
 			if remote.Poller.Period != 0 && counter%remote.Poller.Period == 0 {
-				params := worker.Params{
-					RemoteName: remote.Name,
-				}
-				w.Beat(params)
+				m.Fetch(remote.Name)
 			}
 		}
 		time.Sleep(time.Second)
