@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nlewo/comin/repository"
+	"github.com/nlewo/comin/internal/repository"
 	"github.com/stretchr/testify/assert"
 )
 

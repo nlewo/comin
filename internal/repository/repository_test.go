@@ -1,20 +1,11 @@
 package repository
 
 import (
-	// 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	// 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/nlewo/comin/types"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
-	// 	"io/ioutil"
-	// 	"path/filepath"
 	"testing"
-	// 	"time"
 )
-
-// func TestNew(t *testing.T) {
-
-// }
 
 func TestNew(t *testing.T) {
 	var err error
@@ -24,7 +15,7 @@ func TestNew(t *testing.T) {
 	gitConfig := types.GitConfig{
 		Path: cominRepositoryDir,
 		Remotes: []types.Remote{
-			types.Remote{
+			{
 				Name: "r1",
 				URL:  r1Dir,
 				Branches: types.Branches{
@@ -52,7 +43,7 @@ func TestPreferMain(t *testing.T) {
 	gitConfig := types.GitConfig{
 		Path: cominRepositoryDir,
 		Remotes: []types.Remote{
-			types.Remote{
+			{
 				Name: "r1",
 				URL:  r1Dir,
 				Branches: types.Branches{

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	deepcopy "github.com/barkimedes/go-deepcopy"
-	"github.com/nlewo/comin/types"
+	"github.com/nlewo/comin/internal/types"
 	"time"
 )
 

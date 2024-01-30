@@ -4,11 +4,11 @@ import (
 	"context"
 	"time"
 
-	"github.com/nlewo/comin/deployment"
-	"github.com/nlewo/comin/generation"
-	"github.com/nlewo/comin/nix"
-	"github.com/nlewo/comin/repository"
-	"github.com/nlewo/comin/utils"
+	"github.com/nlewo/comin/internal/deployment"
+	"github.com/nlewo/comin/internal/generation"
+	"github.com/nlewo/comin/internal/nix"
+	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 

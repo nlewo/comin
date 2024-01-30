@@ -3,8 +3,8 @@ package poller
 import (
 	"time"
 
-	"github.com/nlewo/comin/manager"
-	"github.com/nlewo/comin/types"
+	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
 

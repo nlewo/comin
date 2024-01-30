@@ -1,5 +1,5 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
+Copyright © 2023 Antoine Eiche <lewo@abesis.fr>
 */
 package main
 

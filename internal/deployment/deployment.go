@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nlewo/comin/generation"
+	"github.com/nlewo/comin/internal/generation"
 	"github.com/sirupsen/logrus"
 )
 

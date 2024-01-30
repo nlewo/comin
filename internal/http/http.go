@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nlewo/comin/manager"
+	"github.com/nlewo/comin/internal/manager"
 	"github.com/sirupsen/logrus"
 )
 

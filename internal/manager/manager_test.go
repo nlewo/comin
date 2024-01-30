@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nlewo/comin/deployment"
-	"github.com/nlewo/comin/repository"
+	"github.com/nlewo/comin/internal/deployment"
+	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )

@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 
-	"github.com/nlewo/comin/nix"
+	"github.com/nlewo/comin/internal/nix"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

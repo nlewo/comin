@@ -3,12 +3,12 @@ package cmd
 import (
 	"os"
 
-	"github.com/nlewo/comin/config"
-	"github.com/nlewo/comin/http"
-	"github.com/nlewo/comin/manager"
-	"github.com/nlewo/comin/poller"
-	"github.com/nlewo/comin/repository"
-	"github.com/nlewo/comin/utils"
+	"github.com/nlewo/comin/internal/config"
+	"github.com/nlewo/comin/internal/http"
+	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/poller"
+	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

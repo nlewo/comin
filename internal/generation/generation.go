@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nlewo/comin/repository"
+	"github.com/nlewo/comin/internal/repository"
 )
 
 // We consider each created genration is legit to be deployed: hard

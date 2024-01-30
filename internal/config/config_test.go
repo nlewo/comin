@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/nlewo/comin/types"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

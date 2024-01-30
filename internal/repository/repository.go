@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/nlewo/comin/types"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
 

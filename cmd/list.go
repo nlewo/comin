@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nlewo/comin/nix"
+	"github.com/nlewo/comin/internal/nix"
 	"github.com/spf13/cobra"
 )
 

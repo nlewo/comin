@@ -9,8 +9,8 @@ import (
 
 	"github.com/dustin/go-humanize"
 
-	"github.com/nlewo/comin/manager"
-	"github.com/nlewo/comin/utils"
+	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
