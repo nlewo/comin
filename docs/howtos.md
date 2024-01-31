@@ -1,4 +1,7 @@
-## How to test a configuration change
+## How to test a NixOS configuration change
+
+TLDR: push a commit to the `testing-<hostname>` branch (rebased on the
+`main` branch) to deploy a change to the machine named `<hostname>`.
 
 By default, each machine pulls configuration from the branch
 `testing-<hostname>`. When this branch is on top of the `main` branch,
@@ -27,6 +30,21 @@ starting to deploy the new configuration immediately.
 
 However, be careful because this repository could then be used by an
 attacker to update your machine.
+
+Example of a configuration with a local repository:
+
+```nix
+services.comin = {
+  enable = true;
+  remotes = [
+    {
+      name = "local";
+      url = "/your/local/infra/repository";
+      poller.period = 2;
+    }
+  ];
+}
+```
 
 ## How to migrate a configuration from a machine to another one
 

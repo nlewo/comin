@@ -1,14 +1,23 @@
 ## The comin commit selection algorithm
 
-The comin configuration can contains several remotes and each of these
-remotes can have a Main and Testing branches. We then need an
-algorithm to determine which commit we want to deploy.
+comin supports several remotes and each of these remotes can have a
+`main` and `testing` branches. A new commit can be submitted in all of
+these branches and comin need to decide which one to choose. 
 
-1. Fetch `Main` and `Testing` branches from poll remotes
-2. Ensure commits from these branches are not behind the last `Main` commit
-3. Get the first commit from `Main` branches (remotes are ordered in
-   the configuration) strictly on top of the reference Main Commit. If
-   not found, get the first commit equal to the reference Main Commit.
-4. Get the first Testing commit strictly on top of the previously
-   chosen Main commit ID. If not found, use the previously chosen Main
-   commit ID.
+The comin goal is to
+- refuse commits push-forced to `main` branches
+- only allow `testing` branches on top of `main` branches
+- prefer commits from `testing` branches
+
+Here is the algorithm used to choose the next commit to deploy:
+
+1. Fetch a subset of remotes
+2. Ensure commits from updated `main` and `testing` branches are not
+   behind the last `main` deployed commit
+3. Get the first commit from `main` branches (remotes are ordered in
+   the configuration) on top of the last deployed `main` commit. If no
+   such commit exists, comin gets the first commit equal to the last
+   deployed `main` commit.
+4. Get the first `testing` commit on top of the previously chosen
+   `main` commit. If no such commit exists, comin uses the previously
+   chosen `main` commit.
