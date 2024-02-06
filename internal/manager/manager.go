@@ -138,6 +138,7 @@ func (m Manager) Run() {
 				m.generation.BuildStartedAt = time.Now()
 				buildResultCh = m.generation.Build(ctx)
 			} else {
+				logrus.Infof("Evaluation error: %s", evalResult.Err)
 				m.isRunning = false
 			}
 		case buildResult := <-buildResultCh:

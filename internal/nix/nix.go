@@ -152,27 +152,6 @@ func Build(ctx context.Context, drvPath string) (err error) {
 	return
 }
 
-// checkMachineId checks the specified machineId (via the
-// comin.machineId option) is equal to the machine id of the machine
-// being configured. If not, it returns an error. Note this is
-// optional: if the comin.machineId option is not set, this check is
-// skipped.
-func checkMachineId(expectedMachineId string) error {
-	if expectedMachineId == "" {
-		return nil
-	}
-	machineIdBytes, err := os.ReadFile("/etc/machine-id")
-	machineId := strings.TrimSuffix(string(machineIdBytes), "\n")
-	if err != nil {
-		return fmt.Errorf("Can not read file '/etc/machine-id': %s", err)
-	}
-	if expectedMachineId != machineId {
-		return fmt.Errorf("Skip deployment because the comin expected machine id '%s' is not equal to the actual machine id '%s'",
-			expectedMachineId, machineId)
-	}
-	return nil
-}
-
 func setSystemProfile(operation string, outPath string, dryRun bool) error {
 	if operation == "switch" || operation == "boot" {
 		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
@@ -248,10 +227,6 @@ func switchToConfiguration(operation string, outPath string, dryRun bool) error 
 }
 
 func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (needToRestartComin bool, err error) {
-	if err = checkMachineId(expectedMachineId); err != nil {
-		return
-	}
-
 	beforeCominUnitFileHash := cominUnitFileHash()
 
 	// This is required to write boot entries
