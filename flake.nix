@@ -1,5 +1,5 @@
 {
-  description = "Comin";
+  description = "Comin - Git Push NixOS Machines";
 
   outputs = { self, nixpkgs }:
   let
@@ -13,8 +13,7 @@
       comin = pkgs.buildGoModule rec {
         pname = "comin";
         version = "0.0.1";
-        # TODO: fix tests in sandbox :/
-        doCheck = false;
+        nativeCheckInputs = [ final.git ];
         src = pkgs.lib.cleanSourceWith {
           src = ./.;
           filter = path: type:
@@ -26,10 +25,10 @@
             p == "README.md"
           );
         };
-        vendorSha256 = "sha256-kyj0CbB3IfRvrNXsO9JEVYJ8Hr5e747i+ZKcbR6WfKM=";
+        vendorHash = "sha256-kyj0CbB3IfRvrNXsO9JEVYJ8Hr5e747i+ZKcbR6WfKM=";
         buildInputs = [ final.makeWrapper ];
         postInstall = ''
-          # This is because Nix needs Git at runtime
+          # This is because Nix needs Git at runtime by the go-git library
           wrapProgram $out/bin/comin --prefix PATH : ${final.git}/bin
         '';
       };
@@ -180,7 +179,7 @@
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
           path = [ pkgs.nix pkgs.git ];
-          # The comin service is restart by comin itself when it
+          # The comin service is restarted by comin itself when it
           # detects the unit file changed.
           restartIfChanged = false;
           serviceConfig = {

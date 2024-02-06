@@ -4,7 +4,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	//	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"path/filepath"
@@ -80,6 +79,14 @@ func initRemoteRepostiory(dir string, initTesting bool) (remoteRepository *git.R
 		}
 	}
 	return
+}
+
+func HeadCommitId(r *git.Repository) string {
+	ref, err := r.Head()
+	if err != nil {
+		return ""
+	}
+	return ref.Hash().String()
 }
 
 func TestIsAncestor(t *testing.T) {
