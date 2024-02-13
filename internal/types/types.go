@@ -4,13 +4,6 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
-type Config struct {
-	Hostname  string
-	StateDir  string
-	StateFile string
-	DryRun    bool
-}
-
 type Remote struct {
 	Name     string
 	URL      string
@@ -34,11 +27,6 @@ type GitConfig struct {
 type Auth struct {
 	AccessToken     string
 	AccessTokenPath string `yaml:"access_token_path"`
-}
-
-type Repository struct {
-	Repository *git.Repository
-	GitConfig  GitConfig
 }
 
 type Branch struct {
