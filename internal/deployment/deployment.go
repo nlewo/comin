@@ -8,17 +8,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type Status int64
+
+const (
+	Init Status = iota
+	Running
+	Done
+	Failed
+)
+
 type DeployFunc func(context.Context, string, string, string) (bool, error)
 
 type Deployment struct {
 	Generation generation.Generation `json:"generation"`
 	StartAt    time.Time             `json:"start_at"`
 	EndAt      time.Time             `json:"end_at"`
-	Status     string                `json:"status"`
 	// It is ignored in the JSON marshaling
 	Err          error  `json:"-"`
 	ErrorMsg     string `json:"error_msg"`
 	RestartComin bool   `json:"restart_comin"`
+	Status       Status `json:"status"`
 
 	deployerFunc DeployFunc
 	deploymentCh chan DeploymentResult
@@ -35,7 +44,7 @@ func New(g generation.Generation, deployerFunc DeployFunc, deploymentCh chan Dep
 		Generation:   g,
 		deployerFunc: deployerFunc,
 		deploymentCh: deploymentCh,
-		Status:       "init",
+		Status:       Init,
 	}
 }
 
@@ -47,9 +56,9 @@ func (d Deployment) Update(dr DeploymentResult) Deployment {
 	}
 	d.RestartComin = dr.RestartComin
 	if dr.Err == nil {
-		d.Status = "succeeded"
+		d.Status = Done
 	} else {
-		d.Status = "failed"
+		d.Status = Failed
 	}
 	return d
 }
@@ -86,7 +95,7 @@ func (d Deployment) Deploy(ctx context.Context) Deployment {
 		deploymentResult.RestartComin = cominNeedRestart
 		d.deploymentCh <- deploymentResult
 	}()
-	d.Status = "running"
+	d.Status = Running
 	d.StartAt = time.Now()
 	return d
 }

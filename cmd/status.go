@@ -9,8 +9,10 @@ import (
 
 	"github.com/dustin/go-humanize"
 
+	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
 	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -26,14 +28,40 @@ func generationStatus(g generation.Generation) {
 		fmt.Printf("    Since : %s\n", humanize.Time(g.EvalStartedAt))
 	case generation.Evaluated:
 		fmt.Printf("    Status: evaluated\n")
-		fmt.Printf("    Since : %s\n", humanize.Time(g.EvalEndedAt))
+		fmt.Printf("    When  : %s\n", humanize.Time(g.EvalEndedAt))
 	case generation.Building:
 		fmt.Printf("    Status: building\n")
 		fmt.Printf("    Since : %s\n", humanize.Time(g.BuildStartedAt))
 	case generation.Built:
 		fmt.Printf("    Status: built\n")
-		fmt.Printf("    Since : %s", humanize.Time(g.BuildEndedAt))
+		fmt.Printf("    When  : %s", humanize.Time(g.BuildEndedAt))
 	}
+}
+
+func deploymentStatus(d deployment.Deployment) {
+	fmt.Printf("  Current Deployment\n")
+	switch d.Status {
+	case deployment.Init:
+		fmt.Printf("    Status: initializated\n")
+	case deployment.Running:
+		fmt.Printf("    Status: running (since %s)\n", humanize.Time(d.StartAt))
+	case deployment.Done:
+		fmt.Printf("    Status: succeeded (%s)\n", humanize.Time(d.EndAt))
+	case deployment.Failed:
+		fmt.Printf("    Status: failed (%s)\n", humanize.Time(d.EndAt))
+	}
+	printCommit(d.Generation.RepositoryStatus)
+}
+
+func printCommit(rs repository.RepositoryStatus) {
+	fmt.Printf("    Commit %s from '%s/%s'\n",
+		rs.SelectedCommitId,
+		rs.SelectedRemoteName,
+		rs.SelectedBranchName,
+	)
+	fmt.Printf("      %s\n",
+		utils.FormatCommitMsg(rs.SelectedCommitMsg),
+	)
 }
 
 func getStatus() (status manager.State, err error) {
@@ -73,21 +101,13 @@ var statusCmd = &cobra.Command{
 			logrus.Fatal(err)
 		}
 		fmt.Printf("Status of the machine '%s':\n", status.Hostname)
-		fmt.Printf("  Deployment status is '%s'\n", status.Deployment.Status)
-		fmt.Printf("  Deployed from '%s/%s'\n",
-			status.Deployment.Generation.RepositoryStatus.SelectedRemoteName,
-			status.Deployment.Generation.RepositoryStatus.SelectedBranchName,
-		)
-		fmt.Printf("  Deployed commit ID is '%s'\n", status.Deployment.Generation.RepositoryStatus.SelectedCommitId)
-		fmt.Printf("  Deployed commit msg is\n    %s\n",
-			utils.FormatCommitMsg(status.Deployment.Generation.RepositoryStatus.SelectedCommitMsg),
-		)
 		fmt.Printf("  Deployed %s\n", humanize.Time(status.Deployment.EndAt))
 		for _, r := range status.RepositoryStatus.Remotes {
 			fmt.Printf("  Remote %s fetched %s\n",
 				r.Url, humanize.Time(r.FetchedAt),
 			)
 		}
+		deploymentStatus(status.Deployment)
 		generationStatus(status.Generation)
 	},
 }
