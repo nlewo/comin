@@ -28,6 +28,7 @@ type Deployment struct {
 	ErrorMsg     string `json:"error_msg"`
 	RestartComin bool   `json:"restart_comin"`
 	Status       Status `json:"status"`
+	Operation    string `json:"operation"`
 
 	deployerFunc DeployFunc
 	deploymentCh chan DeploymentResult
@@ -40,11 +41,17 @@ type DeploymentResult struct {
 }
 
 func New(g generation.Generation, deployerFunc DeployFunc, deploymentCh chan DeploymentResult) Deployment {
+	operation := "switch"
+	if g.RepositoryStatus.IsTesting() {
+		operation = "test"
+	}
+
 	return Deployment{
 		Generation:   g,
 		deployerFunc: deployerFunc,
 		deploymentCh: deploymentCh,
 		Status:       Init,
+		Operation:    operation,
 	}
 }
 
@@ -68,20 +75,12 @@ func (d Deployment) Update(dr DeploymentResult) Deployment {
 // DeploymentResult is emitted on the channel d.deploymentCh.
 func (d Deployment) Deploy(ctx context.Context) Deployment {
 	go func() {
-
-		operation := "switch"
-		if d.Generation.RepositoryStatus.IsTesting() {
-			operation = "test"
-		}
-
-		logrus.Debugf("The operation is %s", operation)
-
 		// FIXME: propagate context
 		cominNeedRestart, err := d.deployerFunc(
 			ctx,
 			d.Generation.EvalMachineId,
 			d.Generation.OutPath,
-			operation,
+			d.Operation,
 		)
 
 		deploymentResult := DeploymentResult{}

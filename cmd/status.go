@@ -19,27 +19,25 @@ import (
 )
 
 func generationStatus(g generation.Generation) {
-	fmt.Printf("  Generation for commit %s\n", g.RepositoryStatus.SelectedCommitId)
+	fmt.Printf("  Current Generation\n")
 	switch g.Status {
 	case generation.Init:
 		fmt.Printf("    Status: initializated\n")
 	case generation.Evaluating:
-		fmt.Printf("    Status: evaluating\n")
-		fmt.Printf("    Since : %s\n", humanize.Time(g.EvalStartedAt))
+		fmt.Printf("    Status: evaluating (since %s)\n", humanize.Time(g.EvalStartedAt))
 	case generation.Evaluated:
-		fmt.Printf("    Status: evaluated\n")
-		fmt.Printf("    When  : %s\n", humanize.Time(g.EvalEndedAt))
+		fmt.Printf("    Status: evaluated (%s)\n", humanize.Time(g.EvalEndedAt))
 	case generation.Building:
-		fmt.Printf("    Status: building\n")
-		fmt.Printf("    Since : %s\n", humanize.Time(g.BuildStartedAt))
+		fmt.Printf("    Status: building (since %s)\n", humanize.Time(g.BuildStartedAt))
 	case generation.Built:
-		fmt.Printf("    Status: built\n")
-		fmt.Printf("    When  : %s", humanize.Time(g.BuildEndedAt))
+		fmt.Printf("    Status: built (%s)\n", humanize.Time(g.BuildEndedAt))
 	}
+	printCommit(g.RepositoryStatus)
 }
 
 func deploymentStatus(d deployment.Deployment) {
 	fmt.Printf("  Current Deployment\n")
+	fmt.Printf("    Operation: %s\n", d.Operation)
 	switch d.Status {
 	case deployment.Init:
 		fmt.Printf("    Status: initializated\n")
@@ -100,8 +98,7 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		fmt.Printf("Status of the machine '%s':\n", status.Hostname)
-		fmt.Printf("  Deployed %s\n", humanize.Time(status.Deployment.EndAt))
+		fmt.Printf("Status of the machine %s\n", status.Hostname)
 		for _, r := range status.RepositoryStatus.Remotes {
 			fmt.Printf("  Remote %s fetched %s\n",
 				r.Url, humanize.Time(r.FetchedAt),
