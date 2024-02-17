@@ -70,8 +70,8 @@ func (d Deployment) Deploy(ctx context.Context) Deployment {
 		// FIXME: propagate context
 		cominNeedRestart, err := d.deployerFunc(
 			ctx,
-			d.Generation.EvalResult.MachineId,
-			d.Generation.EvalResult.OutPath,
+			d.Generation.EvalMachineId,
+			d.Generation.OutPath,
 			operation,
 		)
 

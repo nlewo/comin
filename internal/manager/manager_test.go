@@ -69,14 +69,14 @@ func TestRun(t *testing.T) {
 	// we simulate the end of the evaluation
 	close(evalDone)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, "drv-path", m.GetState().generation.EvalResult.DrvPath)
-		assert.NotEmpty(c, m.GetState().generation.EvalResult.EndAt)
+		assert.Equal(c, "drv-path", m.GetState().Generation.DrvPath)
+		assert.NotEmpty(c, m.GetState().Generation.EvalEndedAt)
 	}, 5*time.Second, 100*time.Millisecond, "evaluation is not finished")
 
 	// we simulate the end of the build
 	close(buildDone)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.NotEmpty(c, m.GetState().generation.BuildResult.EndAt)
+		assert.NotEmpty(c, m.GetState().Generation.BuildEndedAt)
 	}, 5*time.Second, 100*time.Millisecond, "build is not finished")
 
 	// we simulate the end of the deploy

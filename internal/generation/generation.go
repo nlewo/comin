@@ -8,6 +8,16 @@ import (
 	"github.com/nlewo/comin/internal/repository"
 )
 
+type Status int64
+
+const (
+	Init Status = iota
+	Evaluating
+	Evaluated
+	Building
+	Built
+)
+
 // We consider each created genration is legit to be deployed: hard
 // reset is ensured at RepositoryStatus creation.
 type Generation struct {
@@ -15,15 +25,22 @@ type Generation struct {
 	hostname  string
 	machineId string
 
+	Status Status
+
 	RepositoryStatus repository.RepositoryStatus
 
 	EvalStartedAt time.Time
-	EvalResult    EvalResult
 	evalTimeout   time.Duration
 	evalFunc      EvalFunc
+	EvalEndedAt   time.Time
+	EvalErr       error
+	OutPath       string
+	DrvPath       string
+	EvalMachineId string
 
 	BuildStartedAt time.Time
-	BuildResult    BuildResult
+	BuildEndedAt   time.Time
+	BuildErr       error
 	buildFunc      BuildFunc
 }
 
@@ -52,7 +69,25 @@ func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machi
 		flakeUrl:         flakeUrl,
 		hostname:         hostname,
 		machineId:        machineId,
+		Status:           Init,
 	}
+}
+
+func (g Generation) UpdateEval(r EvalResult) Generation {
+	g.EvalEndedAt = r.EndAt
+	g.DrvPath = r.DrvPath
+	g.OutPath = r.OutPath
+	g.EvalErr = r.Err
+	g.EvalMachineId = r.MachineId
+	g.Status = Evaluated
+	return g
+}
+
+func (g Generation) UpdateBuild(r BuildResult) Generation {
+	g.BuildEndedAt = r.EndAt
+	g.BuildErr = r.Err
+	g.Status = Built
+	return g
 }
 
 func (g Generation) Eval(ctx context.Context) (result chan EvalResult) {
@@ -85,7 +120,7 @@ func (g Generation) Build(ctx context.Context) (result chan BuildResult) {
 	fn := func() {
 		ctx, cancel := context.WithTimeout(ctx, g.evalTimeout)
 		defer cancel()
-		err := g.buildFunc(ctx, g.EvalResult.DrvPath)
+		err := g.buildFunc(ctx, g.DrvPath)
 		buildResult := BuildResult{
 			EndAt: time.Now(),
 		}

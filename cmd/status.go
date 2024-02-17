@@ -9,11 +9,32 @@ import (
 
 	"github.com/dustin/go-humanize"
 
+	"github.com/nlewo/comin/internal/generation"
 	"github.com/nlewo/comin/internal/manager"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+func generationStatus(g generation.Generation) {
+	fmt.Printf("  Generation for commit %s\n", g.RepositoryStatus.SelectedCommitId)
+	switch g.Status {
+	case generation.Init:
+		fmt.Printf("    Status: initializated\n")
+	case generation.Evaluating:
+		fmt.Printf("    Status: evaluating\n")
+		fmt.Printf("    Since : %s\n", humanize.Time(g.EvalStartedAt))
+	case generation.Evaluated:
+		fmt.Printf("    Status: evaluated\n")
+		fmt.Printf("    Since : %s\n", humanize.Time(g.EvalEndedAt))
+	case generation.Building:
+		fmt.Printf("    Status: building\n")
+		fmt.Printf("    Since : %s\n", humanize.Time(g.BuildStartedAt))
+	case generation.Built:
+		fmt.Printf("    Status: built\n")
+		fmt.Printf("    Since : %s", humanize.Time(g.BuildEndedAt))
+	}
+}
 
 func getStatus() (status manager.State, err error) {
 	url := "http://localhost:4242/status"
@@ -67,6 +88,7 @@ var statusCmd = &cobra.Command{
 				r.Url, humanize.Time(r.FetchedAt),
 			)
 		}
+		generationStatus(status.Generation)
 	},
 }
 

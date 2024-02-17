@@ -14,7 +14,7 @@ import (
 
 type State struct {
 	RepositoryStatus repository.RepositoryStatus `json:"repository_status"`
-	generation       generation.Generation
+	Generation       generation.Generation
 	IsFetching       bool                  `json:"is_fetching"`
 	IsRunning        bool                  `json:"is_running"`
 	Deployment       deployment.Deployment `json:"deployment"`
@@ -79,7 +79,7 @@ func (m Manager) Fetch(remote string) {
 
 func (m Manager) toState() State {
 	return State{
-		generation:       m.generation,
+		Generation:       m.generation,
 		RepositoryStatus: m.repositoryStatus,
 		IsFetching:       m.isFetching,
 		IsRunning:        m.isRunning,
@@ -127,15 +127,18 @@ func (m Manager) Run() {
 				// g.Stop(): this is required once we remove m.IsRunning
 				m.generation = generation.New(rs, m.repositoryPath, m.hostname, m.machineId, m.evalFunc, m.buildFunc)
 				m.generation.EvalStartedAt = time.Now()
+				m.generation.Status = generation.Evaluating
+
 				// FIXME: we need to let nix fetching a git commit from the repository instead of using the repository
 				// directory which an be updated in parallel
 				evalResultCh = m.generation.Eval(ctx)
 			}
 		case evalResult := <-evalResultCh:
 			logrus.Debugf("Eval done with %#v", evalResult)
-			m.generation.EvalResult = evalResult
+			m.generation = m.generation.UpdateEval(evalResult)
 			if evalResult.Err == nil {
 				m.generation.BuildStartedAt = time.Now()
+				m.generation.Status = generation.Building
 				buildResultCh = m.generation.Build(ctx)
 			} else {
 				logrus.Infof("Evaluation error: %s", evalResult.Err)
@@ -143,7 +146,7 @@ func (m Manager) Run() {
 			}
 		case buildResult := <-buildResultCh:
 			logrus.Debugf("Build done with %#v", buildResult)
-			m.generation.BuildResult = buildResult
+			m.generation = m.generation.UpdateBuild(buildResult)
 			if buildResult.Err == nil {
 				m.deployment = deployment.New(m.generation, m.deployerFunc, m.deploymentResultCh)
 				m.deployment = m.deployment.Deploy(ctx)

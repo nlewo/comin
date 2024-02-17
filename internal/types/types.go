@@ -1,9 +1,5 @@
 package types
 
-import (
-	"github.com/go-git/go-git/v5"
-)
-
 type Remote struct {
 	Name     string
 	URL      string
