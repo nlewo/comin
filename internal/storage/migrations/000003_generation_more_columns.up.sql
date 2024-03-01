@@ -1,0 +1,10 @@
+ALTER TABLE generation ADD COLUMN selected_branch_is_testing INT;
+ALTER TABLE generation ADD COLUMN hostname TEXT;
+ALTER TABLE generation ADD COLUMN status TEXT;
+ALTER TABLE generation ADD COLUMN out_path TEXT;
+ALTER TABLE generation ADD COLUMN drv_path TEXT;
+ALTER TABLE generation ADD COLUMN evaluated_machine_id TEXT;
+ALTER TABLE generation ADD COLUMN eval_started_at INT;
+ALTER TABLE generation ADD COLUMN eval_ended_at INT;
+ALTER TABLE generation ADD COLUMN build_started_at INT;
+ALTER TABLE generation ADD COLUMN build_ended_at INT;

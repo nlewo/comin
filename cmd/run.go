@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"path"
 
 	"github.com/nlewo/comin/internal/config"
 	"github.com/nlewo/comin/internal/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/nlewo/comin/internal/poller"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/storage"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -40,8 +42,16 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		storage, err := storage.New(path.Join(cfg.StateDir, "storage.sqlite"))
+		defer storage.Close()
+		if err != nil {
+			logrus.Errorf("Failed to initialize the storage: %s", err)
+			os.Exit(1)
+		}
+
 		metrics := prometheus.New()
-		manager := manager.New(repository, metrics, gitConfig.Path, cfg.Hostname, machineId)
+		manager := manager.New(repository, metrics, storage, gitConfig.Path, cfg.Hostname, machineId)
+
 		go poller.Poller(manager, cfg.Remotes)
 		http.Serve(manager,
 			metrics,

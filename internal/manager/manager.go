@@ -9,6 +9,7 @@ import (
 	"github.com/nlewo/comin/internal/nix"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/storage"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -55,31 +56,43 @@ type Manager struct {
 	triggerDeploymentCh chan generation.Generation
 
 	prometheus prometheus.Prometheus
+	storage    storage.Storage
+
+	requestDeploymentListCh  chan struct{}
+	responseDeploymentListCh chan []deployment.Deployment
 }
 
-func New(r repository.Repository, p prometheus.Prometheus, path, hostname, machineId string) Manager {
+func New(r repository.Repository, p prometheus.Prometheus, s storage.Storage, path, hostname, machineId string) Manager {
 	return Manager{
-		repository:              r,
-		repositoryPath:          path,
-		hostname:                hostname,
-		machineId:               machineId,
-		evalFunc:                nix.Eval,
-		buildFunc:               nix.Build,
-		deployerFunc:            nix.Deploy,
-		triggerRepository:       make(chan string),
-		stateRequestCh:          make(chan struct{}),
-		stateResultCh:           make(chan State),
-		cominServiceRestartFunc: utils.CominServiceRestart,
-		deploymentResultCh:      make(chan deployment.DeploymentResult),
-		repositoryStatusCh:      make(chan repository.RepositoryStatus),
-		triggerDeploymentCh:     make(chan generation.Generation, 1),
-		prometheus:              p,
+		repository:               r,
+		repositoryPath:           path,
+		hostname:                 hostname,
+		machineId:                machineId,
+		evalFunc:                 nix.Eval,
+		buildFunc:                nix.Build,
+		deployerFunc:             nix.Deploy,
+		triggerRepository:        make(chan string),
+		stateRequestCh:           make(chan struct{}),
+		stateResultCh:            make(chan State),
+		cominServiceRestartFunc:  utils.CominServiceRestart,
+		deploymentResultCh:       make(chan deployment.DeploymentResult),
+		repositoryStatusCh:       make(chan repository.RepositoryStatus),
+		prometheus:               p,
+		storage:                  s,
+		triggerDeploymentCh:      make(chan generation.Generation, 1),
+		requestDeploymentListCh:  make(chan struct{}),
+		responseDeploymentListCh: make(chan []deployment.Deployment),
 	}
 }
 
 func (m Manager) GetState() State {
 	m.stateRequestCh <- struct{}{}
 	return <-m.stateResultCh
+}
+
+func (m Manager) GetDeploymentList() []deployment.Deployment {
+	m.requestDeploymentListCh <- struct{}{}
+	return <-m.responseDeploymentListCh
 }
 
 func (m Manager) Fetch(remote string) {
@@ -136,6 +149,10 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 	}
 	m.isRunning = false
 	m.prometheus.SetDeploymentInfo(m.deployment.Generation.SelectedCommitId, deployment.StatusToString(m.deployment.Status))
+	err := m.storage.DeploymentInsert(m.deployment)
+	if err != nil {
+		logrus.Errorf("Failed to store the deployment: %s", err)
+	}
 	return m
 }
 
@@ -183,6 +200,14 @@ func (m Manager) onTriggerRepository(ctx context.Context, remoteName string) Man
 	return m
 }
 
+func (m Manager) onRequestDeploymentList(ctx context.Context) {
+	d, err := m.storage.DeploymentList(ctx, 10)
+	if err != nil {
+		logrus.Errorf("Failed to get the deployment list: %s", err)
+	}
+	m.responseDeploymentListCh <- d
+}
+
 func (m Manager) Run() {
 	ctx := context.TODO()
 
@@ -194,6 +219,8 @@ func (m Manager) Run() {
 		select {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
+		case <-m.requestDeploymentListCh:
+			m.onRequestDeploymentList(ctx)
 		case remoteName := <-m.triggerRepository:
 			m = m.onTriggerRepository(ctx, remoteName)
 		case rs := <-m.repositoryStatusCh:

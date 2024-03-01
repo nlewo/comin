@@ -29,7 +29,7 @@
             p == "README.md"
           );
         };
-        vendorHash = "sha256-9qObgfXvMkwE+1BVZNQXVhKhL6LqMqyIUhGnXf8q9SI=";
+        vendorHash = "sha256-lE08wy8m7RlkgqkHw+unCbgzJtsHR3q3K6SOr+kfbpc=";
         ldflags = [
           "-X github.com/nlewo/comin/cmd.version=${version}"
         ];
@@ -55,7 +55,7 @@
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
     in pkgs.mkShell {
       buildInputs = [
-        pkgs.go pkgs.godef pkgs.gopls
+        pkgs.go pkgs.godef pkgs.gopls pkgs.go-bindata pkgs.go-migrate
       ];
     };
   };
