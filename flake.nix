@@ -3,18 +3,19 @@
 
   outputs = { self, nixpkgs }:
   let
-    system = "x86_64-linux";
-    pkgs = import nixpkgs {
-      system = "x86_64-linux";
+    systems = [ "aarch64-linux" "x86_64-linux" ];
+    forAllSystems = nixpkgs.lib.genAttrs systems;
+    nixpkgsFor = forAllSystems (system: import nixpkgs {
+      inherit system;
       overlays = [ self.overlay ];
-    };
+    });
   in {
     overlay = final: prev: {
-      comin = pkgs.buildGoModule rec {
+      comin = final.buildGoModule rec {
         pname = "comin";
         version = "0.0.1";
         nativeCheckInputs = [ final.git ];
-        src = pkgs.lib.cleanSourceWith {
+        src = final.lib.cleanSourceWith {
           src = ./.;
           filter = path: type:
           let
@@ -34,8 +35,8 @@
       };
     };
 
-    packages.x86_64-linux.comin = pkgs.comin;
-    defaultPackage.x86_64-linux = pkgs.comin;
+    packages = forAllSystems (system: { inherit (nixpkgsFor."${system}") comin; });
+    defaultPackage = forAllSystems (system: self.packages."${system}".comin);
 
     nixosModules.comin = { config, pkgs, lib, ... }: let
       cfg = config;
