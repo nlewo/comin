@@ -34,7 +34,7 @@ func TestRun(t *testing.T) {
 	buildDone := make(chan struct{})
 	nixEvalMock := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
 		<-evalDone
-		return "drv-path", "out-path", "machine-id", nil
+		return "drv-path", "out-path", "", nil
 	}
 	nixBuildMock := func(ctx context.Context, drvPath string) error {
 		<-buildDone
@@ -123,6 +123,38 @@ func TestRestartComin(t *testing.T) {
 
 }
 
+func TestOptionnalMachineId(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	r := newRepositoryMock()
+	m := New(r, "", "", "the-test-machine-id")
+
+	evalDone := make(chan struct{})
+	buildDone := make(chan struct{})
+	nixEvalMock := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
+		<-evalDone
+		// When comin.machineId is empty, comin evaluates it as an empty string
+		evaluatedMachineId := ""
+		return "drv-path", "out-path", evaluatedMachineId, nil
+	}
+	nixBuildMock := func(ctx context.Context, drvPath string) error {
+		<-buildDone
+		return nil
+	}
+	m.evalFunc = nixEvalMock
+	m.buildFunc = nixBuildMock
+
+	go m.Run()
+	m.Fetch("origin")
+	r.rsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
+
+	// we simulate the end of the evaluation
+	close(evalDone)
+
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(t, m.GetState().IsRunning)
+	}, 5*time.Second, 100*time.Millisecond, "evaluation is not finished")
+}
+
 func TestIncorrectMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
@@ -156,8 +188,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	close(evalDone)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		// The manager is now longer running since the machine id is not correct in the generation.
+		// The manager is no longer running since the machine id are not identical
 		assert.False(t, m.GetState().IsRunning)
 	}, 5*time.Second, 100*time.Millisecond, "evaluation is not finished")
-
 }
