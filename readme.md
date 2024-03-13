@@ -24,7 +24,7 @@ services.comin = {
       name = "origin";
       url = "https://gitlab.com/your/infra.git";
     }
-  ]
+  ];
 };
 ```
 
