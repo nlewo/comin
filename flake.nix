@@ -42,7 +42,7 @@
       cfg = config;
       yaml = pkgs.formats.yaml { };
       cominConfig = {
-        hostname = config.networking.hostName;
+        hostname = cfg.services.comin.hostname;
         state_dir = "/var/lib/comin";
         remotes = cfg.services.comin.remotes;
       } // (
@@ -59,6 +59,13 @@
             default = false;
             description = ''
               Whether to run the comin service.
+            '';
+          };
+          hostname = mkOption {
+            type = str;
+            default = config.networking.hostName;
+            description = ''
+              The hostname of the machine.
             '';
           };
           remotes = mkOption {
@@ -194,7 +201,6 @@
         };
       };
     };
-
     devShell.x86_64-linux = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
     in pkgs.mkShell {
