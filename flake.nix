@@ -122,7 +122,7 @@
                           options = {
                             name = mkOption {
                               type = str;
-                              default = "testing-${cfg.networking.hostName}";
+                              default = "testing-${cfg.services.comin.hostname}";
                               description = "The name of the testing branch.";
                             };
                           };
