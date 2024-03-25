@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
@@ -131,10 +132,8 @@ func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.Repositor
 		m.isRunning = false
 	} else {
 		// g.Stop(): this is required once we remove m.IsRunning
-		m.generation = generation.New(rs, m.repositoryPath, m.hostname, m.machineId, m.evalFunc, m.buildFunc)
-
-		// FIXME: we need to let nix fetching a git commit from the repository instead of using the repository
-		// directory which an be updated in parallel
+		flakeUrl := fmt.Sprintf("git+file://%s?rev=%s", m.repositoryPath, m.repositoryStatus.SelectedCommitId)
+		m.generation = generation.New(rs, flakeUrl, m.hostname, m.machineId, m.evalFunc, m.buildFunc)
 		m.generation = m.generation.Eval(ctx)
 	}
 	return m
