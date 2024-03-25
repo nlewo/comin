@@ -51,6 +51,7 @@ type Manager struct {
 	deployerFunc deployment.DeployFunc
 
 	repositoryStatusCh chan repository.RepositoryStatus
+	triggerDeploymentCh chan generation.Generation
 }
 
 func New(r repository.Repository, path, hostname, machineId string) Manager {
@@ -68,6 +69,7 @@ func New(r repository.Repository, path, hostname, machineId string) Manager {
 		cominServiceRestartFunc: utils.CominServiceRestart,
 		deploymentResultCh:      make(chan deployment.DeploymentResult),
 		repositoryStatusCh:      make(chan repository.RepositoryStatus),
+		triggerDeploymentCh:     make(chan generation.Generation, 1),
 	}
 }
 
@@ -104,11 +106,20 @@ func (m Manager) onEvaluated(ctx context.Context, evalResult generation.EvalResu
 func (m Manager) onBuilt(ctx context.Context, buildResult generation.BuildResult) Manager {
 	m.generation = m.generation.UpdateBuild(buildResult)
 	if buildResult.Err == nil {
-		m.deployment = deployment.New(m.generation, m.deployerFunc, m.deploymentResultCh)
-		m.deployment = m.deployment.Deploy(ctx)
+		m.triggerDeployment(ctx, m.generation)
 	} else {
 		m.isRunning = false
 	}
+	return m
+}
+
+func (m Manager) triggerDeployment(ctx context.Context, g generation.Generation) {
+	m.triggerDeploymentCh <- g
+}
+
+func (m Manager) onTriggerDeployment(ctx context.Context, g generation.Generation) Manager {
+	m.deployment = deployment.New(g, m.deployerFunc, m.deploymentResultCh)
+	m.deployment = m.deployment.Deploy(ctx)
 	return m
 }
 
@@ -175,6 +186,8 @@ func (m Manager) Run() {
 			m = m.onEvaluated(ctx, evalResult)
 		case buildResult := <-m.generation.BuildCh():
 			m = m.onBuilt(ctx, buildResult)
+		case generation := <-m.triggerDeploymentCh:
+			m = m.onTriggerDeployment(ctx, generation)
 		case deploymentResult := <-m.deploymentResultCh:
 			m = m.onDeployment(ctx, deploymentResult)
 		}
