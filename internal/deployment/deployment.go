@@ -17,6 +17,34 @@ const (
 	Failed
 )
 
+func StatusToString(status Status) string {
+	switch status {
+	case Init:
+		return "init"
+	case Running:
+		return "running"
+	case Done:
+		return "done"
+	case Failed:
+		return "failed"
+	}
+	return ""
+}
+
+func StatusFromString(status string) Status {
+	switch status {
+	case "init":
+		return Init
+	case "running":
+		return Running
+	case "done":
+		return Done
+	case "failed":
+		return Failed
+	}
+	return Init
+}
+
 type DeployFunc func(context.Context, string, string, string) (bool, error)
 
 type Deployment struct {
