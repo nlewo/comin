@@ -180,6 +180,7 @@ func (g Generation) Eval(ctx context.Context) Generation {
 		if err == nil {
 			evaluationResult.DrvPath = drvPath
 			evaluationResult.OutPath = outPath
+			evaluationResult.MachineId = machineId
 			if machineId != "" && g.MachineId != machineId {
 				evaluationResult.Err = fmt.Errorf("The evaluated comin.machineId '%s' is different from the /etc/machine-id '%s' of this machine",
 					machineId, g.MachineId)
