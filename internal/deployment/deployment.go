@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/generation"
 	"github.com/sirupsen/logrus"
 )
@@ -48,6 +49,7 @@ func StatusFromString(status string) Status {
 type DeployFunc func(context.Context, string, string, string) (bool, error)
 
 type Deployment struct {
+	UUID       string                `json:"uuid"`
 	Generation generation.Generation `json:"generation"`
 	StartAt    time.Time             `json:"start_at"`
 	EndAt      time.Time             `json:"end_at"`
@@ -75,6 +77,7 @@ func New(g generation.Generation, deployerFunc DeployFunc, deploymentCh chan Dep
 	}
 
 	return Deployment{
+		UUID:         uuid.NewString(),
 		Generation:   g,
 		deployerFunc: deployerFunc,
 		deploymentCh: deploymentCh,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
 )
@@ -22,9 +23,10 @@ const (
 // We consider each created genration is legit to be deployed: hard
 // reset is ensured at RepositoryStatus creation.
 type Generation struct {
-	flakeUrl  string
-	hostname  string
-	machineId string
+	UUID      string
+	FlakeUrl  string
+	Hostname  string
+	MachineId string
 
 	Status Status
 
@@ -40,14 +42,14 @@ type Generation struct {
 	evalCh        chan EvalResult
 
 	EvalEndedAt   time.Time
-	EvalErr       error
+	EvalErr       error `json:"-"`
 	OutPath       string
 	DrvPath       string
 	EvalMachineId string
 
 	BuildStartedAt time.Time
 	BuildEndedAt   time.Time
-	BuildErr       error
+	buildErr       error `json:"-"`
 	buildFunc      BuildFunc
 	buildCh        chan BuildResult
 }
@@ -70,6 +72,7 @@ type EvalResult struct {
 
 func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machineId string, evalFunc EvalFunc, buildFunc BuildFunc) Generation {
 	return Generation{
+		UUID:                    uuid.NewString(),
 		SelectedRemoteName:      repositoryStatus.SelectedRemoteName,
 		SelectedBranchName:      repositoryStatus.SelectedBranchName,
 		SelectedCommitId:        repositoryStatus.SelectedCommitId,
@@ -78,9 +81,9 @@ func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machi
 		evalTimeout:             6 * time.Second,
 		evalFunc:                evalFunc,
 		buildFunc:               buildFunc,
-		flakeUrl:                flakeUrl,
-		hostname:                hostname,
-		machineId:               machineId,
+		FlakeUrl:                flakeUrl,
+		Hostname:                hostname,
+		MachineId:               machineId,
 		Status:                  Init,
 	}
 }
@@ -107,7 +110,7 @@ func (g Generation) UpdateEval(r EvalResult) Generation {
 func (g Generation) UpdateBuild(r BuildResult) Generation {
 	logrus.Debugf("Build done with %#v", r)
 	g.BuildEndedAt = r.EndAt
-	g.BuildErr = r.Err
+	g.buildErr = r.Err
 	g.Status = Built
 	return g
 }
@@ -120,16 +123,16 @@ func (g Generation) Eval(ctx context.Context) Generation {
 	fn := func() {
 		ctx, cancel := context.WithTimeout(ctx, g.evalTimeout)
 		defer cancel()
-		drvPath, outPath, machineId, err := g.evalFunc(ctx, g.flakeUrl, g.hostname)
+		drvPath, outPath, machineId, err := g.evalFunc(ctx, g.FlakeUrl, g.Hostname)
 		evaluationResult := EvalResult{
 			EndAt: time.Now(),
 		}
 		if err == nil {
 			evaluationResult.DrvPath = drvPath
 			evaluationResult.OutPath = outPath
-			if machineId != "" && g.machineId != machineId {
+			if machineId != "" && g.MachineId != machineId {
 				evaluationResult.Err = fmt.Errorf("The evaluated comin.machineId '%s' is different from the /etc/machine-id '%s' of this machine",
-					g.machineId, machineId)
+					g.MachineId, machineId)
 			}
 		} else {
 			evaluationResult.Err = err
