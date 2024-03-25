@@ -15,10 +15,52 @@ type Status int64
 const (
 	Init Status = iota
 	Evaluating
-	Evaluated
+	EvaluationSucceeded
+	EvaluationFailed
 	Building
-	Built
+	BuildSucceeded
+	BuildFailed
 )
+
+func StatusToString(status Status) string {
+	switch status {
+	case Init:
+		return "init"
+	case Evaluating:
+		return "evaluating"
+	case EvaluationSucceeded:
+		return "evaluation-succeeded"
+	case EvaluationFailed:
+		return "evaluation-failed"
+	case Building:
+		return "building"
+	case BuildSucceeded:
+		return "build-succeeded"
+	case BuildFailed:
+		return "build-failed"
+	}
+	return ""
+}
+
+func StatusFromString(status string) Status {
+	switch status {
+	case "init":
+		return Init
+	case "evaluating":
+		return Evaluating
+	case "evaluation-succeeded":
+		return EvaluationSucceeded
+	case "evaluation-failed":
+		return EvaluationFailed
+	case "building":
+		return Building
+	case "build-succeeded":
+		return BuildSucceeded
+	case "build-failed":
+		return BuildFailed
+	}
+	return Init
+}
 
 // We consider each created genration is legit to be deployed: hard
 // reset is ensured at RepositoryStatus creation.
@@ -101,9 +143,13 @@ func (g Generation) UpdateEval(r EvalResult) Generation {
 	g.EvalEndedAt = r.EndAt
 	g.DrvPath = r.DrvPath
 	g.OutPath = r.OutPath
-	g.EvalErr = r.Err
 	g.EvalMachineId = r.MachineId
-	g.Status = Evaluated
+	g.EvalErr = r.Err
+	if g.EvalErr == nil {
+		g.Status = EvaluationSucceeded
+	} else {
+		g.Status = EvaluationFailed
+	}
 	return g
 }
 
@@ -111,7 +157,11 @@ func (g Generation) UpdateBuild(r BuildResult) Generation {
 	logrus.Debugf("Build done with %#v", r)
 	g.BuildEndedAt = r.EndAt
 	g.buildErr = r.Err
-	g.Status = Built
+	if g.buildErr == nil {
+		g.Status = BuildSucceeded
+	} else {
+		g.Status = BuildFailed
+	}
 	return g
 }
 
