@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/sirupsen/logrus"
 )
 
 type Status int64
@@ -32,6 +33,8 @@ type Generation struct {
 	EvalStartedAt time.Time
 	evalTimeout   time.Duration
 	evalFunc      EvalFunc
+	evalCh        chan EvalResult
+
 	EvalEndedAt   time.Time
 	EvalErr       error
 	OutPath       string
@@ -42,6 +45,7 @@ type Generation struct {
 	BuildEndedAt   time.Time
 	BuildErr       error
 	buildFunc      BuildFunc
+	buildCh        chan BuildResult
 }
 
 type EvalFunc func(ctx context.Context, flakeUrl string, hostname string) (drvPath string, outPath string, machineId string, err error)
@@ -73,7 +77,16 @@ func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machi
 	}
 }
 
+func (g Generation) EvalCh() chan EvalResult {
+	return g.evalCh
+}
+
+func (g Generation) BuildCh() chan BuildResult {
+	return g.buildCh
+}
+
 func (g Generation) UpdateEval(r EvalResult) Generation {
+	logrus.Debugf("Eval done with %#v", r)
 	g.EvalEndedAt = r.EndAt
 	g.DrvPath = r.DrvPath
 	g.OutPath = r.OutPath
@@ -84,14 +97,18 @@ func (g Generation) UpdateEval(r EvalResult) Generation {
 }
 
 func (g Generation) UpdateBuild(r BuildResult) Generation {
+	logrus.Debugf("Build done with %#v", r)
 	g.BuildEndedAt = r.EndAt
 	g.BuildErr = r.Err
 	g.Status = Built
 	return g
 }
 
-func (g Generation) Eval(ctx context.Context) (result chan EvalResult) {
-	result = make(chan EvalResult)
+func (g Generation) Eval(ctx context.Context) Generation {
+	g.evalCh = make(chan EvalResult)
+	g.EvalStartedAt = time.Now()
+	g.Status = Evaluating
+
 	fn := func() {
 		ctx, cancel := context.WithTimeout(ctx, g.evalTimeout)
 		defer cancel()
@@ -109,14 +126,16 @@ func (g Generation) Eval(ctx context.Context) (result chan EvalResult) {
 		} else {
 			evaluationResult.Err = err
 		}
-		result <- evaluationResult
+		g.evalCh <- evaluationResult
 	}
 	go fn()
-	return result
+	return g
 }
 
-func (g Generation) Build(ctx context.Context) (result chan BuildResult) {
-	result = make(chan BuildResult)
+func (g Generation) Build(ctx context.Context) Generation {
+	g.buildCh = make(chan BuildResult)
+	g.BuildStartedAt = time.Now()
+	g.Status = Building
 	fn := func() {
 		ctx, cancel := context.WithTimeout(ctx, g.evalTimeout)
 		defer cancel()
@@ -125,8 +144,8 @@ func (g Generation) Build(ctx context.Context) (result chan BuildResult) {
 			EndAt: time.Now(),
 		}
 		buildResult.Err = err
-		result <- buildResult
+		g.buildCh <- buildResult
 	}
 	go fn()
-	return result
+	return g
 }

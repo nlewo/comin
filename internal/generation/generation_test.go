@@ -34,15 +34,15 @@ func TestEval(t *testing.T) {
 
 	// The eval job never terminates so it should timeout
 	ctx = context.Background()
-	evalResultCh := g.Eval(ctx)
-	evalResult = <-evalResultCh
+	g = g.Eval(ctx)
+	evalResult = <-g.EvalCh()
 	assert.NotNil(t, evalResult.Err)
 	assert.EqualError(t, evalResult.Err, "timeout exceeded")
 
 	ctx = context.Background()
-	evalResultCh = g.Eval(ctx)
+	g = g.Eval(ctx)
 	// This is to simulate the eval completion
 	close(evalDone)
-	evalResult = <-evalResultCh
+	evalResult = <-g.EvalCh()
 	assert.Nil(t, evalResult.Err)
 }

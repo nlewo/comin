@@ -2,7 +2,6 @@ package manager
 
 import (
 	"context"
-	"time"
 
 	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
@@ -90,8 +89,6 @@ func (m Manager) toState() State {
 
 func (m Manager) Run() {
 	var repositoryStatusCh chan repository.RepositoryStatus
-	var evalResultCh chan generation.EvalResult
-	var buildResultCh chan generation.BuildResult
 	ctx := context.TODO()
 
 	logrus.Info("The manager is started")
@@ -126,26 +123,19 @@ func (m Manager) Run() {
 			} else {
 				// g.Stop(): this is required once we remove m.IsRunning
 				m.generation = generation.New(rs, m.repositoryPath, m.hostname, m.machineId, m.evalFunc, m.buildFunc)
-				m.generation.EvalStartedAt = time.Now()
-				m.generation.Status = generation.Evaluating
 
 				// FIXME: we need to let nix fetching a git commit from the repository instead of using the repository
 				// directory which an be updated in parallel
-				evalResultCh = m.generation.Eval(ctx)
+				m.generation = m.generation.Eval(ctx)
 			}
-		case evalResult := <-evalResultCh:
-			logrus.Debugf("Eval done with %#v", evalResult)
+		case evalResult := <-m.generation.EvalCh():
 			m.generation = m.generation.UpdateEval(evalResult)
 			if evalResult.Err == nil {
-				m.generation.BuildStartedAt = time.Now()
-				m.generation.Status = generation.Building
-				buildResultCh = m.generation.Build(ctx)
+				m.generation = m.generation.Build(ctx)
 			} else {
-				logrus.Infof("Evaluation error: %s", evalResult.Err)
 				m.isRunning = false
 			}
-		case buildResult := <-buildResultCh:
-			logrus.Debugf("Build done with %#v", buildResult)
+		case buildResult := <-m.generation.BuildCh():
 			m.generation = m.generation.UpdateBuild(buildResult)
 			if buildResult.Err == nil {
 				m.deployment = deployment.New(m.generation, m.deployerFunc, m.deploymentResultCh)
