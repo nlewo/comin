@@ -42,7 +42,7 @@ type DeploymentResult struct {
 
 func New(g generation.Generation, deployerFunc DeployFunc, deploymentCh chan DeploymentResult) Deployment {
 	operation := "switch"
-	if g.RepositoryStatus.IsTesting() {
+	if g.SelectedBranchIsTesting {
 		operation = "test"
 	}
 

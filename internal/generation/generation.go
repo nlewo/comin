@@ -28,7 +28,11 @@ type Generation struct {
 
 	Status Status
 
-	RepositoryStatus repository.RepositoryStatus
+	SelectedRemoteName      string
+	SelectedBranchName      string
+	SelectedCommitId        string
+	SelectedCommitMsg       string
+	SelectedBranchIsTesting bool
 
 	EvalStartedAt time.Time
 	evalTimeout   time.Duration
@@ -66,14 +70,18 @@ type EvalResult struct {
 
 func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machineId string, evalFunc EvalFunc, buildFunc BuildFunc) Generation {
 	return Generation{
-		RepositoryStatus: repositoryStatus,
-		evalTimeout:      6 * time.Second,
-		evalFunc:         evalFunc,
-		buildFunc:        buildFunc,
-		flakeUrl:         flakeUrl,
-		hostname:         hostname,
-		machineId:        machineId,
-		Status:           Init,
+		SelectedRemoteName:      repositoryStatus.SelectedRemoteName,
+		SelectedBranchName:      repositoryStatus.SelectedBranchName,
+		SelectedCommitId:        repositoryStatus.SelectedCommitId,
+		SelectedCommitMsg:       repositoryStatus.SelectedCommitMsg,
+		SelectedBranchIsTesting: repositoryStatus.SelectedBranchIsTesting,
+		evalTimeout:             6 * time.Second,
+		evalFunc:                evalFunc,
+		buildFunc:               buildFunc,
+		flakeUrl:                flakeUrl,
+		hostname:                hostname,
+		machineId:               machineId,
+		Status:                  Init,
 	}
 }
 

@@ -12,7 +12,6 @@ import (
 	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
 	"github.com/nlewo/comin/internal/manager"
-	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -32,7 +31,7 @@ func generationStatus(g generation.Generation) {
 	case generation.Built:
 		fmt.Printf("    Status: built (%s)\n", humanize.Time(g.BuildEndedAt))
 	}
-	printCommit(g.RepositoryStatus)
+	printCommit(g.SelectedRemoteName, g.SelectedBranchName, g.SelectedCommitId, g.SelectedCommitMsg)
 }
 
 func deploymentStatus(d deployment.Deployment) {
@@ -48,17 +47,17 @@ func deploymentStatus(d deployment.Deployment) {
 	case deployment.Failed:
 		fmt.Printf("    Status: failed (%s)\n", humanize.Time(d.EndAt))
 	}
-	printCommit(d.Generation.RepositoryStatus)
+	printCommit(d.Generation.SelectedRemoteName, d.Generation.SelectedBranchName, d.Generation.SelectedCommitId, d.Generation.SelectedCommitMsg)
 }
 
-func printCommit(rs repository.RepositoryStatus) {
+func printCommit(selectedRemoteName, selectedBranchName, selectedCommitId, selectedCommitMsg string) {
 	fmt.Printf("    Commit %s from '%s/%s'\n",
-		rs.SelectedCommitId,
-		rs.SelectedRemoteName,
-		rs.SelectedBranchName,
+		selectedCommitId,
+		selectedRemoteName,
+		selectedBranchName,
 	)
 	fmt.Printf("      %s\n",
-		utils.FormatCommitMsg(rs.SelectedCommitMsg),
+		utils.FormatCommitMsg(selectedCommitMsg),
 	)
 }
 

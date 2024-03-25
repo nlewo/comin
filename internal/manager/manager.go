@@ -127,7 +127,7 @@ func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.Repositor
 	logrus.Debugf("Fetch done with %#v", rs)
 	m.isFetching = false
 	m.repositoryStatus = rs
-	if rs.Equal(m.generation.RepositoryStatus) {
+	if rs.SelectedCommitId == m.generation.SelectedCommitId && rs.SelectedBranchIsTesting == m.generation.SelectedBranchIsTesting {
 		logrus.Debugf("The repository status is the same than the previous one")
 		m.isRunning = false
 	} else {

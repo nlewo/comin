@@ -105,7 +105,3 @@ func (r RepositoryStatus) Copy() RepositoryStatus {
 	}
 	return rs.(RepositoryStatus)
 }
-
-func (r1 RepositoryStatus) Equal(r2 RepositoryStatus) bool {
-	return r1.SelectedCommitId == r2.SelectedCommitId && r1.IsTesting() == r2.IsTesting()
-}
