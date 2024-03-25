@@ -45,11 +45,7 @@
         hostname = cfg.services.comin.hostname;
         state_dir = "/var/lib/comin";
         remotes = cfg.services.comin.remotes;
-      } // (
-        if cfg.services.comin.inotifyRepositoryPath != null
-        then { inotify.repository_path = cfg.services.comin.inotifyRepositoryPath; }
-        else { }
-      );
+      };
       cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
     in {
       options = with lib; with types; {
@@ -65,7 +61,10 @@
             type = str;
             default = config.networking.hostName;
             description = ''
-              The hostname of the machine.
+              The name of the NixOS configuration to evaluate and
+              deploy. This value is used by comin to evaluate the
+              flake output
+              nixosConfigurations."<hostname>".config.system.build.toplevel
             '';
           };
           remotes = mkOption {
@@ -169,15 +168,6 @@
               impacting both.
               Note it is only used by comin at evaluation.
             '';
-          };
-          inotifyRepositoryPath = mkOption {
-            type = types.nullOr types.str;
-            default = null;
-            description = ''
-              The path of a local repository to watch. On each commit,
-              the worker is triggered to fetch new commits. This
-              allows to have fast switch when the repository is local.
-          '';
           };
         };
       };
