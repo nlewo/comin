@@ -26,7 +26,7 @@
             p == "README.md"
           );
         };
-        vendorHash = "sha256-kyj0CbB3IfRvrNXsO9JEVYJ8Hr5e747i+ZKcbR6WfKM=";
+        vendorHash = "sha256-7rh1t3DkKfJvUOkPjdi2vqS8JTZpWtI61mTBKDHcPVk=";
         buildInputs = [ final.makeWrapper ];
         postInstall = ''
           # This is because Nix needs Git at runtime by the go-git library
