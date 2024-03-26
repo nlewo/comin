@@ -176,7 +176,7 @@
         environment.systemPackages = [ pkgs.comin ];
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
-          path = [ pkgs.nix ];
+          path = [ config.nix.package ];
           # The comin service is restarted by comin itself when it
           # detects the unit file changed.
           restartIfChanged = false;
