@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/generation"
 	"github.com/sirupsen/logrus"
 )
@@ -17,9 +18,38 @@ const (
 	Failed
 )
 
+func StatusToString(status Status) string {
+	switch status {
+	case Init:
+		return "init"
+	case Running:
+		return "running"
+	case Done:
+		return "done"
+	case Failed:
+		return "failed"
+	}
+	return ""
+}
+
+func StatusFromString(status string) Status {
+	switch status {
+	case "init":
+		return Init
+	case "running":
+		return Running
+	case "done":
+		return Done
+	case "failed":
+		return Failed
+	}
+	return Init
+}
+
 type DeployFunc func(context.Context, string, string, string) (bool, error)
 
 type Deployment struct {
+	UUID       string                `json:"uuid"`
 	Generation generation.Generation `json:"generation"`
 	StartAt    time.Time             `json:"start_at"`
 	EndAt      time.Time             `json:"end_at"`
@@ -42,11 +72,12 @@ type DeploymentResult struct {
 
 func New(g generation.Generation, deployerFunc DeployFunc, deploymentCh chan DeploymentResult) Deployment {
 	operation := "switch"
-	if g.RepositoryStatus.IsTesting() {
+	if g.SelectedBranchIsTesting {
 		operation = "test"
 	}
 
 	return Deployment{
+		UUID:         uuid.NewString(),
 		Generation:   g,
 		deployerFunc: deployerFunc,
 		deploymentCh: deploymentCh,

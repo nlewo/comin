@@ -2,7 +2,7 @@ package manager
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
@@ -49,6 +49,9 @@ type Manager struct {
 	// The deployment currenly managed
 	deployment   deployment.Deployment
 	deployerFunc deployment.DeployFunc
+
+	repositoryStatusCh chan repository.RepositoryStatus
+	triggerDeploymentCh chan generation.Generation
 }
 
 func New(r repository.Repository, path, hostname, machineId string) Manager {
@@ -65,6 +68,8 @@ func New(r repository.Repository, path, hostname, machineId string) Manager {
 		stateResultCh:           make(chan State),
 		cominServiceRestartFunc: utils.CominServiceRestart,
 		deploymentResultCh:      make(chan deployment.DeploymentResult),
+		repositoryStatusCh:      make(chan repository.RepositoryStatus),
+		triggerDeploymentCh:     make(chan generation.Generation, 1),
 	}
 }
 
@@ -88,10 +93,81 @@ func (m Manager) toState() State {
 	}
 }
 
+func (m Manager) onEvaluated(ctx context.Context, evalResult generation.EvalResult) Manager {
+	m.generation = m.generation.UpdateEval(evalResult)
+	if evalResult.Err == nil {
+		m.generation = m.generation.Build(ctx)
+	} else {
+		m.isRunning = false
+	}
+	return m
+}
+
+func (m Manager) onBuilt(ctx context.Context, buildResult generation.BuildResult) Manager {
+	m.generation = m.generation.UpdateBuild(buildResult)
+	if buildResult.Err == nil {
+		m.triggerDeployment(ctx, m.generation)
+	} else {
+		m.isRunning = false
+	}
+	return m
+}
+
+func (m Manager) triggerDeployment(ctx context.Context, g generation.Generation) {
+	m.triggerDeploymentCh <- g
+}
+
+func (m Manager) onTriggerDeployment(ctx context.Context, g generation.Generation) Manager {
+	m.deployment = deployment.New(g, m.deployerFunc, m.deploymentResultCh)
+	m.deployment = m.deployment.Deploy(ctx)
+	return m
+}
+
+func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.DeploymentResult) Manager {
+	logrus.Debugf("Deploy done with %#v", deploymentResult)
+	m.deployment = m.deployment.Update(deploymentResult)
+	// The comin service is not restart by the switch-to-configuration script in order to let comin terminating properly. Instead, comin restarts itself.
+	if m.deployment.RestartComin {
+		m.needToBeRestarted = true
+	}
+	m.isRunning = false
+	return m
+}
+
+func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.RepositoryStatus) Manager {
+	logrus.Debugf("Fetch done with %#v", rs)
+	m.isFetching = false
+	m.repositoryStatus = rs
+	if rs.SelectedCommitId == m.generation.SelectedCommitId && rs.SelectedBranchIsTesting == m.generation.SelectedBranchIsTesting {
+		logrus.Debugf("The repository status is the same than the previous one")
+		m.isRunning = false
+	} else {
+		// g.Stop(): this is required once we remove m.IsRunning
+		flakeUrl := fmt.Sprintf("git+file://%s?rev=%s", m.repositoryPath, m.repositoryStatus.SelectedCommitId)
+		m.generation = generation.New(rs, flakeUrl, m.hostname, m.machineId, m.evalFunc, m.buildFunc)
+		m.generation = m.generation.Eval(ctx)
+	}
+	return m
+}
+
+func (m Manager) onTriggerRepository(ctx context.Context, remoteName string) Manager {
+	if m.isFetching {
+		logrus.Debugf("The manager is already fetching the repository")
+		return m
+	}
+	// FIXME: we will remove this in future versions
+	if m.isRunning {
+		logrus.Debugf("The manager is already running: it is currently not able to run tasks in parallel")
+		return m
+	}
+	logrus.Debugf("Trigger fetch and update remote %s", remoteName)
+	m.isRunning = true
+	m.isFetching = true
+	m.repositoryStatusCh = m.repository.FetchAndUpdate(ctx, remoteName)
+	return m
+}
+
 func (m Manager) Run() {
-	var repositoryStatusCh chan repository.RepositoryStatus
-	var evalResultCh chan generation.EvalResult
-	var buildResultCh chan generation.BuildResult
 	ctx := context.TODO()
 
 	logrus.Info("The manager is started")
@@ -103,67 +179,18 @@ func (m Manager) Run() {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
 		case remoteName := <-m.triggerRepository:
-			if m.isFetching {
-				logrus.Debugf("The manager is already fetching the repository")
-				continue
-			}
-			// FIXME: we will remove this in future versions
-			if m.isRunning {
-				logrus.Debugf("The manager is already running: it is currently not able to run tasks in parallel")
-				continue
-			}
-			logrus.Debugf("Trigger fetch and update remote %s", remoteName)
-			m.isRunning = true
-			m.isFetching = true
-			repositoryStatusCh = m.repository.FetchAndUpdate(ctx, remoteName)
-		case rs := <-repositoryStatusCh:
-			logrus.Debugf("Fetch done with %#v", rs)
-			m.isFetching = false
-			m.repositoryStatus = rs
-			if rs.Equal(m.generation.RepositoryStatus) {
-				logrus.Debugf("The repository status is the same than the previous one")
-				m.isRunning = false
-			} else {
-				// g.Stop(): this is required once we remove m.IsRunning
-				m.generation = generation.New(rs, m.repositoryPath, m.hostname, m.machineId, m.evalFunc, m.buildFunc)
-				m.generation.EvalStartedAt = time.Now()
-				m.generation.Status = generation.Evaluating
-
-				// FIXME: we need to let nix fetching a git commit from the repository instead of using the repository
-				// directory which an be updated in parallel
-				evalResultCh = m.generation.Eval(ctx)
-			}
-		case evalResult := <-evalResultCh:
-			logrus.Debugf("Eval done with %#v", evalResult)
-			m.generation = m.generation.UpdateEval(evalResult)
-			if evalResult.Err == nil {
-				m.generation.BuildStartedAt = time.Now()
-				m.generation.Status = generation.Building
-				buildResultCh = m.generation.Build(ctx)
-			} else {
-				logrus.Infof("Evaluation error: %s", evalResult.Err)
-				m.isRunning = false
-			}
-		case buildResult := <-buildResultCh:
-			logrus.Debugf("Build done with %#v", buildResult)
-			m.generation = m.generation.UpdateBuild(buildResult)
-			if buildResult.Err == nil {
-				m.deployment = deployment.New(m.generation, m.deployerFunc, m.deploymentResultCh)
-				m.deployment = m.deployment.Deploy(ctx)
-			} else {
-				m.isRunning = false
-			}
+			m = m.onTriggerRepository(ctx, remoteName)
+		case rs := <-m.repositoryStatusCh:
+			m = m.onRepositoryStatus(ctx, rs)
+		case evalResult := <-m.generation.EvalCh():
+			m = m.onEvaluated(ctx, evalResult)
+		case buildResult := <-m.generation.BuildCh():
+			m = m.onBuilt(ctx, buildResult)
+		case generation := <-m.triggerDeploymentCh:
+			m = m.onTriggerDeployment(ctx, generation)
 		case deploymentResult := <-m.deploymentResultCh:
-			logrus.Debugf("Deploy done with %#v", deploymentResult)
-			m.deployment = m.deployment.Update(deploymentResult)
-			// The comin service is not restart by the switch-to-configuration script in order to let comin terminating properly. Instead, comin restarts itself.
-			if m.deployment.RestartComin {
-				m.needToBeRestarted = true
-				break
-			}
-			m.isRunning = false
+			m = m.onDeployment(ctx, deploymentResult)
 		}
-
 		if m.needToBeRestarted {
 			// TODO: stop contexts
 			if err := m.cominServiceRestartFunc(); err != nil {
