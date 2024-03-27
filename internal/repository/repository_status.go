@@ -46,7 +46,8 @@ type RepositoryStatus struct {
 	MainRemoteName          string    `json:"main_remote_name"`
 	MainBranchName          string    `json:"main_branch_name"`
 	Remotes                 []*Remote `json:"remotes"`
-	Error                   error
+	Error                   error     `json:"-"`
+	ErrorMsg                string    `json:"error_msg"`
 }
 
 func NewRepositoryStatus(config types.GitConfig, repositoryStatus RepositoryStatus) RepositoryStatus {
