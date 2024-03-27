@@ -50,7 +50,7 @@ type Manager struct {
 	deployment   deployment.Deployment
 	deployerFunc deployment.DeployFunc
 
-	repositoryStatusCh chan repository.RepositoryStatus
+	repositoryStatusCh  chan repository.RepositoryStatus
 	triggerDeploymentCh chan generation.Generation
 }
 
