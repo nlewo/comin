@@ -54,6 +54,7 @@ func (r *repository) Fetch(remoteName string) (err error) {
 	var remotes []types.Remote
 	var found bool
 	r.RepositoryStatus.Error = nil
+	r.RepositoryStatus.ErrorMsg = ""
 	if remoteName != "" {
 		for _, remote := range r.GitConfig.Remotes {
 			if remote.Name == remoteName {
@@ -63,6 +64,7 @@ func (r *repository) Fetch(remoteName string) (err error) {
 		}
 		if !found {
 			r.RepositoryStatus.Error = err
+			r.RepositoryStatus.ErrorMsg = err.Error()
 			return fmt.Errorf("The remote '%s' doesn't exist", remoteName)
 		}
 	} else {
@@ -175,6 +177,7 @@ func (r *repository) Update() error {
 
 	if err := hardReset(*r, plumbing.NewHash(r.RepositoryStatus.SelectedCommitId)); err != nil {
 		r.RepositoryStatus.Error = err
+		r.RepositoryStatus.ErrorMsg = err.Error()
 		return err
 	}
 	return nil
