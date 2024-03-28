@@ -10,6 +10,7 @@ import (
 type Prometheus struct {
 	promRegistry   *prometheus.Registry
 	deploymentInfo *prometheus.GaugeVec
+	fetchCounter   *prometheus.CounterVec
 }
 
 func New() Prometheus {
@@ -18,10 +19,16 @@ func New() Prometheus {
 		Name: "comin_deployment_info",
 		Help: "Info of the last deployment.",
 	}, []string{"commit_id", "status"})
+	fetchCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "comin_fetch_count",
+		Help: "Number of fetches per status",
+	}, []string{"remote_name", "status"})
 	promReg.MustRegister(deploymentInfo)
+	promReg.MustRegister(fetchCounter)
 	return Prometheus{
 		promRegistry:   promReg,
 		deploymentInfo: deploymentInfo,
+		fetchCounter:   fetchCounter,
 	}
 }
 
@@ -31,6 +38,10 @@ func (m Prometheus) Handler() http.Handler {
 		promhttp.HandlerOpts{
 			EnableOpenMetrics: false,
 		})
+}
+
+func (m Prometheus) IncFetchCounter(remoteName, status string) {
+	m.fetchCounter.With(prometheus.Labels{"remote_name": remoteName, "status": status}).Inc()
 }
 
 func (m Prometheus) SetDeploymentInfo(commitId, status string) {

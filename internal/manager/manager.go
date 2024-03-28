@@ -6,8 +6,8 @@ import (
 
 	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
-	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/nix"
+	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -73,7 +73,7 @@ func New(r repository.Repository, p prometheus.Prometheus, path, hostname, machi
 		deploymentResultCh:      make(chan deployment.DeploymentResult),
 		repositoryStatusCh:      make(chan repository.RepositoryStatus),
 		triggerDeploymentCh:     make(chan generation.Generation, 1),
-		prometheus:                 p,
+		prometheus:              p,
 	}
 }
 
@@ -143,6 +143,17 @@ func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.Repositor
 	logrus.Debugf("Fetch done with %#v", rs)
 	m.isFetching = false
 	m.repositoryStatus = rs
+
+	for _, r := range rs.Remotes {
+		if r.LastFetched {
+			status := "failed"
+			if r.FetchErrorMsg == "" {
+				status = "succeeded"
+			}
+			m.prometheus.IncFetchCounter(r.Name, status)
+		}
+	}
+
 	if rs.SelectedCommitId == m.generation.SelectedCommitId && rs.SelectedBranchIsTesting == m.generation.SelectedBranchIsTesting {
 		logrus.Debugf("The repository status is the same than the previous one")
 		m.isRunning = false
