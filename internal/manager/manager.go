@@ -6,6 +6,7 @@ import (
 
 	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
+	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/nix"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/utils"
@@ -52,9 +53,11 @@ type Manager struct {
 
 	repositoryStatusCh  chan repository.RepositoryStatus
 	triggerDeploymentCh chan generation.Generation
+
+	prometheus prometheus.Prometheus
 }
 
-func New(r repository.Repository, path, hostname, machineId string) Manager {
+func New(r repository.Repository, p prometheus.Prometheus, path, hostname, machineId string) Manager {
 	return Manager{
 		repository:              r,
 		repositoryPath:          path,
@@ -70,6 +73,7 @@ func New(r repository.Repository, path, hostname, machineId string) Manager {
 		deploymentResultCh:      make(chan deployment.DeploymentResult),
 		repositoryStatusCh:      make(chan repository.RepositoryStatus),
 		triggerDeploymentCh:     make(chan generation.Generation, 1),
+		prometheus:                 p,
 	}
 }
 
@@ -131,6 +135,7 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 		m.needToBeRestarted = true
 	}
 	m.isRunning = false
+	m.prometheus.SetDeploymentInfo(m.deployment.Generation.SelectedCommitId, deployment.StatusToString(m.deployment.Status))
 	return m
 }
 

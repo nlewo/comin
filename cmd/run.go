@@ -6,6 +6,7 @@ import (
 	"github.com/nlewo/comin/internal/config"
 	"github.com/nlewo/comin/internal/http"
 	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/poller"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/utils"
@@ -39,9 +40,13 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		manager := manager.New(repository, gitConfig.Path, cfg.Hostname, machineId)
+		metrics := prometheus.New()
+		manager := manager.New(repository, metrics, gitConfig.Path, cfg.Hostname, machineId)
 		go poller.Poller(manager, cfg.Remotes)
-		go http.Serve(manager, cfg.HttpServer.Address, cfg.HttpServer.Port)
+		http.Serve(manager,
+			metrics,
+			cfg.ApiServer.ListenAddress, cfg.ApiServer.Port,
+			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
 		manager.Run()
 	},
 }

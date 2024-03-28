@@ -38,8 +38,8 @@ type Branches struct {
 }
 
 type HttpServer struct {
-	Address string `yaml:"address"`
-	Port    int    `yaml:"port"`
+	ListenAddress string `yaml:"listen_address"`
+	Port          int    `yaml:"port"`
 }
 
 type Configuration struct {
@@ -47,5 +47,6 @@ type Configuration struct {
 	StateDir      string     `yaml:"state_dir"`
 	StateFilepath string     `yaml:"state_filepath"`
 	Remotes       []Remote   `yaml:"remotes"`
-	HttpServer    HttpServer `yaml:"http_server"`
+	ApiServer     HttpServer `yaml:"api_server"`
+	Exporter      HttpServer `yaml:"exporter"`
 }
