@@ -47,5 +47,6 @@ type Configuration struct {
 	StateDir      string     `yaml:"state_dir"`
 	StateFilepath string     `yaml:"state_filepath"`
 	Remotes       []Remote   `yaml:"remotes"`
-	HttpServer    HttpServer `yaml:"http_server"`
+	ApiServer     HttpServer `yaml:"api_server"`
+	MetricsServer HttpServer `yaml:"metrics_server"`
 }

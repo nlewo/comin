@@ -6,10 +6,15 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/deployment"
+	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
+
+type metricsMock struct{}
+
+func (m metricsMock) SetDeploymentInfo(commitId, status string) {}
 
 type repositoryMock struct {
 	rsCh chan repository.RepositoryStatus
@@ -28,7 +33,7 @@ func (r *repositoryMock) FetchAndUpdate(ctx context.Context, remoteName string) 
 func TestRun(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, "", "", "")
+	m := New(r, prometheus.New(), "", "", "")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
@@ -89,7 +94,7 @@ func TestRun(t *testing.T) {
 func TestFetchBusy(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, "", "", "machine-id")
+	m := New(r, prometheus.New(), "", "", "machine-id")
 	go m.Run()
 
 	assert.Equal(t, State{}, m.GetState())
@@ -104,7 +109,7 @@ func TestFetchBusy(t *testing.T) {
 func TestRestartComin(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, "", "", "machine-id")
+	m := New(r, prometheus.New(), "", "", "machine-id")
 	dCh := make(chan deployment.DeploymentResult)
 	m.deploymentResultCh = dCh
 	isCominRestarted := false
@@ -126,7 +131,7 @@ func TestRestartComin(t *testing.T) {
 func TestOptionnalMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, "", "", "the-test-machine-id")
+	m := New(r, prometheus.New(), "", "", "the-test-machine-id")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
@@ -158,7 +163,7 @@ func TestOptionnalMachineId(t *testing.T) {
 func TestIncorrectMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, "", "", "the-test-machine-id")
+	m := New(r, prometheus.New(), "", "", "the-test-machine-id")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})

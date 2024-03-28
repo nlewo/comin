@@ -30,9 +30,13 @@ func TestConfig(t *testing.T) {
 				},
 			},
 		},
-		HttpServer: types.HttpServer{
+		ApiServer: types.HttpServer{
 			Address: "127.0.0.1",
 			Port:    4242,
+		},
+		MetricsServer: types.HttpServer{
+			Address: "127.0.0.1",
+			Port:    4243,
 		},
 	}
 	config, err := Read(configPath)

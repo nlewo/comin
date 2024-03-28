@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,16 +25,34 @@ func handlerStatus(m manager.Manager, w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func Serve(m manager.Manager, address string, port int) {
+// Serve starts http servers. We create two HTTP servers to easily be
+// able to expose metrics publicly while keeping on localhost only the
+// API.
+func Serve(m manager.Manager, p prometheus.Prometheus, apiAddress string, apiPort int, metricsAddress string, metricsPort int) {
 	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
 		handlerStatus(m, w, r)
 		return
 	}
-	http.HandleFunc("/status", handlerStatusFn)
-	url := fmt.Sprintf("%s:%d", address, port)
-	logrus.Infof("Starting the webhook server on %s", url)
-	if err := http.ListenAndServe(url, nil); err != nil {
-		logrus.Errorf("Error while running the webhook server: %s", err)
-		os.Exit(1)
-	}
+
+	muxStatus := http.NewServeMux()
+	muxStatus.HandleFunc("/status", handlerStatusFn)
+	muxMetrics := http.NewServeMux()
+	muxMetrics.Handle("/metrics", p.Handler())
+
+	go func() {
+		url := fmt.Sprintf("%s:%d", apiAddress, apiPort)
+		logrus.Infof("Starting the API server on %s", url)
+		if err := http.ListenAndServe(url, muxStatus); err != nil {
+			logrus.Errorf("Error while running the API server: %s", err)
+			os.Exit(1)
+		}
+	}()
+	go func() {
+		url := fmt.Sprintf("%s:%d", metricsAddress, metricsPort)
+		logrus.Infof("Starting the metrics server on %s", url)
+		if err := http.ListenAndServe(url, muxMetrics); err != nil {
+			logrus.Errorf("Error while running the metrics server: %s", err)
+			os.Exit(1)
+		}
+	}()
 }
