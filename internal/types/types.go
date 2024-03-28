@@ -5,6 +5,7 @@ type Remote struct {
 	URL      string
 	Auth     Auth
 	Branches Branches `yaml:"branches"`
+	Timeout  int      `yaml:"timeout"`
 	// The period to poll the remote in second
 	Poller Poller `yaml:"poller"`
 }

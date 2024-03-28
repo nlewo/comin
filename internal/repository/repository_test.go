@@ -26,6 +26,7 @@ func TestNew(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -54,6 +55,7 @@ func TestPreferMain(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -111,6 +113,7 @@ func TestMainCommitId(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -152,6 +155,7 @@ func TestContinueIfHardReset(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 			types.Remote{
 				Name: "r2",
@@ -164,6 +168,7 @@ func TestContinueIfHardReset(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -219,6 +224,7 @@ func TestMultipleRemote(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 			types.Remote{
 				Name: "r2",
@@ -231,6 +237,7 @@ func TestMultipleRemote(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -355,6 +362,7 @@ func TestTestingSwitch(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 			types.Remote{
 				Name: "r2",
@@ -367,6 +375,7 @@ func TestTestingSwitch(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -435,6 +444,7 @@ func TestWithoutTesting(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -467,6 +477,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -525,6 +536,7 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}
@@ -583,6 +595,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 						Name: "testing",
 					},
 				},
+				Timeout: 30,
 			},
 		},
 	}

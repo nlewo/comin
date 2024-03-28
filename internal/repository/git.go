@@ -1,7 +1,11 @@
 package repository
 
 import (
+	"context"
 	"fmt"
+	"io/ioutil"
+	"time"
+
 	"github.com/go-git/go-git/v5"
 	gitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -9,7 +13,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 )
 
 func RepositoryClone(directory, url, commitId, accessToken string) error {
@@ -125,8 +128,11 @@ func fetch(r repository, remote types.Remote) (err error) {
 		}
 	}
 
-	// TODO: should only fetch tracked branches
-	err = r.Repository.Fetch(&fetchOptions)
+	// TODO: we should get a parent context
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(remote.Timeout)*time.Second)
+	defer cancel()
+	// TODO: we should only fetch tracked branches
+	err = r.Repository.FetchContext(ctx, &fetchOptions)
 	if err == nil {
 		logrus.Infof("New commits have been fetched from '%s'", remote.URL)
 		return nil

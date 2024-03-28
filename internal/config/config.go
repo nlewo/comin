@@ -27,6 +27,9 @@ func Read(path string) (config types.Configuration, err error) {
 			}
 			config.Remotes[i].Auth.AccessToken = string(content)
 		}
+		if remote.Timeout == 0 {
+			remote.Timeout = 30
+		}
 	}
 
 	if config.HttpServer.Address == "" {
