@@ -51,14 +51,12 @@ func (r *repository) FetchAndUpdate(ctx context.Context, remoteName string) (rsC
 }
 
 func (r *repository) Fetch(remoteName string) (err error) {
-	var remotes []types.Remote
 	var found bool
 	r.RepositoryStatus.Error = nil
 	r.RepositoryStatus.ErrorMsg = ""
 	if remoteName != "" {
 		for _, remote := range r.GitConfig.Remotes {
 			if remote.Name == remoteName {
-				remotes = append(remotes, remote)
 				found = true
 			}
 		}
@@ -67,12 +65,15 @@ func (r *repository) Fetch(remoteName string) (err error) {
 			r.RepositoryStatus.ErrorMsg = err.Error()
 			return fmt.Errorf("The remote '%s' doesn't exist", remoteName)
 		}
-	} else {
-		remotes = r.GitConfig.Remotes
 	}
 
-	for _, remote := range remotes {
+	for _, remote := range r.GitConfig.Remotes {
 		repositoryStatusRemote := r.RepositoryStatus.GetRemote(remote.Name)
+		repositoryStatusRemote.LastFetched = false
+		if remoteName != "" && remote.Name != remoteName {
+			continue
+		}
+		repositoryStatusRemote.LastFetched = true
 		if err = fetch(*r, remote); err != nil {
 			repositoryStatusRemote.FetchErrorMsg = err.Error()
 		} else {

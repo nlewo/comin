@@ -330,6 +330,11 @@ func TestMultipleRemote(t *testing.T) {
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 
+	assert.Equal(t, "r1", r.RepositoryStatus.Remotes[0].Name)
+	assert.False(t, r.RepositoryStatus.Remotes[0].LastFetched)
+	assert.Equal(t, "r2", r.RepositoryStatus.Remotes[1].Name)
+	assert.True(t, r.RepositoryStatus.Remotes[1].LastFetched)
+
 	// Fetch the r1 remote
 	// r1/main: c1 - c2 - c3 - c4 - c5 - c6 - c8 - *c9
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
