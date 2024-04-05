@@ -42,4 +42,5 @@ seconds.
 - [Howtos](./docs/howtos.md)
 - [Advanced Configuraion](./docs/advanced-config.md)
 - [Authentication](./docs/authentication.md)
+- [Comin module options](./docs/generated-module-options.md)
 - [Design](./docs/design.md)
