@@ -98,6 +98,13 @@
                     };
                   };
                 };
+                timeout = mkOption {
+                  type = int;
+                  default = 300;
+                  description = ''
+                    Git fetch timeout in seconds.
+                  '';
+                };
                 branches = mkOption {
                   description = "Branches to pull";
                   default = {};

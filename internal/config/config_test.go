@@ -20,6 +20,7 @@ func TestConfig(t *testing.T) {
 					AccessToken:     "my-secret",
 					AccessTokenPath: "./secret",
 				},
+				Timeout: 300,
 			},
 			{
 				Name: "local",
@@ -28,6 +29,7 @@ func TestConfig(t *testing.T) {
 					AccessToken:     "",
 					AccessTokenPath: "",
 				},
+				Timeout: 300,
 			},
 		},
 		HttpServer: types.HttpServer{
