@@ -32,9 +32,13 @@ func TestConfig(t *testing.T) {
 				Timeout: 300,
 			},
 		},
-		HttpServer: types.HttpServer{
-			Address: "127.0.0.1",
-			Port:    4242,
+		ApiServer: types.HttpServer{
+			ListenAddress: "127.0.0.1",
+			Port:          4242,
+		},
+		Exporter: types.HttpServer{
+			ListenAddress: "0.0.0.0",
+			Port:          4243,
 		},
 	}
 	config, err := Read(configPath)

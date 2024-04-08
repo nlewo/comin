@@ -26,7 +26,7 @@
             p == "README.md"
           );
         };
-        vendorHash = "sha256-7rh1t3DkKfJvUOkPjdi2vqS8JTZpWtI61mTBKDHcPVk=";
+        vendorHash = "sha256-9qObgfXvMkwE+1BVZNQXVhKhL6LqMqyIUhGnXf8q9SI=";
         buildInputs = [ final.makeWrapper ];
         postInstall = ''
           # This is because Nix needs Git at runtime by the go-git library
@@ -45,6 +45,10 @@
         hostname = cfg.services.comin.hostname;
         state_dir = "/var/lib/comin";
         remotes = cfg.services.comin.remotes;
+        exporter = {
+          listen_address = cfg.services.comin.exporter.listen_address;
+          port = cfg.services.comin.exporter.port;
+        };
       };
       cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
     in {
@@ -66,6 +70,35 @@
               flake output
               nixosConfigurations."<hostname>".config.system.build.toplevel
             '';
+          };
+          exporter = mkOption {
+            description = "Options for the Prometheus exporter.";
+            default = {};
+            type = submodule {
+              options = {
+                listen_address = mkOption {
+                  type = str;
+                  description = ''
+                    Address to listen on for the Prometheus exporter. Empty string will listen on all interfaces.
+                  '';
+                  default = "";
+                };
+                port = mkOption {
+                  type = int;
+                  description = ''
+                    Port to listen on for the Prometheus exporter.
+                  '';
+                  default = 4243;
+                };
+                openFirewall = mkOption {
+                  type = types.bool;
+                  default = false;
+                  description = lib.mdDoc ''
+                    Open port in firewall for incoming connections to the Prometheus exporter.
+                  '';
+                };
+              };
+            };
           };
           remotes = mkOption {
             description = "Ordered list of repositories to pull";
@@ -181,6 +214,7 @@
       config = lib.mkIf cfg.services.comin.enable {
         nixpkgs.overlays = [ self.overlay ];
         environment.systemPackages = [ pkgs.comin ];
+        networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
         systemd.services.comin = {
           wantedBy = [ "multi-user.target" ];
           path = [ config.nix.package ];

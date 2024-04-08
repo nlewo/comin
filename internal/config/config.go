@@ -32,11 +32,17 @@ func Read(path string) (config types.Configuration, err error) {
 		}
 	}
 
-	if config.HttpServer.Address == "" {
-		config.HttpServer.Address = "127.0.0.1"
+	if config.ApiServer.ListenAddress == "" {
+		config.ApiServer.ListenAddress = "127.0.0.1"
 	}
-	if config.HttpServer.Port == 0 {
-		config.HttpServer.Port = 4242
+	if config.ApiServer.Port == 0 {
+		config.ApiServer.Port = 4242
+	}
+	if config.Exporter.ListenAddress == "" {
+		config.Exporter.ListenAddress = "0.0.0.0"
+	}
+	if config.Exporter.Port == 0 {
+		config.Exporter.Port = 4243
 	}
 	if config.StateFilepath == "" {
 		config.StateFilepath = filepath.Join(config.StateDir, "state.json")

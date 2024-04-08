@@ -11,6 +11,7 @@ configuration associated to the machine.
 - Poll multiple Git remotes to avoid SPOF
 - Support machines migrations
 - Fast iterations with local remotes
+- Observable thanks to exposed Prometheus metrics
 
 ## Quick start
 
