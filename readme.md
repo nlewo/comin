@@ -1,6 +1,6 @@
-# comin - Git Push NixOS Machines
+# comin - GitOps for NixOS Machines
 
-**comin** is a deployment tool working in the pull mode. Running on a
+**comin** is a deployment tool operating in pull mode. Running on a
 machine, it periodically polls Git repositories and deploys the NixOS
 configuration associated to the machine.
 
