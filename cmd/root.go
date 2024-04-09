@@ -18,7 +18,7 @@ var version = "0.0.0"
 
 var rootCmd = &cobra.Command{
 	Use:     "comin",
-	Short:   "Deployment tool",
+	Short:   "GitOps For NixOS Machines",
 	Version: version,
 }
 
