@@ -13,7 +13,7 @@
     overlay = final: prev: {
       comin = final.buildGoModule rec {
         pname = "comin";
-        version = "0.1.1";
+        version = "0.2.0";
         nativeCheckInputs = [ final.git ];
         src = final.lib.cleanSourceWith {
           src = ./.;
