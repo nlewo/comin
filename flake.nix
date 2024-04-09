@@ -7,13 +7,13 @@
     forAllSystems = nixpkgs.lib.genAttrs systems;
     nixpkgsFor = forAllSystems (system: import nixpkgs {
       inherit system;
-      overlays = [ self.overlay ];
+      overlays = [ self.overlays.default ];
     });
     optionsDocFor = forAllSystems (system:
       import ./nix/module-options-doc.nix (nixpkgsFor."${system}")
     );
   in {
-    overlay = final: prev: {
+    overlays.default = final: prev: {
       comin = final.buildGoModule rec {
         pname = "comin";
         version = "0.2.0";
@@ -41,16 +41,17 @@
     };
 
     packages = forAllSystems (system: {
-      inherit (nixpkgsFor."${system}") comin;
+      default = nixpkgsFor."${system}".comin;
       generate-module-options = optionsDocFor."${system}".optionsDocCommonMarkGenerator;
     });
-    defaultPackage = forAllSystems (system: self.packages."${system}".comin);
     checks = forAllSystems (system: {
-      options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
+      module-options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
+      # I don't understand why nix flake check does't build packages.default
+      package = nixpkgsFor."${system}".comin;
     });
 
-    nixosModules.comin = import ./nix/module.nix self.overlay;
-    devShell.x86_64-linux = let
+    nixosModules.comin = import ./nix/module.nix self.packages.default;
+    devShells.x86_64-linux.default = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
     in pkgs.mkShell {
       buildInputs = [
