@@ -1,17 +1,17 @@
 # comin - GitOps for NixOS Machines
 
-**comin** is a deployment tool operating in pull mode. Running on a
-machine, it periodically polls Git repositories and deploys the NixOS
-configuration associated to the machine.
+**comin** is a NixOS deployment tool operating in pull mode. Running
+on a machine, it periodically polls Git repositories and deploys the
+NixOS configuration associated to the machine.
 
 ## Features
 
-- Git push to deploy NixOS configurations
-- Support testing branches to try changes
-- Poll multiple Git remotes to avoid SPOF
-- Support machines migrations
-- Fast iterations with local remotes
-- Observable thanks to exposed Prometheus metrics
+- :snowflake: Git push to deploy NixOS configurations
+- :construction: Support testing branches to [try changes](./docs/howtos.md#how-to-test-a-nixos-configuration-change)
+- :rocket: Poll [multiple Git remotes](./docs/generated-module-options.md#servicescominremotes) to avoid SPOF
+- :postbox: Support [machines migrations](./docs/howtos.md#how-to-migrate-a-configuration-from-a-machine-to-another-one)
+- :fast_forward: Fast iterations with [local remotes](./docs/howtos.md#iterate-faster-with-local-repository)
+- :satellite: Observable via [Prometheus metrics](./docs/generated-module-options.md#servicescominexporter)
 
 ## Quick start
 
