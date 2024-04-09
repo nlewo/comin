@@ -27,6 +27,9 @@
           );
         };
         vendorHash = "sha256-9qObgfXvMkwE+1BVZNQXVhKhL6LqMqyIUhGnXf8q9SI=";
+        ldflags = [
+          "-X github.com/nlewo/comin/cmd.version=${version}"
+        ];
         buildInputs = [ final.makeWrapper ];
         postInstall = ''
           # This is because Nix needs Git at runtime by the go-git library

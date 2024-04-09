@@ -13,9 +13,13 @@ var debug bool
 var hostname string
 var flakeUrl string
 
+// Set at build time
+var version = "0.0.0"
+
 var rootCmd = &cobra.Command{
-	Use:   "comin",
-	Short: "Deployment tool",
+	Use:     "comin",
+	Short:   "Deployment tool",
+	Version: version,
 }
 
 func Execute() {
