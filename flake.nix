@@ -50,7 +50,7 @@
       options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
     });
 
-    nixosModules.comin = import ./nix/module.nix self.packages.comin;
+    nixosModules.comin = import ./nix/module.nix self.overlay;
     devShell.x86_64-linux = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
     in pkgs.mkShell {

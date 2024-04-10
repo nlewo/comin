@@ -1,4 +1,4 @@
-comin: { config, pkgs, lib, ... }: let
+overlay: { config, pkgs, lib, ... }: let
   cfg = config;
   yaml = pkgs.formats.yaml { };
   cominConfig = {
@@ -14,7 +14,8 @@ comin: { config, pkgs, lib, ... }: let
 in {
   imports = [ ./module-options.nix ];
   config = lib.mkIf cfg.services.comin.enable {
-    environment.systemPackages = [ comin ];
+    nixpkgs.overlays = [ overlay ];
+    environment.systemPackages = [ pkgs.comin ];
     networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
@@ -24,7 +25,7 @@ in {
       restartIfChanged = false;
       serviceConfig = {
         ExecStart =
-          "${comin}/bin/comin "
+          "${pkgs.comin}/bin/comin "
           + (lib.optionalString cfg.services.comin.debug "--debug ")
           + " run "
           + "--config ${cominConfigYaml}";
