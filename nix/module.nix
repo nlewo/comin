@@ -18,7 +18,7 @@ in {
     networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
-      path = [ pkgs.nix pkgs.git ];
+      path = [ config.nix.package ];
       # The comin service is restarted by comin itself when it
       # detects the unit file changed.
       restartIfChanged = false;
