@@ -41,6 +41,7 @@ var runCmd = &cobra.Command{
 		}
 
 		metrics := prometheus.New()
+		metrics.SetBuildInfo(cmd.Version)
 		manager := manager.New(repository, metrics, gitConfig.Path, cfg.Hostname, machineId)
 		go poller.Poller(manager, cfg.Remotes)
 		http.Serve(manager,

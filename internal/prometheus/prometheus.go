@@ -9,12 +9,17 @@ import (
 
 type Prometheus struct {
 	promRegistry   *prometheus.Registry
+	buildInfo      *prometheus.GaugeVec
 	deploymentInfo *prometheus.GaugeVec
 	fetchCounter   *prometheus.CounterVec
 }
 
 func New() Prometheus {
 	promReg := prometheus.NewRegistry()
+	buildInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "comin_build_info",
+		Help: "Build info for comin.",
+        }, []string{"version"})
 	deploymentInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "comin_deployment_info",
 		Help: "Info of the last deployment.",
@@ -23,10 +28,12 @@ func New() Prometheus {
 		Name: "comin_fetch_count",
 		Help: "Number of fetches per status",
 	}, []string{"remote_name", "status"})
+	promReg.MustRegister(buildInfo)
 	promReg.MustRegister(deploymentInfo)
 	promReg.MustRegister(fetchCounter)
 	return Prometheus{
 		promRegistry:   promReg,
+		buildInfo:      buildInfo,
 		deploymentInfo: deploymentInfo,
 		fetchCounter:   fetchCounter,
 	}
@@ -42,6 +49,11 @@ func (m Prometheus) Handler() http.Handler {
 
 func (m Prometheus) IncFetchCounter(remoteName, status string) {
 	m.fetchCounter.With(prometheus.Labels{"remote_name": remoteName, "status": status}).Inc()
+}
+
+func (m Prometheus) SetBuildInfo(version string) {
+	m.buildInfo.Reset()
+	m.buildInfo.With(prometheus.Labels{"version": version}).Set(1)
 }
 
 func (m Prometheus) SetDeploymentInfo(commitId, status string) {
