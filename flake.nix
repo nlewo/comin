@@ -18,16 +18,15 @@
         pname = "comin";
         version = "0.2.0";
         nativeCheckInputs = [ final.git ];
-        src = final.lib.cleanSourceWith {
-          src = ./.;
-          filter = path: type:
-          let
-            p = baseNameOf path;
-          in !(
-            p == "flake.nix" ||
-            p == "flake.lock" ||
-            p == "README.md"
-          );
+        src = final.lib.fileset.toSource {
+          root = ./.;
+          fileset = final.lib.fileset.unions [
+            ./cmd
+            ./internal
+            ./go.mod
+            ./go.sum
+            ./main.go
+          ];
         };
         vendorHash = "sha256-9qObgfXvMkwE+1BVZNQXVhKhL6LqMqyIUhGnXf8q9SI=";
         ldflags = [
