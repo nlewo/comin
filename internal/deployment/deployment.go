@@ -101,6 +101,10 @@ func (d Deployment) Update(dr DeploymentResult) Deployment {
 	return d
 }
 
+func (d Deployment) IsTesting() bool {
+	return d.Operation == "testing"
+}
+
 // Deploy returns a updated deployment (mainly the startAt is updated)
 // and asyncronously tun the deployment. Once finished, a
 // DeploymentResult is emitted on the channel d.deploymentCh.
