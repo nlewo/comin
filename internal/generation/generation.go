@@ -65,33 +65,33 @@ func StatusFromString(status string) Status {
 // We consider each created genration is legit to be deployed: hard
 // reset is ensured at RepositoryStatus creation.
 type Generation struct {
-	UUID      string
-	FlakeUrl  string
-	Hostname  string
-	MachineId string
+	UUID      string `json:"uuid"`
+	FlakeUrl  string `json:"flake-url"`
+	Hostname  string `json:"hostname"`
+	MachineId string `json:"machine-id"`
 
-	Status Status
+	Status Status `json:"status"`
 
-	SelectedRemoteName      string
-	SelectedBranchName      string
-	SelectedCommitId        string
-	SelectedCommitMsg       string
-	SelectedBranchIsTesting bool
+	SelectedRemoteName      string `json:"remote-name"`
+	SelectedBranchName      string `json:"branch-name"`
+	SelectedCommitId        string `json:"commit-id"`
+	SelectedCommitMsg       string `json:"commit-msg"`
+	SelectedBranchIsTesting bool   `json:"branch-is-testing"`
 
-	EvalStartedAt time.Time
+	EvalStartedAt time.Time `json:"eval-started-at"`
 	evalTimeout   time.Duration
 	evalFunc      EvalFunc
 	evalCh        chan EvalResult
 
-	EvalEndedAt   time.Time
-	EvalErr       error `json:"-"`
-	OutPath       string
-	DrvPath       string
-	EvalMachineId string
+	EvalEndedAt   time.Time `json:"eval-ended-at"`
+	EvalErr       error     `json:"-"`
+	OutPath       string    `json:"outpath"`
+	DrvPath       string    `json:"drvpath"`
+	EvalMachineId string    `json:"eval-machine-id"`
 
-	BuildStartedAt time.Time
-	BuildEndedAt   time.Time
-	buildErr       error `json:"-"`
+	BuildStartedAt time.Time `json:"build-started-at"`
+	BuildEndedAt   time.Time `json:"build-ended-at"`
+	buildErr       error     `json:"-"`
 	buildFunc      BuildFunc
 	buildCh        chan BuildResult
 }
