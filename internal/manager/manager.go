@@ -9,6 +9,7 @@ import (
 	"github.com/nlewo/comin/internal/nix"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -55,10 +56,11 @@ type Manager struct {
 	triggerDeploymentCh chan generation.Generation
 
 	prometheus prometheus.Prometheus
+	storage    store.Store
 }
 
-func New(r repository.Repository, p prometheus.Prometheus, path, hostname, machineId string) Manager {
-	return Manager{
+func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, hostname, machineId string) Manager {
+	m := Manager{
 		repository:              r,
 		repositoryPath:          path,
 		hostname:                hostname,
@@ -74,7 +76,15 @@ func New(r repository.Repository, p prometheus.Prometheus, path, hostname, machi
 		repositoryStatusCh:      make(chan repository.RepositoryStatus),
 		triggerDeploymentCh:     make(chan generation.Generation, 1),
 		prometheus:              p,
+		storage:                 s,
 	}
+	if len(s.DeploymentList()) > 0 {
+		d := s.DeploymentList()[0]
+		logrus.Infof("Restoring the manager state from the last deployment %s", d.UUID)
+		m.deployment = d
+		m.generation = d.Generation
+	}
+	return m
 }
 
 func (m Manager) GetState() State {
@@ -136,6 +146,7 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 	}
 	m.isRunning = false
 	m.prometheus.SetDeploymentInfo(m.deployment.Generation.SelectedCommitId, deployment.StatusToString(m.deployment.Status))
+	m.storage.DeploymentInsertAndCommit(m.deployment)
 	return m
 }
 
