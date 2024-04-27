@@ -86,6 +86,8 @@ func (r *repository) Fetch(remoteName string) (err error) {
 }
 
 func (r *repository) Update() error {
+	selectedCommitId := ""
+
 	// We first walk on all Main branches in order to get a commit
 	// from a Main branch. Once found, we could then walk on all
 	// Testing branches to get a testing commit on top of the Main
@@ -116,15 +118,15 @@ func (r *repository) Update() error {
 		remote.Main.CommitMsg = msg
 		remote.Main.OnTopOf = r.RepositoryStatus.MainCommitId
 
-		if r.RepositoryStatus.SelectedCommitId == "" {
-			r.RepositoryStatus.SelectedCommitId = head.String()
+		if selectedCommitId == "" {
+			selectedCommitId = head.String()
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
 			r.RepositoryStatus.SelectedBranchIsTesting = false
 		}
 		if head.String() != r.RepositoryStatus.MainCommitId {
-			r.RepositoryStatus.SelectedCommitId = head.String()
+			selectedCommitId = head.String()
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
 			r.RepositoryStatus.SelectedBranchIsTesting = false
@@ -166,8 +168,8 @@ func (r *repository) Update() error {
 		remote.Testing.CommitMsg = msg
 		remote.Testing.OnTopOf = r.RepositoryStatus.MainCommitId
 
-		if head.String() != r.RepositoryStatus.SelectedCommitId && head.String() != r.RepositoryStatus.MainCommitId {
-			r.RepositoryStatus.SelectedCommitId = head.String()
+		if head.String() != selectedCommitId && head.String() != r.RepositoryStatus.MainCommitId {
+			selectedCommitId = head.String()
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Testing.Name
 			r.RepositoryStatus.SelectedBranchIsTesting = true
@@ -176,7 +178,11 @@ func (r *repository) Update() error {
 		}
 	}
 
-	if err := hardReset(*r, plumbing.NewHash(r.RepositoryStatus.SelectedCommitId)); err != nil {
+	if selectedCommitId != "" {
+		r.RepositoryStatus.SelectedCommitId = selectedCommitId
+	}
+
+	if err := hardReset(*r, plumbing.NewHash(selectedCommitId)); err != nil {
 		r.RepositoryStatus.Error = err
 		r.RepositoryStatus.ErrorMsg = err.Error()
 		return err

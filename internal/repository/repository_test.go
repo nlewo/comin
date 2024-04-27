@@ -1,10 +1,11 @@
 package repository
 
 import (
+	"testing"
+
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestNew(t *testing.T) {
@@ -272,16 +273,15 @@ func TestMultipleRemote(t *testing.T) {
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r2", r.RepositoryStatus.SelectedRemoteName)
 
-	// r1/main: c1 - c2 - c3 - c4 - c5
-	// r2/main: c1 - c2 - c3 - c4 - *c5
-	// FIXME: maybe it could be better to switch to the first remote, ie r1/main
+	// r1/main: c1 - c2 - c3 - c4 - *c5
+	// r2/main: c1 - c2 - c3 - c4 - c5
 	newCommitId, err = commitFile(r1, r1Dir, "main", "file-5")
 	assert.Nil(t, err)
 	_ = r.Fetch("")
 	_ = r.Update()
 	assert.Equal(t, newCommitId, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
-	assert.Equal(t, "r2", r.RepositoryStatus.SelectedRemoteName)
+	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 
 	// r1/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
@@ -413,9 +413,9 @@ func TestTestingSwitch(t *testing.T) {
 	// r2/testing: c1 - c2 - c3 - *c4
 	_ = r.Fetch("")
 	_ = r.Update()
-	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "testing", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r2", r.RepositoryStatus.SelectedRemoteName)
+	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
 
 	// r1/main: c1 - c2 - c3
 	// r1/testing: c1 - c2 - c3
@@ -646,4 +646,64 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	assert.Equal(t, commitId5, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "origin", r.RepositoryStatus.SelectedRemoteName)
+}
+
+func TestTestingHardReset(t *testing.T) {
+	var err error
+	r1Dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	r1, err := initRemoteRepostiory(r1Dir, true)
+	cMain := HeadCommitId(r1)
+	gitConfig := types.GitConfig{
+		Path: cominRepositoryDir,
+		Remotes: []types.Remote{
+			{
+				Name: "r1",
+				URL:  r1Dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+					Testing: types.Branch{
+						Name: "testing",
+					},
+				},
+				Timeout: 30,
+			},
+		},
+	}
+	r, err := New(gitConfig, RepositoryStatus{})
+	assert.Nil(t, err)
+	// r1/main: c1 - c2 - *c3
+	// r1/testing: c1 - c2 - c3
+	err = r.Fetch("")
+	assert.Nil(t, err)
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
+	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
+
+	// r1/main: c1 - c2 - c3
+	// r1/testing: c1 - c2 - c3 - *c4
+	c4, err := commitFile(r1, r1Dir, "testing", "file-4")
+	err = r.Fetch("")
+	assert.Nil(t, err)
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, "testing", r.RepositoryStatus.SelectedBranchName)
+	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
+
+	// r1/main: c1 - c2 - *c3
+	// r1/testing: c1 - c2 - c3
+	ref := plumbing.NewHashReference("refs/heads/testing", plumbing.NewHash(cMain))
+	r1.Storer.SetReference(ref)
+	err = r.Fetch("")
+	assert.Nil(t, err)
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
+	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 }
