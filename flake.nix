@@ -1,5 +1,5 @@
 {
-  description = "Comin - Git Push NixOS Machines";
+  description = "Comin - GitOps for NixOS Machines";
 
   outputs = { self, nixpkgs }:
   let
