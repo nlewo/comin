@@ -213,7 +213,7 @@ func (m Manager) Run() {
 				logrus.Fatal(err)
 				return
 			}
-
+			m.needToBeRestarted = false
 		}
 	}
 }
