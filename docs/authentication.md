@@ -31,5 +31,5 @@ services.comin = {
       auth.access_token_path = "/filepath/to/your/access/token";
     }
   ];
-]
+};
 ```
