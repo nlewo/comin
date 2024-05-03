@@ -2,13 +2,13 @@
 
 ### GitLab
 
-You need to create a [personnal access
+You need to create a [personal access
 token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
 and store this token into a file (`/filepath/to/your/access/token` in the below example). 
 
 ### GitHub
 
-You need to create a [fined-grained personnal access
+You need to create a [fined-grained personal access
 token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens)
 and store this token into a file (`/filepath/to/your/access/token` in
 the below example). Note classic personal access tokens are also
@@ -31,5 +31,5 @@ services.comin = {
       auth.access_token_path = "/filepath/to/your/access/token";
     }
   ];
-]
+};
 ```
