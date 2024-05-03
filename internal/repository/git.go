@@ -137,7 +137,7 @@ func fetch(r repository, remote types.Remote) (err error) {
 		logrus.Infof("New commits have been fetched from '%s'", remote.URL)
 		return nil
 	} else if err != git.NoErrAlreadyUpToDate {
-		logrus.Infof("Pull from remote '%s' failed: %s", remote.Name, err)
+		logrus.Errorf("Pull from remote '%s' failed: %s", remote.Name, err)
 		return fmt.Errorf("'git fetch %s' fails: '%s'", remote.Name, err)
 	} else {
 		logrus.Debugf("No new commits have been fetched from the remote '%s'", remote.Name)
