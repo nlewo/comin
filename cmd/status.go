@@ -30,6 +30,10 @@ func generationStatus(g generation.Generation) {
 		fmt.Printf("    Status: building (since %s)\n", humanize.Time(g.BuildStartedAt))
 	case generation.BuildSucceeded:
 		fmt.Printf("    Status: built (%s)\n", humanize.Time(g.BuildEndedAt))
+	case generation.EvaluationFailed:
+		fmt.Printf("    Status: evaluation failed (%s)\n", humanize.Time(g.EvalEndedAt))
+	case generation.BuildFailed:
+		fmt.Printf("    Status: build failed (%s)\n", humanize.Time(g.BuildEndedAt))
 	}
 	printCommit(g.SelectedRemoteName, g.SelectedBranchName, g.SelectedCommitId, g.SelectedCommitMsg)
 }
