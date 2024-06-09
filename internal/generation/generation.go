@@ -167,7 +167,7 @@ func (g Generation) UpdateBuild(r BuildResult) Generation {
 
 func (g Generation) Eval(ctx context.Context) Generation {
 	g.evalCh = make(chan EvalResult)
-	g.EvalStartedAt = time.Now()
+	g.EvalStartedAt = time.Now().UTC()
 	g.Status = Evaluating
 
 	fn := func() {
@@ -175,7 +175,7 @@ func (g Generation) Eval(ctx context.Context) Generation {
 		defer cancel()
 		drvPath, outPath, machineId, err := g.evalFunc(ctx, g.FlakeUrl, g.Hostname)
 		evaluationResult := EvalResult{
-			EndAt: time.Now(),
+			EndAt: time.Now().UTC(),
 		}
 		if err == nil {
 			evaluationResult.DrvPath = drvPath
@@ -196,14 +196,14 @@ func (g Generation) Eval(ctx context.Context) Generation {
 
 func (g Generation) Build(ctx context.Context) Generation {
 	g.buildCh = make(chan BuildResult)
-	g.BuildStartedAt = time.Now()
+	g.BuildStartedAt = time.Now().UTC()
 	g.Status = Building
 	fn := func() {
 		ctx, cancel := context.WithTimeout(ctx, g.evalTimeout)
 		defer cancel()
 		err := g.buildFunc(ctx, g.DrvPath)
 		buildResult := BuildResult{
-			EndAt: time.Now(),
+			EndAt: time.Now().UTC(),
 		}
 		buildResult.Err = err
 		g.buildCh <- buildResult

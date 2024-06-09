@@ -125,11 +125,11 @@ func (d Deployment) Deploy(ctx context.Context) Deployment {
 			logrus.Infof("Deployment failed")
 		}
 
-		deploymentResult.EndAt = time.Now()
+		deploymentResult.EndAt = time.Now().UTC()
 		deploymentResult.RestartComin = cominNeedRestart
 		d.deploymentCh <- deploymentResult
 	}()
 	d.Status = Running
-	d.StartAt = time.Now()
+	d.StartAt = time.Now().UTC()
 	return d
 }
