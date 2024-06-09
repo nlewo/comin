@@ -165,7 +165,10 @@ func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.Repositor
 		}
 	}
 
-	if rs.SelectedCommitId == m.generation.SelectedCommitId && rs.SelectedBranchIsTesting == m.generation.SelectedBranchIsTesting {
+	if rs.SelectedCommitId == "" {
+		logrus.Debugf("No commit has been selected from remotes")
+		m.isRunning = false
+	} else if rs.SelectedCommitId == m.generation.SelectedCommitId && rs.SelectedBranchIsTesting == m.generation.SelectedBranchIsTesting {
 		logrus.Debugf("The repository status is the same than the previous one")
 		m.isRunning = false
 	} else {
