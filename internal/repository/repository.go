@@ -80,7 +80,7 @@ func (r *repository) Fetch(remoteName string) (err error) {
 			repositoryStatusRemote.FetchErrorMsg = ""
 			repositoryStatusRemote.Fetched = true
 		}
-		repositoryStatusRemote.FetchedAt = time.Now()
+		repositoryStatusRemote.FetchedAt = time.Now().UTC()
 	}
 	return
 }
