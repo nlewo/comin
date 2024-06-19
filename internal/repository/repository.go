@@ -22,7 +22,7 @@ type Repository interface {
 }
 
 // repositoryStatus is the last saved repositoryStatus
-func New(config types.GitConfig, repositoryStatus RepositoryStatus) (r *repository, err error) {
+func New(config types.GitConfig, mainCommitId string) (r *repository, err error) {
 	r = &repository{}
 	r.GitConfig = config
 	r.Repository, err = repositoryOpen(config)
@@ -33,7 +33,7 @@ func New(config types.GitConfig, repositoryStatus RepositoryStatus) (r *reposito
 	if err != nil {
 		return
 	}
-	r.RepositoryStatus = NewRepositoryStatus(config, repositoryStatus)
+	r.RepositoryStatus = NewRepositoryStatus(config, mainCommitId)
 	return
 }
 

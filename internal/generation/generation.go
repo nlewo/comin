@@ -79,6 +79,10 @@ type Generation struct {
 	SelectedCommitMsg       string `json:"commit-msg"`
 	SelectedBranchIsTesting bool   `json:"branch-is-testing"`
 
+	MainCommitId   string `json:"main-commit-id"`
+	MainRemoteName string `json:"main-remote-name"`
+	MainBranchName string `json:"main-branch-name"`
+
 	EvalStartedAt time.Time `json:"eval-started-at"`
 	evalTimeout   time.Duration
 	evalFunc      EvalFunc
@@ -128,13 +132,18 @@ func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machi
 		SelectedCommitId:        repositoryStatus.SelectedCommitId,
 		SelectedCommitMsg:       repositoryStatus.SelectedCommitMsg,
 		SelectedBranchIsTesting: repositoryStatus.SelectedBranchIsTesting,
-		evalTimeout:             6 * time.Second,
-		evalFunc:                evalFunc,
-		buildFunc:               buildFunc,
-		FlakeUrl:                flakeUrl,
-		Hostname:                hostname,
-		MachineId:               machineId,
-		Status:                  Init,
+
+		MainRemoteName: repositoryStatus.MainRemoteName,
+		MainBranchName: repositoryStatus.MainBranchName,
+		MainCommitId:   repositoryStatus.MainCommitId,
+
+		evalTimeout: 6 * time.Second,
+		evalFunc:    evalFunc,
+		buildFunc:   buildFunc,
+		FlakeUrl:    flakeUrl,
+		Hostname:    hostname,
+		MachineId:   machineId,
+		Status:      Init,
 	}
 }
 

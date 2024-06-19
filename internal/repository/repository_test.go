@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, RepositoryStatus{})
+	r, err := New(gitConfig, "")
 	assert.Nil(t, err)
 	assert.Equal(t, "r1", r.RepositoryStatus.Remotes[0].Name)
 }
@@ -60,7 +60,7 @@ func TestPreferMain(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, RepositoryStatus{})
+	r, err := New(gitConfig, "")
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3
@@ -118,9 +118,7 @@ func TestMainCommitId(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, RepositoryStatus{
-		MainCommitId: cMain,
-	})
+	r, _ := New(gitConfig, cMain)
 
 	// r1/main: c1 - c2 - c3 - c4
 	// r1/testing: c1 - c2 - c3 - c4 - c5
@@ -173,9 +171,8 @@ func TestContinueIfHardReset(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, RepositoryStatus{
-		MainCommitId: cMain,
-	})
+	r, _ := New(gitConfig, cMain)
+
 	r.Fetch([]string{"r1", "r2"})
 	r.Update()
 
@@ -242,7 +239,7 @@ func TestMultipleRemote(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, RepositoryStatus{})
+	r, err := New(gitConfig, "")
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r2/main: c1 - c2 - c3
@@ -384,7 +381,7 @@ func TestTestingSwitch(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, RepositoryStatus{})
+	r, _ := New(gitConfig, "")
 
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3
@@ -453,7 +450,7 @@ func TestWithoutTesting(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, RepositoryStatus{})
+	r, _ := New(gitConfig, "")
 
 	_ = r.Fetch([]string{"r1"})
 	_ = r.Update()
@@ -486,7 +483,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, RepositoryStatus{})
+	r, _ := New(gitConfig, "")
 
 	// The remote repository is initially checkouted
 	_ = r.Fetch([]string{"origin"})
@@ -545,7 +542,7 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, RepositoryStatus{})
+	r, _ := New(gitConfig, "")
 
 	// The remote repository is initially checkouted
 	_ = r.Fetch([]string{"origin"})
@@ -604,7 +601,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, RepositoryStatus{})
+	r, _ := New(gitConfig, "")
 
 	// The remote repository is initially checkouted on main
 	_ = r.Fetch([]string{"origin"})
@@ -672,7 +669,7 @@ func TestTestingHardReset(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, RepositoryStatus{})
+	r, err := New(gitConfig, "")
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3
