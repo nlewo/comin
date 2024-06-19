@@ -72,6 +72,7 @@ type Generation struct {
 
 	Status Status `json:"status"`
 
+	SelectedRemoteUrl       string `json:"remote-url"`
 	SelectedRemoteName      string `json:"remote-name"`
 	SelectedBranchName      string `json:"branch-name"`
 	SelectedCommitId        string `json:"commit-id"`
@@ -113,8 +114,15 @@ type EvalResult struct {
 }
 
 func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machineId string, evalFunc EvalFunc, buildFunc BuildFunc) Generation {
+	remoteUrl := ""
+	for _, r := range repositoryStatus.Remotes {
+		if r.Name == repositoryStatus.SelectedRemoteName {
+			remoteUrl = r.Url
+		}
+	}
 	return Generation{
 		UUID:                    uuid.NewString(),
+		SelectedRemoteUrl:       remoteUrl,
 		SelectedRemoteName:      repositoryStatus.SelectedRemoteName,
 		SelectedBranchName:      repositoryStatus.SelectedBranchName,
 		SelectedCommitId:        repositoryStatus.SelectedCommitId,
