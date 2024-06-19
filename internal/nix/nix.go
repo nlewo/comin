@@ -153,11 +153,19 @@ func Build(ctx context.Context, drvPath string) (err error) {
 	return
 }
 
+// setSystemProfile creates a link into the directory
+// /nix/var/nix/profiles/system-profiles/comin to the built system
+// store path. This is used by the switch-to-configuration script to
+// install all entries into the bootloader.
+// Note also comin uses these links as gcroots
+// See https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/pkgs/os-specific/linux/nixos-rebuild/nixos-rebuild.sh#L711
+// and https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/nixos/modules/system/boot/loader/systemd-boot/systemd-boot-builder.py#L247
 func setSystemProfile(operation string, outPath string, dryRun bool) error {
+	profile := "/nix/var/nix/profiles/system-profiles/comin"
 	if operation == "switch" || operation == "boot" {
-		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
+		cmdStr := fmt.Sprintf("nix-env --profile %s --set %s", profile, outPath)
 		logrus.Infof("Running '%s'", cmdStr)
-		cmd := exec.Command("nix-env", "--profile", "/nix/var/nix/profiles/system", "--set", outPath)
+		cmd := exec.Command("nix-env", "--profile", profile, "--set", outPath)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if dryRun {
@@ -170,27 +178,6 @@ func setSystemProfile(operation string, outPath string, dryRun bool) error {
 			logrus.Infof("Command '%s' succeeded", cmdStr)
 		}
 	}
-	return nil
-}
-
-func createGcRoot(stateDir, outPath string, dryRun bool) error {
-	gcRootDir := filepath.Join(stateDir, "gcroots")
-	gcRoot := filepath.Join(
-		gcRootDir,
-		fmt.Sprintf("switch-to-configuration"))
-	if dryRun {
-		logrus.Infof("Dry-run enabled: 'ln -s %s %s'", outPath, gcRoot)
-		return nil
-	}
-	if err := os.MkdirAll(gcRootDir, 0750); err != nil {
-		return err
-	}
-	// TODO: only remove if file already exists
-	os.Remove(gcRoot)
-	if err := os.Symlink(outPath, gcRoot); err != nil {
-		return fmt.Errorf("Failed to create symlink 'ln -s %s %s': %s", outPath, gcRoot, err)
-	}
-	logrus.Infof("Creating gcroot '%s'", gcRoot)
 	return nil
 }
 
