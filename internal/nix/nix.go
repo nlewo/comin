@@ -49,7 +49,7 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 	commonArgs := []string{"--extra-experimental-features", "nix-command", "--extra-experimental-features", "flakes", "--accept-flake-config"}
 	args = append(commonArgs, args...)
 	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
-	logrus.Infof("Running '%s'", cmdStr)
+	logrus.Infof("nix: running '%s'", cmdStr)
 	cmd := exec.Command("nix", args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -94,8 +94,8 @@ func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath str
 	}
 	drvPath = keys[0]
 	outPath = output[drvPath].Outputs.Out.Path
-	logrus.Infof("The derivation path is %s", drvPath)
-	logrus.Infof("The output path is %s", outPath)
+	logrus.Infof("nix: the derivation path is %s", drvPath)
+	logrus.Infof("nix: the output path is %s", outPath)
 	return
 }
 
@@ -164,52 +164,52 @@ func setSystemProfile(operation string, outPath string, dryRun bool) error {
 	profile := "/nix/var/nix/profiles/system-profiles/comin"
 	if operation == "switch" || operation == "boot" {
 		cmdStr := fmt.Sprintf("nix-env --profile %s --set %s", profile, outPath)
-		logrus.Infof("Running '%s'", cmdStr)
+		logrus.Infof("nix: running '%s'", cmdStr)
 		cmd := exec.Command("nix-env", "--profile", profile, "--set", outPath)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if dryRun {
-			logrus.Infof("Dry-run enabled: '%s' has not been executed", cmdStr)
+			logrus.Infof("nix: dry-run enabled: '%s' has not been executed", cmdStr)
 		} else {
 			err := cmd.Run()
 			if err != nil {
 				return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
 			}
-			logrus.Infof("Command '%s' succeeded", cmdStr)
+			logrus.Infof("nix: command '%s' succeeded", cmdStr)
 		}
 	}
 	return nil
 }
 
 func cominUnitFileHash() string {
-	logrus.Infof("Generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
+	logrus.Infof("nix: generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
 	cmd := exec.Command("systemctl", "cat", "comin.service")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		logrus.Infof("Command 'systemctl cat comin.service' fails with '%s'", err)
+		logrus.Infof("nix: command 'systemctl cat comin.service' fails with '%s'", err)
 		return ""
 	}
 	sum := sha256.Sum256(stdout.Bytes())
 	hash := fmt.Sprintf("%x", sum)
-	logrus.Infof("The comin.service unit file sha256 is '%s'", hash)
+	logrus.Infof("nix: the comin.service unit file sha256 is '%s'", hash)
 	return hash
 }
 
 func switchToConfiguration(operation string, outPath string, dryRun bool) error {
 	switchToConfigurationExe := filepath.Join(outPath, "bin", "switch-to-configuration")
-	logrus.Infof("Running '%s %s'", switchToConfigurationExe, operation)
+	logrus.Infof("nix: running '%s %s'", switchToConfigurationExe, operation)
 	cmd := exec.Command(switchToConfigurationExe, operation)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if dryRun {
-		logrus.Infof("Dry-run enabled: '%s switch' has not been executed", switchToConfigurationExe)
+		logrus.Infof("nix: dry-run enabled: '%s switch' has not been executed", switchToConfigurationExe)
 	} else {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("Command %s switch fails with %s", switchToConfigurationExe, err)
 		}
-		logrus.Infof("Switch successfully terminated")
+		logrus.Infof("nix: switch successfully terminated")
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (
 		needToRestartComin = true
 	}
 
-	logrus.Infof("Deployment succeeded")
+	logrus.Infof("nix: deployment ended")
 
 	return
 }
