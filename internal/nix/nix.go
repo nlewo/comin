@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -160,9 +161,14 @@ func Build(ctx context.Context, drvPath string) (err error) {
 // Note also comin uses these links as gcroots
 // See https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/pkgs/os-specific/linux/nixos-rebuild/nixos-rebuild.sh#L711
 // and https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/nixos/modules/system/boot/loader/systemd-boot/systemd-boot-builder.py#L247
-func setSystemProfile(operation string, outPath string, dryRun bool) error {
-	profile := "/nix/var/nix/profiles/system-profiles/comin"
+func setSystemProfile(operation string, outPath string, dryRun bool) (profilePath string, err error) {
+	systemProfilesDir := "/nix/var/nix/profiles/system-profiles"
+	profile := systemProfilesDir + "/comin"
 	if operation == "switch" || operation == "boot" {
+		err := os.MkdirAll(systemProfilesDir, os.ModeDir)
+		if err != nil && !os.IsExist(err) {
+			return profilePath, fmt.Errorf("nix: failed to create the profile directory: %s", systemProfilesDir)
+		}
 		cmdStr := fmt.Sprintf("nix-env --profile %s --set %s", profile, outPath)
 		logrus.Infof("nix: running '%s'", cmdStr)
 		cmd := exec.Command("nix-env", "--profile", profile, "--set", outPath)
@@ -173,12 +179,18 @@ func setSystemProfile(operation string, outPath string, dryRun bool) error {
 		} else {
 			err := cmd.Run()
 			if err != nil {
-				return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+				return profilePath, fmt.Errorf("nix: command '%s' fails with %s", cmdStr, err)
 			}
 			logrus.Infof("nix: command '%s' succeeded", cmdStr)
+			dst, err := os.Readlink(profile)
+			if err != nil {
+				return profilePath, fmt.Errorf("nix: failed to os.Readlink(%s)", profile)
+			}
+			profilePath = path.Join(systemProfilesDir, dst)
+			logrus.Infof("nix: the profile %s has been created", profilePath)
 		}
 	}
-	return nil
+	return
 }
 
 func cominUnitFileHash() string {
@@ -214,12 +226,12 @@ func switchToConfiguration(operation string, outPath string, dryRun bool) error 
 	return nil
 }
 
-func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (needToRestartComin bool, err error) {
+func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
 	beforeCominUnitFileHash := cominUnitFileHash()
 
 	// This is required to write boot entries
 	// Only do this is operation is switch or boot
-	if err = setSystemProfile(operation, outPath, false); err != nil {
+	if profilePath, err = setSystemProfile(operation, outPath, false); err != nil {
 		return
 	}
 

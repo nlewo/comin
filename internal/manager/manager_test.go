@@ -49,8 +49,8 @@ func TestRun(t *testing.T) {
 	m.evalFunc = nixEvalMock
 	m.buildFunc = nixBuildMock
 
-	deployFunc := func(context.Context, string, string, string) (bool, error) {
-		return false, nil
+	deployFunc := func(context.Context, string, string, string) (bool, string, error) {
+		return false, "", nil
 	}
 	m.deployerFunc = deployFunc
 
