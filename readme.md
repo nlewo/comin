@@ -15,23 +15,44 @@ NixOS configuration associated to the machine.
 
 ## Quick start
 
-In your `configuration.nix` file:
+This is a basic `flake.nix` example:
 
 ```nix
-services.comin = {
-  enable = true;
-  remotes = [
-    {
-      name = "origin";
-      url = "https://gitlab.com/your/infra.git";
-    }
-  ];
-};
+{
+  inputs = {
+    nixpkgs.url = "github:nixOS/nixpkgs";
+    comin = {
+      url = "github:nlewo/comin";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+  outputs = { self, nixpkgs, comin }: {
+    nixosConfigurations = {
+      myMachine = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          comin.nixosModules.comin
+          ({...}: {
+            services.comin = {
+              enable = true;
+              remotes = [{
+                name = "origin";
+                url = "https://gitlab.com/your/infra.git";
+                branches.main.name = "main";
+              }];
+            };
+          })
+        ];
+      };
+    };
+  };
+}
 ```
 
 This enables a systemd service, which periodically pulls the `main`
 branch of the repository `https://gitlab.com/your/infra.git` and
-deploys the NixOS configuration corresponding to the machine hostname.
+deploys the NixOS configuration corresponding to the machine hostname
+`myMachine`.
 
 A new commit in the `main` branch of the repository
 `https://gitlab.com/your/infra.git` is then deployed in the next 60
