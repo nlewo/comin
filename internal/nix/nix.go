@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -49,7 +50,7 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 	commonArgs := []string{"--extra-experimental-features", "nix-command", "--extra-experimental-features", "flakes", "--accept-flake-config"}
 	args = append(commonArgs, args...)
 	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
-	logrus.Infof("Running '%s'", cmdStr)
+	logrus.Infof("nix: running '%s'", cmdStr)
 	cmd := exec.Command("nix", args...)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -75,6 +76,7 @@ func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath str
 		"show-derivation",
 		installable,
 		"-L",
+		"--show-trace",
 	}
 	var stdout bytes.Buffer
 	err = runNixCommand(args, &stdout, os.Stderr)
@@ -93,8 +95,8 @@ func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath str
 	}
 	drvPath = keys[0]
 	outPath = output[drvPath].Outputs.Out.Path
-	logrus.Infof("The derivation path is %s", drvPath)
-	logrus.Infof("The output path is %s", outPath)
+	logrus.Infof("nix: the derivation path is %s", drvPath)
+	logrus.Infof("nix: the output path is %s", outPath)
 	return
 }
 
@@ -152,86 +154,84 @@ func Build(ctx context.Context, drvPath string) (err error) {
 	return
 }
 
-func setSystemProfile(operation string, outPath string, dryRun bool) error {
+// setSystemProfile creates a link into the directory
+// /nix/var/nix/profiles/system-profiles/comin to the built system
+// store path. This is used by the switch-to-configuration script to
+// install all entries into the bootloader.
+// Note also comin uses these links as gcroots
+// See https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/pkgs/os-specific/linux/nixos-rebuild/nixos-rebuild.sh#L711
+// and https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/nixos/modules/system/boot/loader/systemd-boot/systemd-boot-builder.py#L247
+func setSystemProfile(operation string, outPath string, dryRun bool) (profilePath string, err error) {
+	systemProfilesDir := "/nix/var/nix/profiles/system-profiles"
+	profile := systemProfilesDir + "/comin"
 	if operation == "switch" || operation == "boot" {
-		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system --set %s", outPath)
-		logrus.Infof("Running '%s'", cmdStr)
-		cmd := exec.Command("nix-env", "--profile", "/nix/var/nix/profiles/system", "--set", outPath)
+		err := os.MkdirAll(systemProfilesDir, os.ModeDir)
+		if err != nil && !os.IsExist(err) {
+			return profilePath, fmt.Errorf("nix: failed to create the profile directory: %s", systemProfilesDir)
+		}
+		cmdStr := fmt.Sprintf("nix-env --profile %s --set %s", profile, outPath)
+		logrus.Infof("nix: running '%s'", cmdStr)
+		cmd := exec.Command("nix-env", "--profile", profile, "--set", outPath)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if dryRun {
-			logrus.Infof("Dry-run enabled: '%s' has not been executed", cmdStr)
+			logrus.Infof("nix: dry-run enabled: '%s' has not been executed", cmdStr)
 		} else {
 			err := cmd.Run()
 			if err != nil {
-				return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+				return profilePath, fmt.Errorf("nix: command '%s' fails with %s", cmdStr, err)
 			}
-			logrus.Infof("Command '%s' succeeded", cmdStr)
+			logrus.Infof("nix: command '%s' succeeded", cmdStr)
+			dst, err := os.Readlink(profile)
+			if err != nil {
+				return profilePath, fmt.Errorf("nix: failed to os.Readlink(%s)", profile)
+			}
+			profilePath = path.Join(systemProfilesDir, dst)
+			logrus.Infof("nix: the profile %s has been created", profilePath)
 		}
 	}
-	return nil
-}
-
-func createGcRoot(stateDir, outPath string, dryRun bool) error {
-	gcRootDir := filepath.Join(stateDir, "gcroots")
-	gcRoot := filepath.Join(
-		gcRootDir,
-		fmt.Sprintf("switch-to-configuration"))
-	if dryRun {
-		logrus.Infof("Dry-run enabled: 'ln -s %s %s'", outPath, gcRoot)
-		return nil
-	}
-	if err := os.MkdirAll(gcRootDir, 0750); err != nil {
-		return err
-	}
-	// TODO: only remove if file already exists
-	os.Remove(gcRoot)
-	if err := os.Symlink(outPath, gcRoot); err != nil {
-		return fmt.Errorf("Failed to create symlink 'ln -s %s %s': %s", outPath, gcRoot, err)
-	}
-	logrus.Infof("Creating gcroot '%s'", gcRoot)
-	return nil
+	return
 }
 
 func cominUnitFileHash() string {
-	logrus.Infof("Generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
+	logrus.Infof("nix: generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
 	cmd := exec.Command("systemctl", "cat", "comin.service")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		logrus.Infof("Command 'systemctl cat comin.service' fails with '%s'", err)
+		logrus.Infof("nix: command 'systemctl cat comin.service' fails with '%s'", err)
 		return ""
 	}
 	sum := sha256.Sum256(stdout.Bytes())
 	hash := fmt.Sprintf("%x", sum)
-	logrus.Infof("The comin.service unit file sha256 is '%s'", hash)
+	logrus.Infof("nix: the comin.service unit file sha256 is '%s'", hash)
 	return hash
 }
 
 func switchToConfiguration(operation string, outPath string, dryRun bool) error {
 	switchToConfigurationExe := filepath.Join(outPath, "bin", "switch-to-configuration")
-	logrus.Infof("Running '%s %s'", switchToConfigurationExe, operation)
+	logrus.Infof("nix: running '%s %s'", switchToConfigurationExe, operation)
 	cmd := exec.Command(switchToConfigurationExe, operation)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if dryRun {
-		logrus.Infof("Dry-run enabled: '%s switch' has not been executed", switchToConfigurationExe)
+		logrus.Infof("nix: dry-run enabled: '%s switch' has not been executed", switchToConfigurationExe)
 	} else {
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("Command %s switch fails with %s", switchToConfigurationExe, err)
 		}
-		logrus.Infof("Switch successfully terminated")
+		logrus.Infof("nix: switch successfully terminated")
 	}
 	return nil
 }
 
-func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (needToRestartComin bool, err error) {
+func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
 	beforeCominUnitFileHash := cominUnitFileHash()
 
 	// This is required to write boot entries
 	// Only do this is operation is switch or boot
-	if err = setSystemProfile(operation, outPath, false); err != nil {
+	if profilePath, err = setSystemProfile(operation, outPath, false); err != nil {
 		return
 	}
 
@@ -245,7 +245,7 @@ func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (
 		needToRestartComin = true
 	}
 
-	logrus.Infof("Deployment succeeded")
+	logrus.Infof("nix: deployment ended")
 
 	return
 }

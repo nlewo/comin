@@ -21,10 +21,14 @@ func Poller(m manager.Manager, remotes []types.Remote) {
 	}
 	counter := 0
 	for {
+		toFetch := make([]string, 0)
 		for _, remote := range remotes {
 			if remote.Poller.Period != 0 && counter%remote.Poller.Period == 0 {
-				m.Fetch(remote.Name)
+				toFetch = append(toFetch, remote.Name)
 			}
+		}
+		if len(toFetch) > 0 {
+			m.Fetch(toFetch)
 		}
 		time.Sleep(time.Second)
 		counter += 1

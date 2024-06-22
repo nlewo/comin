@@ -27,7 +27,7 @@ func newRepositoryMock() (r *repositoryMock) {
 		rsCh: rsCh,
 	}
 }
-func (r *repositoryMock) FetchAndUpdate(ctx context.Context, remoteName string) (rsCh chan repository.RepositoryStatus) {
+func (r *repositoryMock) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan repository.RepositoryStatus) {
 	return r.rsCh
 }
 
@@ -49,8 +49,8 @@ func TestRun(t *testing.T) {
 	m.evalFunc = nixEvalMock
 	m.buildFunc = nixBuildMock
 
-	deployFunc := func(context.Context, string, string, string) (bool, error) {
-		return false, nil
+	deployFunc := func(context.Context, string, string, string) (bool, string, error) {
+		return false, "", nil
 	}
 	m.deployerFunc = deployFunc
 
@@ -60,7 +60,7 @@ func TestRun(t *testing.T) {
 	assert.Equal(t, State{}, m.GetState())
 
 	// the repository is fetched
-	m.Fetch("origin")
+	m.Fetch([]string{"origin"})
 	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
 
 	// we inject a repositoryStatus
@@ -100,10 +100,10 @@ func TestFetchBusy(t *testing.T) {
 
 	assert.Equal(t, State{}, m.GetState())
 
-	m.Fetch("origin")
+	m.Fetch([]string{"origin"})
 	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
 
-	m.Fetch("origin")
+	m.Fetch([]string{"origin"})
 	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
 }
 
@@ -150,7 +150,7 @@ func TestOptionnalMachineId(t *testing.T) {
 	m.buildFunc = nixBuildMock
 
 	go m.Run()
-	m.Fetch("origin")
+	m.Fetch([]string{"origin"})
 	r.rsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
 
 	// we simulate the end of the evaluation
@@ -185,7 +185,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	assert.Equal(t, State{}, m.GetState())
 
 	// the repository is fetched
-	m.Fetch("origin")
+	m.Fetch([]string{"origin"})
 	r.rsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
 
 	assert.True(t, m.GetState().IsRunning)

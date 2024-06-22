@@ -46,7 +46,7 @@ func StatusFromString(status string) Status {
 	return Init
 }
 
-type DeployFunc func(context.Context, string, string, string) (bool, error)
+type DeployFunc func(context.Context, string, string, string) (bool, string, error)
 
 type Deployment struct {
 	UUID       string                `json:"uuid"`
@@ -57,6 +57,7 @@ type Deployment struct {
 	Err          error  `json:"-"`
 	ErrorMsg     string `json:"error_msg"`
 	RestartComin bool   `json:"restart_comin"`
+	ProfilePath  string `json:"profile_path"`
 	Status       Status `json:"status"`
 	Operation    string `json:"operation"`
 
@@ -68,6 +69,7 @@ type DeploymentResult struct {
 	Err          error
 	EndAt        time.Time
 	RestartComin bool
+	ProfilePath  string
 }
 
 func New(g generation.Generation, deployerFunc DeployFunc, deploymentCh chan DeploymentResult) Deployment {
@@ -93,6 +95,7 @@ func (d Deployment) Update(dr DeploymentResult) Deployment {
 		d.ErrorMsg = dr.Err.Error()
 	}
 	d.RestartComin = dr.RestartComin
+	d.ProfilePath = dr.ProfilePath
 	if dr.Err == nil {
 		d.Status = Done
 	} else {
@@ -111,7 +114,7 @@ func (d Deployment) IsTesting() bool {
 func (d Deployment) Deploy(ctx context.Context) Deployment {
 	go func() {
 		// FIXME: propagate context
-		cominNeedRestart, err := d.deployerFunc(
+		cominNeedRestart, profilePath, err := d.deployerFunc(
 			ctx,
 			d.Generation.EvalMachineId,
 			d.Generation.OutPath,
@@ -127,6 +130,7 @@ func (d Deployment) Deploy(ctx context.Context) Deployment {
 
 		deploymentResult.EndAt = time.Now().UTC()
 		deploymentResult.RestartComin = cominNeedRestart
+		deploymentResult.ProfilePath = profilePath
 		d.deploymentCh <- deploymentResult
 	}()
 	d.Status = Running

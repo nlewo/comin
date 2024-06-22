@@ -53,9 +53,9 @@ type RepositoryStatus struct {
 	ErrorMsg                string    `json:"error_msg"`
 }
 
-func NewRepositoryStatus(config types.GitConfig, repositoryStatus RepositoryStatus) RepositoryStatus {
+func NewRepositoryStatus(config types.GitConfig, mainCommitId string) RepositoryStatus {
 	r := RepositoryStatus{
-		MainCommitId: repositoryStatus.MainCommitId,
+		MainCommitId: mainCommitId,
 	}
 	r.Remotes = make([]*Remote, len(config.Remotes))
 	for i, remote := range config.Remotes {

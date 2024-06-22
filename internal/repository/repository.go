@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"slices"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -18,11 +18,11 @@ type repository struct {
 }
 
 type Repository interface {
-	FetchAndUpdate(ctx context.Context, remoteName string) (rsCh chan RepositoryStatus)
+	FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan RepositoryStatus)
 }
 
 // repositoryStatus is the last saved repositoryStatus
-func New(config types.GitConfig, repositoryStatus RepositoryStatus) (r *repository, err error) {
+func New(config types.GitConfig, mainCommitId string) (r *repository, err error) {
 	r = &repository{}
 	r.GitConfig = config
 	r.Repository, err = repositoryOpen(config)
@@ -33,15 +33,15 @@ func New(config types.GitConfig, repositoryStatus RepositoryStatus) (r *reposito
 	if err != nil {
 		return
 	}
-	r.RepositoryStatus = NewRepositoryStatus(config, repositoryStatus)
+	r.RepositoryStatus = NewRepositoryStatus(config, mainCommitId)
 	return
 }
 
-func (r *repository) FetchAndUpdate(ctx context.Context, remoteName string) (rsCh chan RepositoryStatus) {
+func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan RepositoryStatus) {
 	rsCh = make(chan RepositoryStatus)
 	go func() {
 		// FIXME: switch to the FetchContext to clean resource up on timeout
-		err := r.Fetch(remoteName)
+		err := r.Fetch(remoteNames)
 		if err == nil {
 			r.Update()
 		}
@@ -50,27 +50,13 @@ func (r *repository) FetchAndUpdate(ctx context.Context, remoteName string) (rsC
 	return rsCh
 }
 
-func (r *repository) Fetch(remoteName string) (err error) {
-	var found bool
+func (r *repository) Fetch(remoteNames []string) (err error) {
 	r.RepositoryStatus.Error = nil
 	r.RepositoryStatus.ErrorMsg = ""
-	if remoteName != "" {
-		for _, remote := range r.GitConfig.Remotes {
-			if remote.Name == remoteName {
-				found = true
-			}
-		}
-		if !found {
-			r.RepositoryStatus.Error = err
-			r.RepositoryStatus.ErrorMsg = err.Error()
-			return fmt.Errorf("The remote '%s' doesn't exist", remoteName)
-		}
-	}
-
 	for _, remote := range r.GitConfig.Remotes {
 		repositoryStatusRemote := r.RepositoryStatus.GetRemote(remote.Name)
 		repositoryStatusRemote.LastFetched = false
-		if remoteName != "" && remote.Name != remoteName {
+		if !slices.Contains(remoteNames, remote.Name) {
 			continue
 		}
 		repositoryStatusRemote.LastFetched = true

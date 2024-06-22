@@ -30,7 +30,7 @@ type Manager struct {
 	hostname       string
 	// The machine id of the current host
 	machineId         string
-	triggerRepository chan string
+	triggerRepository chan []string
 	generationFactory func(repository.RepositoryStatus, string, string) generation.Generation
 	stateRequestCh    chan struct{}
 	stateResultCh     chan State
@@ -68,7 +68,7 @@ func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, 
 		evalFunc:                nix.Eval,
 		buildFunc:               nix.Build,
 		deployerFunc:            nix.Deploy,
-		triggerRepository:       make(chan string),
+		triggerRepository:       make(chan []string),
 		stateRequestCh:          make(chan struct{}),
 		stateResultCh:           make(chan State),
 		cominServiceRestartFunc: utils.CominServiceRestart,
@@ -92,8 +92,8 @@ func (m Manager) GetState() State {
 	return <-m.stateResultCh
 }
 
-func (m Manager) Fetch(remote string) {
-	m.triggerRepository <- remote
+func (m Manager) Fetch(remotes []string) {
+	m.triggerRepository <- remotes
 }
 
 func (m Manager) toState() State {
@@ -180,7 +180,7 @@ func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.Repositor
 	return m
 }
 
-func (m Manager) onTriggerRepository(ctx context.Context, remoteName string) Manager {
+func (m Manager) onTriggerRepository(ctx context.Context, remoteNames []string) Manager {
 	if m.isFetching {
 		logrus.Debugf("The manager is already fetching the repository")
 		return m
@@ -190,10 +190,10 @@ func (m Manager) onTriggerRepository(ctx context.Context, remoteName string) Man
 		logrus.Debugf("The manager is already running: it is currently not able to run tasks in parallel")
 		return m
 	}
-	logrus.Debugf("Trigger fetch and update remote %s", remoteName)
+	logrus.Debugf("Trigger fetch and update remotes %s", remoteNames)
 	m.isRunning = true
 	m.isFetching = true
-	m.repositoryStatusCh = m.repository.FetchAndUpdate(ctx, remoteName)
+	m.repositoryStatusCh = m.repository.FetchAndUpdate(ctx, remoteNames)
 	return m
 }
 
@@ -204,12 +204,13 @@ func (m Manager) Run() {
 	logrus.Infof("  hostname = %s", m.hostname)
 	logrus.Infof("  machineId = %s", m.machineId)
 	logrus.Infof("  repositoryPath = %s", m.repositoryPath)
+
 	for {
 		select {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
-		case remoteName := <-m.triggerRepository:
-			m = m.onTriggerRepository(ctx, remoteName)
+		case remoteNames := <-m.triggerRepository:
+			m = m.onTriggerRepository(ctx, remoteNames)
 		case rs := <-m.repositoryStatusCh:
 			m = m.onRepositoryStatus(ctx, rs)
 		case evalResult := <-m.generation.EvalCh():

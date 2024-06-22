@@ -72,11 +72,16 @@ type Generation struct {
 
 	Status Status `json:"status"`
 
+	SelectedRemoteUrl       string `json:"remote-url"`
 	SelectedRemoteName      string `json:"remote-name"`
 	SelectedBranchName      string `json:"branch-name"`
 	SelectedCommitId        string `json:"commit-id"`
 	SelectedCommitMsg       string `json:"commit-msg"`
 	SelectedBranchIsTesting bool   `json:"branch-is-testing"`
+
+	MainCommitId   string `json:"main-commit-id"`
+	MainRemoteName string `json:"main-remote-name"`
+	MainBranchName string `json:"main-branch-name"`
 
 	EvalStartedAt time.Time `json:"eval-started-at"`
 	evalTimeout   time.Duration
@@ -113,20 +118,32 @@ type EvalResult struct {
 }
 
 func New(repositoryStatus repository.RepositoryStatus, flakeUrl, hostname, machineId string, evalFunc EvalFunc, buildFunc BuildFunc) Generation {
+	remoteUrl := ""
+	for _, r := range repositoryStatus.Remotes {
+		if r.Name == repositoryStatus.SelectedRemoteName {
+			remoteUrl = r.Url
+		}
+	}
 	return Generation{
 		UUID:                    uuid.NewString(),
+		SelectedRemoteUrl:       remoteUrl,
 		SelectedRemoteName:      repositoryStatus.SelectedRemoteName,
 		SelectedBranchName:      repositoryStatus.SelectedBranchName,
 		SelectedCommitId:        repositoryStatus.SelectedCommitId,
 		SelectedCommitMsg:       repositoryStatus.SelectedCommitMsg,
 		SelectedBranchIsTesting: repositoryStatus.SelectedBranchIsTesting,
-		evalTimeout:             6 * time.Second,
-		evalFunc:                evalFunc,
-		buildFunc:               buildFunc,
-		FlakeUrl:                flakeUrl,
-		Hostname:                hostname,
-		MachineId:               machineId,
-		Status:                  Init,
+
+		MainRemoteName: repositoryStatus.MainRemoteName,
+		MainBranchName: repositoryStatus.MainBranchName,
+		MainCommitId:   repositoryStatus.MainCommitId,
+
+		evalTimeout: 6 * time.Second,
+		evalFunc:    evalFunc,
+		buildFunc:   buildFunc,
+		FlakeUrl:    flakeUrl,
+		Hostname:    hostname,
+		MachineId:   machineId,
+		Status:      Init,
 	}
 }
 

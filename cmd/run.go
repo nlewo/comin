@@ -29,13 +29,6 @@ var runCmd = &cobra.Command{
 		}
 		gitConfig := config.MkGitConfig(cfg)
 
-		repositoryStatus := repository.RepositoryStatus{}
-		repository, err := repository.New(gitConfig, repositoryStatus)
-		if err != nil {
-			logrus.Errorf("Failed to initialize the repository: %s", err)
-			os.Exit(1)
-		}
-
 		machineId, err := utils.ReadMachineId()
 		if err != nil {
 			logrus.Error(err)
@@ -49,6 +42,19 @@ var runCmd = &cobra.Command{
 			logrus.Errorf("Ignoring the state file %s because of the loading error: %s", storeFilename, err)
 		}
 		metrics.SetBuildInfo(cmd.Version)
+
+		// We get the last mainCommitId to avoid useless
+		// redeployment as well as non fast forward checkouts
+		var mainCommitId string
+		if ok, lastDeployment := store.LastDeployment(); ok {
+			mainCommitId = lastDeployment.Generation.MainCommitId
+		}
+		repository, err := repository.New(gitConfig, mainCommitId)
+		if err != nil {
+			logrus.Errorf("Failed to initialize the repository: %s", err)
+			os.Exit(1)
+		}
+
 		manager := manager.New(repository, store, metrics, gitConfig.Path, cfg.Hostname, machineId)
 		go poller.Poller(manager, cfg.Remotes)
 		http.Serve(manager,
