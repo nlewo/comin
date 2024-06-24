@@ -18,6 +18,8 @@ in {
     environment.systemPackages = [ pkgs.comin ];
     networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
     systemd.services.comin = {
+      wants = [ "network-online.target" ];
+      after = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
       path = [ config.nix.package ];
       # The comin service is restarted by comin itself when it
