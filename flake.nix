@@ -13,7 +13,21 @@
       import ./nix/module-options-doc.nix (nixpkgsFor."${system}")
     );
   in {
-    overlays.default = final: prev: {
+    overlays.default = final: prev: let
+      # - safe.directory: this is to allow comin to fetch local repositories belonging
+      #   to other users. Otherwise, comin fails with:
+      #   Pull from remote 'local' failed: unknown error: fatal: detected dubious ownership in repository
+      # - core.hooksPath: to avoid Git executing hooks from a repository belonging to another user
+      gitConfigFile = final.writeTextFile {
+        name = "git.config";
+        text = ''
+          [safe]
+             directory = *
+          [core]
+             hooksPath = /dev/null
+        '';
+      };
+    in {
       comin = final.buildGoModule rec {
         pname = "comin";
         version = "0.2.0";
@@ -35,7 +49,7 @@
         buildInputs = [ final.makeWrapper ];
         postInstall = ''
           # This is because Nix needs Git at runtime by the go-git library
-          wrapProgram $out/bin/comin --prefix PATH : ${final.git}/bin
+          wrapProgram $out/bin/comin --set GIT_CONFIG_SYSTEM ${gitConfigFile} --prefix PATH : ${final.git}/bin
         '';
       };
     };
