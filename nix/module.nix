@@ -32,6 +32,7 @@ in {
           + " run "
           + "--config ${cominConfigYaml}";
         Restart = "always";
+        Environment = [ "COMIN_SPACE_URL=https://comin.space" "COMIN_SPACE_API_KEY_FILEPATH=/run/secrets/comin_space/api_key" ];
       };
     };
   };

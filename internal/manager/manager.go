@@ -10,6 +10,7 @@ import (
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/space"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -60,7 +61,10 @@ type Manager struct {
 	triggerDeploymentCh chan generation.Generation
 
 	prometheus prometheus.Prometheus
-	storage    store.Store
+
+	storage store.Store
+
+	space space.Space
 }
 
 func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, dir, hostname, machineId string) Manager {
@@ -158,6 +162,7 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 	}
 	m.needToReboot = utils.NeedToReboot()
 	m.prometheus.SetHostInfo(m.needToReboot)
+	m.space.AgentUpdate(m.needToReboot, m.deployment)
 	return m
 }
 
@@ -218,6 +223,8 @@ func (m Manager) Run() {
 
 	m.needToReboot = utils.NeedToReboot()
 	m.prometheus.SetHostInfo(m.needToReboot)
+	m.space = space.New(m.hostname, m.machineId)
+	m.space.AgentUpdate(m.needToReboot, m.deployment)
 
 	for {
 		select {
