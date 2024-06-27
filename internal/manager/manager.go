@@ -9,6 +9,7 @@ import (
 	"github.com/nlewo/comin/internal/nix"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/space"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -56,7 +57,10 @@ type Manager struct {
 	triggerDeploymentCh chan generation.Generation
 
 	prometheus prometheus.Prometheus
-	storage    store.Store
+
+	storage store.Store
+
+	space space.Space
 }
 
 func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, hostname, machineId string) Manager {
@@ -147,6 +151,7 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 	m.isRunning = false
 	m.prometheus.SetDeploymentInfo(m.deployment.Generation.SelectedCommitId, deployment.StatusToString(m.deployment.Status))
 	m.storage.DeploymentInsertAndCommit(m.deployment)
+	m.space.AgentUpdate(m.deployment)
 	return m
 }
 
@@ -204,6 +209,9 @@ func (m Manager) Run() {
 	logrus.Infof("  hostname = %s", m.hostname)
 	logrus.Infof("  machineId = %s", m.machineId)
 	logrus.Infof("  repositoryPath = %s", m.repositoryPath)
+
+	m.space = space.New(m.hostname, m.machineId)
+	m.space.AgentUpdate(m.deployment)
 
 	for {
 		select {
