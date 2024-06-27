@@ -41,16 +41,15 @@ func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (
 	rsCh = make(chan RepositoryStatus)
 	go func() {
 		// FIXME: switch to the FetchContext to clean resource up on timeout
-		err := r.Fetch(remoteNames)
-		if err == nil {
-			r.Update()
-		}
+		r.Fetch(remoteNames)
+		r.Update()
 		rsCh <- r.RepositoryStatus
 	}()
 	return rsCh
 }
 
-func (r *repository) Fetch(remoteNames []string) (err error) {
+func (r *repository) Fetch(remoteNames []string) {
+	var err error
 	r.RepositoryStatus.Error = nil
 	r.RepositoryStatus.ErrorMsg = ""
 	for _, remote := range r.GitConfig.Remotes {
@@ -68,7 +67,6 @@ func (r *repository) Fetch(remoteNames []string) (err error) {
 		}
 		repositoryStatusRemote.FetchedAt = time.Now().UTC()
 	}
-	return
 }
 
 func (r *repository) Update() error {
