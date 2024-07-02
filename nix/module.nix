@@ -29,7 +29,8 @@ in {
           + (lib.optionalString cfg.services.comin.debug "--debug ")
           + " run "
           + "--config ${cominConfigYaml}";
-          Restart = "always";
+        Restart = "always";
+        StateDirectory = lib.mkIf (cominConfig.state_dir == "/var/lib/comin") "comin";
       };
     };
   };
