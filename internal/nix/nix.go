@@ -77,7 +77,7 @@ func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath str
 		installable,
 		"-L",
 		"--show-trace",
-		"--impure"
+		"--impure",
 	}
 	var stdout bytes.Buffer
 	err = runNixCommand(args, &stdout, os.Stderr)
