@@ -147,6 +147,7 @@ func Build(ctx context.Context, drvPath string) (err error) {
 		"build",
 		fmt.Sprintf("%s^*", drvPath),
 		"-L",
+		"--impure",
 		"--no-link"}
 	err = runNixCommand(args, os.Stdout, os.Stderr)
 	if err != nil {
