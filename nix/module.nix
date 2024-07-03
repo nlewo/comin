@@ -4,6 +4,7 @@ overlay: { config, pkgs, lib, ... }: let
   cominConfig = {
     hostname = cfg.services.comin.hostname;
     state_dir = "/var/lib/comin";
+    repo_dir = cfg.services.comin.repo_dir;
     remotes = cfg.services.comin.remotes;
     exporter = {
       listen_address = cfg.services.comin.exporter.listen_address;

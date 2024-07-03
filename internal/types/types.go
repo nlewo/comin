@@ -16,7 +16,9 @@ type Poller struct {
 
 type GitConfig struct {
 	// The repository Path
-	Path              string
+	Path string
+	// The directory in the repository
+	Dir               string
 	Remotes           []Remote
 	GpgPublicKeyPaths []string
 }
@@ -46,6 +48,7 @@ type Configuration struct {
 	Hostname      string     `yaml:"hostname"`
 	StateDir      string     `yaml:"state_dir"`
 	StateFilepath string     `yaml:"state_filepath"`
+	RepoDir       string     `yaml:"repo_dir"`
 	Remotes       []Remote   `yaml:"remotes"`
 	ApiServer     HttpServer `yaml:"api_server"`
 	Exporter      HttpServer `yaml:"exporter"`

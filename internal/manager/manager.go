@@ -24,7 +24,8 @@ type State struct {
 }
 
 type Manager struct {
-	repository repository.Repository
+	repository    repository.Repository
+	repositoryDir string
 	// FIXME: a generation should get a repository URL from the repository status
 	repositoryPath string
 	hostname       string
@@ -59,9 +60,10 @@ type Manager struct {
 	storage    store.Store
 }
 
-func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, hostname, machineId string) Manager {
+func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, dir, hostname, machineId string) Manager {
 	m := Manager{
 		repository:              r,
+		repositoryDir:           dir,
 		repositoryPath:          path,
 		hostname:                hostname,
 		machineId:               machineId,
@@ -173,7 +175,7 @@ func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.Repositor
 		m.isRunning = false
 	} else {
 		// g.Stop(): this is required once we remove m.IsRunning
-		flakeUrl := fmt.Sprintf("git+file://%s?rev=%s", m.repositoryPath, m.repositoryStatus.SelectedCommitId)
+		flakeUrl := fmt.Sprintf("git+file://%s?dir=%s&rev=%s", m.repositoryPath, m.repositoryDir, m.repositoryStatus.SelectedCommitId)
 		m.generation = generation.New(rs, flakeUrl, m.hostname, m.machineId, m.evalFunc, m.buildFunc)
 		m.generation = m.generation.Eval(ctx)
 	}

@@ -369,3 +369,21 @@ The URL of the repository\.
 string
 
 
+
+## services\.comin\.repo_dir
+
+
+
+Subdirectory in the repository, containing flake\.nix\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "." `
+
+

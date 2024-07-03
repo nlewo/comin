@@ -12,6 +12,7 @@ func TestConfig(t *testing.T) {
 		Hostname:      "machine",
 		StateDir:      "/var/lib/comin",
 		StateFilepath: "/var/lib/comin/state.json",
+		RepoDir:       ".",
 		Remotes: []types.Remote{
 			{
 				Name: "origin",
