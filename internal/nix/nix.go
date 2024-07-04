@@ -74,10 +74,10 @@ func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath str
 	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
 	args := []string{
 		"show-derivation",
+		"--impure",
 		installable,
 		"-L",
 		"--show-trace",
-		"--impure",
 	}
 	var stdout bytes.Buffer
 	err = runNixCommand(args, &stdout, os.Stderr)
