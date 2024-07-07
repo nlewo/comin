@@ -1,10 +1,11 @@
-overlay: { config, pkgs, lib, ... }: let
+overlay: { config, pkgs, lib, ... }:
+let
   cfg = config;
   yaml = pkgs.formats.yaml { };
   cominConfig = {
     hostname = cfg.services.comin.hostname;
     state_dir = "/var/lib/comin";
-    repo_dir = cfg.services.comin.repo_dir;
+    flake_subdirectory = cfg.services.comin.flake_subdirectory;
     remotes = cfg.services.comin.remotes;
     exporter = {
       listen_address = cfg.services.comin.exporter.listen_address;
@@ -30,7 +31,7 @@ in {
           + (lib.optionalString cfg.services.comin.debug "--debug ")
           + " run "
           + "--config ${cominConfigYaml}";
-          Restart = "always";
+        Restart = "always";
       };
     };
   };

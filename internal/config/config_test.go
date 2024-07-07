@@ -9,10 +9,10 @@ import (
 func TestConfig(t *testing.T) {
 	configPath := "./configuration.yaml"
 	expected := types.Configuration{
-		Hostname:      "machine",
-		StateDir:      "/var/lib/comin",
-		StateFilepath: "/var/lib/comin/state.json",
-		RepoDir:       ".",
+		Hostname:          "machine",
+		StateDir:          "/var/lib/comin",
+		StateFilepath:     "/var/lib/comin/state.json",
+		FlakeSubdirectory: ".",
 		Remotes: []types.Remote{
 			{
 				Name: "origin",

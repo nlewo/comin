@@ -47,8 +47,8 @@ func Read(path string) (config types.Configuration, err error) {
 	if config.StateFilepath == "" {
 		config.StateFilepath = filepath.Join(config.StateDir, "state.json")
 	}
-	if config.RepoDir == "" {
-		config.RepoDir = "."
+	if config.FlakeSubdirectory == "" {
+		config.FlakeSubdirectory = "."
 	}
 	logrus.Debugf("Config is '%#v'", config)
 	return
@@ -57,7 +57,7 @@ func Read(path string) (config types.Configuration, err error) {
 func MkGitConfig(config types.Configuration) types.GitConfig {
 	return types.GitConfig{
 		Path:    filepath.Join(config.StateDir, "repository"),
-		Dir:     config.RepoDir,
+		Dir:     config.FlakeSubdirectory,
 		Remotes: config.Remotes,
 	}
 }
