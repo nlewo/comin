@@ -18,7 +18,7 @@
           nixosConfigurations."<hostname>".config.system.build.toplevel
         '';
       };
-      flake_subdirectory = mkOption {
+      flakeSubdirectory = mkOption {
         type = str;
         default = ".";
         description = ''

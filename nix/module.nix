@@ -5,7 +5,7 @@ let
   cominConfig = {
     hostname = cfg.services.comin.hostname;
     state_dir = "/var/lib/comin";
-    flake_subdirectory = cfg.services.comin.flake_subdirectory;
+    flake_subdirectory = cfg.services.comin.flakeSubdirectory;
     remotes = cfg.services.comin.remotes;
     exporter = {
       listen_address = cfg.services.comin.exporter.listen_address;
