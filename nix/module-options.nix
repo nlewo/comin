@@ -18,6 +18,13 @@
           nixosConfigurations."<hostname>".config.system.build.toplevel
         '';
       };
+      flakeSubdirectory = mkOption {
+        type = str;
+        default = ".";
+        description = ''
+          Subdirectory in the repository, containing flake.nix.
+        '';
+      };
       exporter = mkOption {
         description = "Options for the Prometheus exporter.";
         default = {};

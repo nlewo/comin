@@ -104,6 +104,24 @@ signed integer
 
 
 
+## services\.comin\.flakeSubdirectory
+
+
+
+Subdirectory in the repository, containing flake\.nix\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "." `
+
+
+
 ## services\.comin\.hostname
 
 

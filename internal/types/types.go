@@ -16,7 +16,9 @@ type Poller struct {
 
 type GitConfig struct {
 	// The repository Path
-	Path              string
+	Path string
+	// The directory in the repository
+	Dir               string
 	Remotes           []Remote
 	GpgPublicKeyPaths []string
 }
@@ -43,10 +45,11 @@ type HttpServer struct {
 }
 
 type Configuration struct {
-	Hostname      string     `yaml:"hostname"`
-	StateDir      string     `yaml:"state_dir"`
-	StateFilepath string     `yaml:"state_filepath"`
-	Remotes       []Remote   `yaml:"remotes"`
-	ApiServer     HttpServer `yaml:"api_server"`
-	Exporter      HttpServer `yaml:"exporter"`
+	Hostname          string     `yaml:"hostname"`
+	StateDir          string     `yaml:"state_dir"`
+	StateFilepath     string     `yaml:"state_filepath"`
+	FlakeSubdirectory string     `yaml:"flake_subdirectory"`
+	Remotes           []Remote   `yaml:"remotes"`
+	ApiServer         HttpServer `yaml:"api_server"`
+	Exporter          HttpServer `yaml:"exporter"`
 }

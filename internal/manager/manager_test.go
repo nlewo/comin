@@ -34,7 +34,7 @@ func (r *repositoryMock) FetchAndUpdate(ctx context.Context, remoteNames []strin
 func TestRun(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "")
+	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
@@ -95,7 +95,7 @@ func TestRun(t *testing.T) {
 func TestFetchBusy(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "machine-id")
+	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "machine-id")
 	go m.Run()
 
 	assert.Equal(t, State{}, m.GetState())
@@ -110,7 +110,7 @@ func TestFetchBusy(t *testing.T) {
 func TestRestartComin(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "machine-id")
+	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "machine-id")
 	dCh := make(chan deployment.DeploymentResult)
 	m.deploymentResultCh = dCh
 	isCominRestarted := false
@@ -132,7 +132,7 @@ func TestRestartComin(t *testing.T) {
 func TestOptionnalMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "the-test-machine-id")
+	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "the-test-machine-id")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
@@ -164,7 +164,7 @@ func TestOptionnalMachineId(t *testing.T) {
 func TestIncorrectMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "the-test-machine-id")
+	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "the-test-machine-id")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
