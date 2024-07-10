@@ -72,5 +72,12 @@
         pkgs.go pkgs.godef pkgs.gopls
       ];
     };
+    devShells.aarch64-darwin.default = let
+      pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+    in pkgs.mkShell {
+      buildInputs = [
+        pkgs.go pkgs.godef pkgs.gopls
+      ];
+    };
   };
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/nacl/auth"
 )
 
 type State struct {
@@ -93,6 +94,17 @@ func (m Manager) GetState() State {
 }
 
 func (m Manager) Fetch(remotes []string) {
+	// todo check if remote is finished building 
+	// if it is, then fetch
+	// if not, then wait
+	deploymentID := panic("not implemented")
+	authToken := panic("not implemented")
+	resp := http.Get(fmt.Sprintf("http://localhost:8080/api/v1/deployments/%s", deploymentID), authToken)
+	if resp.Status != "success" {
+		// wait
+		return
+	}
+
 	m.triggerRepository <- remotes
 }
 
