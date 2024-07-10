@@ -47,11 +47,11 @@ func getExpectedMachineId(path, hostname string) (machineId string, err error) {
 }
 
 func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
-	commonArgs := []string{"--extra-experimental-features", "nix-command", "--extra-experimental-features", "flakes", "--accept-flake-config", "--impure"}
+	commonArgs := []string{"--extra-experimental-features", "nix-command", "--extra-experimental-features", "flakes", "--accept-flake-config"}
 	args = append(commonArgs, args...)
 	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
 	logrus.Infof("nix: running '%s'", cmdStr)
-	cmd := exec.Command("nix", args...)
+	cmd := exec.Command("nix", args..., "--impure")
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	err = cmd.Run()
