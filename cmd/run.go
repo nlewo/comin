@@ -49,13 +49,16 @@ var runCmd = &cobra.Command{
 		if ok, lastDeployment := store.LastDeployment(); ok {
 			mainCommitId = lastDeployment.Generation.MainCommitId
 		}
-		repository, err := repository.New(gitConfig, mainCommitId)
+		repo, err := repository.New(gitConfig, mainCommitId)
 		if err != nil {
 			logrus.Errorf("Failed to initialize the repository: %s", err)
 			os.Exit(1)
 		}
 
-		manager := manager.New(repository, store, metrics, gitConfig.Path, cfg.Hostname, machineId)
+		wrappedRepo, err := repository.WrapRepositoryWithFlakery(repo)
+
+
+		manager := manager.New(wrappedRepo, store, metrics, gitConfig.Path, cfg.Hostname, machineId)
 		go poller.Poller(manager, cfg.Remotes)
 		http.Serve(manager,
 			metrics,
