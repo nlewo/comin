@@ -3,7 +3,7 @@
 ### GitLab
 
 You need to create a [personal access
-token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)
+token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) with the `read_repository` scope
 and store this token into a file (`/filepath/to/your/access/token` in the below example). 
 
 ### GitHub
