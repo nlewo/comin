@@ -35,7 +35,10 @@ func New(filename string, capacityMain, capacityTesting int) Store {
 }
 
 func (s *Store) DeploymentInsertAndCommit(dpl deployment.Deployment) {
-	s.DeploymentInsert(dpl)
+	ok, evicted := s.DeploymentInsert(dpl)
+	if ok {
+		logrus.Infof("The deployment %s has been removed from store.json file", evicted.UUID)
+	}
 	if err := s.Commit(); err != nil {
 		logrus.Errorf("Error while commiting the store.json file: %s", err)
 	}
