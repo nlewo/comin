@@ -51,16 +51,43 @@ func TestDeploymentInsert(t *testing.T) {
 	hasEvicted, evicted = s.DeploymentInsert(deployment.Deployment{UUID: "3", Operation: "switch"})
 	assert.True(t, hasEvicted)
 	assert.Equal(t, "1", evicted.UUID)
+	expected := []deployment.Deployment{
+		{UUID: "3", Operation: "switch"},
+		{UUID: "2", Operation: "switch"},
+	}
+	assert.Equal(t, expected, s.DeploymentList())
 
-	hasEvicted, _ = s.DeploymentInsert(deployment.Deployment{UUID: "4", Operation: "testing"})
+	hasEvicted, _ = s.DeploymentInsert(deployment.Deployment{UUID: "4", Operation: "test"})
 	assert.False(t, hasEvicted)
-	hasEvicted, _ = s.DeploymentInsert(deployment.Deployment{UUID: "5", Operation: "testing"})
+	hasEvicted, _ = s.DeploymentInsert(deployment.Deployment{UUID: "5", Operation: "test"})
 	assert.False(t, hasEvicted)
-	hasEvicted, evicted = s.DeploymentInsert(deployment.Deployment{UUID: "6", Operation: "testing"})
+	hasEvicted, evicted = s.DeploymentInsert(deployment.Deployment{UUID: "6", Operation: "test"})
 	assert.True(t, hasEvicted)
 	assert.Equal(t, "4", evicted.UUID)
+	expected = []deployment.Deployment{
+		{UUID: "6", Operation: "test"},
+		{UUID: "5", Operation: "test"},
+		{UUID: "3", Operation: "switch"},
+		{UUID: "2", Operation: "switch"},
+	}
+	assert.Equal(t, expected, s.DeploymentList())
 
 	hasEvicted, evicted = s.DeploymentInsert(deployment.Deployment{UUID: "7", Operation: "switch"})
 	assert.True(t, hasEvicted)
 	assert.Equal(t, "2", evicted.UUID)
+	expected = []deployment.Deployment{
+		{UUID: "6", Operation: "test"},
+		{UUID: "5", Operation: "test"},
+		{UUID: "7", Operation: "switch"},
+		{UUID: "3", Operation: "switch"},
+	}
+	hasEvicted, evicted = s.DeploymentInsert(deployment.Deployment{UUID: "8", Operation: "switch"})
+	assert.True(t, hasEvicted)
+	assert.Equal(t, "3", evicted.UUID)
+	expected = []deployment.Deployment{
+		{UUID: "6", Operation: "test"},
+		{UUID: "5", Operation: "test"},
+		{UUID: "8", Operation: "switch"},
+		{UUID: "7", Operation: "switch"},
+	}
 }

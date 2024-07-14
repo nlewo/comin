@@ -105,7 +105,7 @@ func (d Deployment) Update(dr DeploymentResult) Deployment {
 }
 
 func (d Deployment) IsTesting() bool {
-	return d.Operation == "testing"
+	return d.Operation == "test"
 }
 
 // Deploy returns a updated deployment (mainly the startAt is updated)
