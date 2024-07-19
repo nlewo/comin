@@ -1,8 +1,12 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"os"
 )
 
 type flakery struct {
@@ -23,12 +27,13 @@ func (f *flakery) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsC
 	rsCh = make(chan RepositoryStatus)
 	go func() {
 		deploymentStatus, err := f.getDeploymentStatus()
+		fmt.Println("deploymentStatus", deploymentStatus)
 		if err != nil {
 			// FIXME: log error
 			panic(err)
 		}
 
-		if deploymentStatus != "BUILDING" {
+		if deploymentStatus == "success" {
 			rs := <-rsc
 			rsCh <- rs
 		}
@@ -39,9 +44,53 @@ func (f *flakery) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsC
 func (f *flakery) getDeploymentStatus() (string, error) {
 	// todo wrap this repository with a flakery repository
 	// that will pause when deployment status is building
-	deplyomentID = panic("not implemented")
-	userToken = panic("not implemented")
-	return "BUILDING", nil
+	// deplyomentID = panic("not implemented")
+	// read deployment id from env
+	deploymentID := os.Getenv("DEPLOYMENT_ID")
+	if deploymentID == "" {
+		return "", errors.New("DEPLOYMENT_ID is not set")
+	}
+
+	userToken := os.Getenv("USER_TOKEN")
+
+	if userToken == "" {
+		return "", errors.New("USER_TOKEN is not set")
+	}
+
+	// Prepare HTTP request to flakery.dev
+	url := "https://flakery.dev/api/v0/deployment/build-status/" + string(deploymentID)
+
+	req, err := http.NewRequest("GET", url, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+string(userToken))
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send HTTP request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		return "", errors.New("GET request failed")
+	} else {
+		fmt.Println("GET request success")
+	}
+
+	// Read and return string response
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(resp.Body)
+	status := buf.String()
+	if status == "" {
+		return "", errors.New("empty response")
+	}
+	return buf.String(), nil
+
 }
 
 func WrapRepositoryWithFlakery(r *repository) (*flakery, error) {
