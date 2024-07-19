@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 )
 
 type flakery struct {
@@ -26,16 +27,23 @@ func (f *flakery) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsC
 	rsc := f.repository.FetchAndUpdate(ctx, remoteNames)
 	rsCh = make(chan RepositoryStatus)
 	go func() {
-		deploymentStatus, err := f.getDeploymentStatus()
-		fmt.Println("deploymentStatus", deploymentStatus)
-		if err != nil {
-			// FIXME: log error
-			panic(err)
-		}
+		// make a timer that will check the deployment status every 5 seconds
+		ticker := time.NewTicker(5 * time.Second)
+		for {
+			select {
+			case <-ticker.C:
+				deploymentStatus, err := f.getDeploymentStatus()
+				fmt.Println("deploymentStatus", deploymentStatus)
+				if err != nil {
+					// FIXME: log error
+					panic(err)
+				}
 
-		if deploymentStatus == "success" {
-			rs := <-rsc
-			rsCh <- rs
+				if deploymentStatus == "success" {
+					rs := <-rsc
+					rsCh <- rs
+				}
+			}
 		}
 	}()
 	return rsCh
@@ -46,9 +54,9 @@ func (f *flakery) getDeploymentStatus() (string, error) {
 	// that will pause when deployment status is building
 	// deplyomentID = panic("not implemented")
 	// read deployment id from env
-	deploymentID := os.Getenv("DEPLOYMENT_ID")
-	if deploymentID == "" {
-		return "", errors.New("DEPLOYMENT_ID is not set")
+	template := os.Getenv("TEMPLATE_ID")
+	if template == "" {
+		return "", errors.New("TEMPLATE_ID is not set")
 	}
 
 	userToken := os.Getenv("USER_TOKEN")
@@ -58,7 +66,7 @@ func (f *flakery) getDeploymentStatus() (string, error) {
 	}
 
 	// Prepare HTTP request to flakery.dev
-	url := "https://flakery.dev/api/v0/deployment/build-status/" + string(deploymentID)
+	url := "https://flakery.dev/api/v0/template/build-status/" + string(template)
 
 	req, err := http.NewRequest("GET", url, bytes.NewBuffer([]byte{}))
 	if err != nil {
