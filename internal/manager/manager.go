@@ -7,6 +7,7 @@ import (
 	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/generation"
 	"github.com/nlewo/comin/internal/nix"
+	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/store"
@@ -148,7 +149,10 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 	}
 	m.isRunning = false
 	m.prometheus.SetDeploymentInfo(m.deployment.Generation.SelectedCommitId, deployment.StatusToString(m.deployment.Status))
-	m.storage.DeploymentInsertAndCommit(m.deployment)
+	getsEvicted, evicted := m.storage.DeploymentInsertAndCommit(m.deployment)
+	if getsEvicted && evicted.ProfilePath != "" {
+		profile.RemoveProfilePath(evicted.ProfilePath)
+	}
 	return m
 }
 
