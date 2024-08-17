@@ -34,15 +34,17 @@ func New(filename string, capacityMain, capacityTesting int) Store {
 
 }
 
-func (s *Store) DeploymentInsertAndCommit(dpl deployment.Deployment) {
-	ok, evicted := s.DeploymentInsert(dpl)
+func (s *Store) DeploymentInsertAndCommit(dpl deployment.Deployment) (ok bool, evicted deployment.Deployment) {
+	ok, evicted = s.DeploymentInsert(dpl)
 	if ok {
 		logrus.Infof("The deployment %s has been removed from store.json file", evicted.UUID)
 	}
 	if err := s.Commit(); err != nil {
 		logrus.Errorf("Error while commiting the store.json file: %s", err)
+		return
 	}
 	logrus.Infof("The new deployment %s has been commited to store.json file", dpl.UUID)
+	return
 }
 
 // DeploymentInsert inserts a deployment and return an evicted
