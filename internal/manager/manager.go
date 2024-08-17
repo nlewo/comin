@@ -44,6 +44,7 @@ type Manager struct {
 	// for a first iteration: this needs to be removed
 	isRunning               bool
 	needToBeRestarted       bool
+	needToReboot            bool
 	cominServiceRestartFunc func() error
 
 	evalFunc  generation.EvalFunc
@@ -153,6 +154,8 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 	if getsEvicted && evicted.ProfilePath != "" {
 		profile.RemoveProfilePath(evicted.ProfilePath)
 	}
+	m.needToReboot = utils.NeedToReboot()
+	m.prometheus.SetHostInfo(m.needToReboot)
 	return m
 }
 
@@ -210,6 +213,9 @@ func (m Manager) Run() {
 	logrus.Infof("  hostname = %s", m.hostname)
 	logrus.Infof("  machineId = %s", m.machineId)
 	logrus.Infof("  repositoryPath = %s", m.repositoryPath)
+
+	m.needToReboot = utils.NeedToReboot()
+	m.prometheus.SetHostInfo(m.needToReboot)
 
 	for {
 		select {
