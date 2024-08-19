@@ -22,6 +22,7 @@ type State struct {
 	IsRunning        bool                  `json:"is_running"`
 	Deployment       deployment.Deployment `json:"deployment"`
 	Hostname         string                `json:"hostname"`
+	NeedToReboot     bool                  `json:"need_to_reboot"`
 }
 
 type Manager struct {
@@ -108,6 +109,7 @@ func (m Manager) toState() State {
 		IsRunning:        m.isRunning,
 		Deployment:       m.deployment,
 		Hostname:         m.hostname,
+		NeedToReboot:     m.needToReboot,
 	}
 }
 
