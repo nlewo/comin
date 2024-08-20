@@ -22,6 +22,7 @@ type State struct {
 	IsRunning        bool                  `json:"is_running"`
 	Deployment       deployment.Deployment `json:"deployment"`
 	Hostname         string                `json:"hostname"`
+	NeedToReboot     bool                  `json:"need_to_reboot"`
 }
 
 type Manager struct {
@@ -44,6 +45,7 @@ type Manager struct {
 	// for a first iteration: this needs to be removed
 	isRunning               bool
 	needToBeRestarted       bool
+	needToReboot            bool
 	cominServiceRestartFunc func() error
 
 	evalFunc  generation.EvalFunc
@@ -107,6 +109,7 @@ func (m Manager) toState() State {
 		IsRunning:        m.isRunning,
 		Deployment:       m.deployment,
 		Hostname:         m.hostname,
+		NeedToReboot:     m.needToReboot,
 	}
 }
 
@@ -153,6 +156,8 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 	if getsEvicted && evicted.ProfilePath != "" {
 		profile.RemoveProfilePath(evicted.ProfilePath)
 	}
+	m.needToReboot = utils.NeedToReboot()
+	m.prometheus.SetHostInfo(m.needToReboot)
 	return m
 }
 
@@ -210,6 +215,9 @@ func (m Manager) Run() {
 	logrus.Infof("  hostname = %s", m.hostname)
 	logrus.Infof("  machineId = %s", m.machineId)
 	logrus.Infof("  repositoryPath = %s", m.repositoryPath)
+
+	m.needToReboot = utils.NeedToReboot()
+	m.prometheus.SetHostInfo(m.needToReboot)
 
 	for {
 		select {
