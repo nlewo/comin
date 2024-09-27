@@ -5,11 +5,12 @@ import (
 	"path"
 
 	"github.com/nlewo/comin/internal/config"
+	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/http"
 	"github.com/nlewo/comin/internal/manager"
-	"github.com/nlewo/comin/internal/poller"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/scheduler"
 	store "github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -55,8 +56,13 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		manager := manager.New(repository, store, metrics, gitConfig.Path, gitConfig.Dir, cfg.Hostname, machineId)
-		go poller.Poller(manager, cfg.Remotes)
+		fetcher := fetcher.NewFetcher(repository)
+		fetcher.Start()
+		sched := scheduler.New()
+		sched.FetchRemotes(fetcher, cfg.Remotes)
+
+		manager := manager.New(repository, store, metrics, sched, fetcher, gitConfig.Path, gitConfig.Dir, cfg.Hostname, machineId)
+		// go poller.Poller(manager, cfg.Remotes)
 		http.Serve(manager,
 			metrics,
 			cfg.ApiServer.ListenAddress, cfg.ApiServer.Port,

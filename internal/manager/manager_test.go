@@ -6,9 +6,12 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/deployment"
+	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,24 +20,12 @@ type metricsMock struct{}
 
 func (m metricsMock) SetDeploymentInfo(commitId, status string) {}
 
-type repositoryMock struct {
-	rsCh chan repository.RepositoryStatus
-}
-
-func newRepositoryMock() (r *repositoryMock) {
-	rsCh := make(chan repository.RepositoryStatus)
-	return &repositoryMock{
-		rsCh: rsCh,
-	}
-}
-func (r *repositoryMock) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan repository.RepositoryStatus) {
-	return r.rsCh
-}
-
 func TestRun(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "")
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	m := New(r, store.New("", 1, 1), prometheus.New(), scheduler.New(), f, "", "", "", "")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
@@ -60,11 +51,11 @@ func TestRun(t *testing.T) {
 	assert.Equal(t, State{}, m.GetState())
 
 	// the repository is fetched
-	m.Fetch([]string{"origin"})
+	m.fetcher.TriggerFetch([]string{"origin"})
 	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
 
 	// we inject a repositoryStatus
-	r.rsCh <- repository.RepositoryStatus{
+	r.RsCh <- repository.RepositoryStatus{
 		SelectedCommitId: "foo",
 	}
 	assert.Equal(
@@ -94,23 +85,27 @@ func TestRun(t *testing.T) {
 
 func TestFetchBusy(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "machine-id")
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	m := New(r, store.New("", 1, 1), prometheus.New(), scheduler.New(), f, "", "", "", "machine-id")
 	go m.Run()
 
 	assert.Equal(t, State{}, m.GetState())
 
-	m.Fetch([]string{"origin"})
+	m.fetcher.TriggerFetch([]string{"origin"})
 	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
 
-	m.Fetch([]string{"origin"})
+	m.fetcher.TriggerFetch([]string{"origin"})
 	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
 }
 
 func TestRestartComin(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "machine-id")
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	m := New(r, store.New("", 1, 1), prometheus.New(), scheduler.New(), f, "", "", "", "machine-id")
 	dCh := make(chan deployment.DeploymentResult)
 	m.deploymentResultCh = dCh
 	isCominRestarted := false
@@ -131,8 +126,10 @@ func TestRestartComin(t *testing.T) {
 
 func TestOptionnalMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "the-test-machine-id")
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	m := New(r, store.New("", 1, 1), prometheus.New(), scheduler.New(), f, "", "", "", "the-test-machine-id")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
@@ -150,8 +147,8 @@ func TestOptionnalMachineId(t *testing.T) {
 	m.buildFunc = nixBuildMock
 
 	go m.Run()
-	m.Fetch([]string{"origin"})
-	r.rsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
+	m.fetcher.TriggerFetch([]string{"origin"})
+	r.RsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
 
 	// we simulate the end of the evaluation
 	close(evalDone)
@@ -163,8 +160,10 @@ func TestOptionnalMachineId(t *testing.T) {
 
 func TestIncorrectMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "the-test-machine-id")
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	m := New(r, store.New("", 1, 1), prometheus.New(), scheduler.New(), f, "", "", "", "the-test-machine-id")
 
 	evalDone := make(chan struct{})
 	buildDone := make(chan struct{})
@@ -185,8 +184,8 @@ func TestIncorrectMachineId(t *testing.T) {
 	assert.Equal(t, State{}, m.GetState())
 
 	// the repository is fetched
-	m.Fetch([]string{"origin"})
-	r.rsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
+	m.fetcher.TriggerFetch([]string{"origin"})
+	r.RsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
 
 	assert.True(t, m.GetState().IsRunning)
 

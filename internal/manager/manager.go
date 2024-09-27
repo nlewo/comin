@@ -5,11 +5,13 @@ import (
 	"fmt"
 
 	"github.com/nlewo/comin/internal/deployment"
+	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/generation"
 	"github.com/nlewo/comin/internal/nix"
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -33,14 +35,12 @@ type Manager struct {
 	hostname       string
 	// The machine id of the current host
 	machineId         string
-	triggerRepository chan []string
 	generationFactory func(repository.RepositoryStatus, string, string) generation.Generation
 	stateRequestCh    chan struct{}
 	stateResultCh     chan State
 	repositoryStatus  repository.RepositoryStatus
 	// The generation currently managed
 	generation generation.Generation
-	isFetching bool
 	// FIXME: this is temporary in order to simplify the manager
 	// for a first iteration: this needs to be removed
 	isRunning               bool
@@ -61,9 +61,11 @@ type Manager struct {
 
 	prometheus prometheus.Prometheus
 	storage    store.Store
+	scheduler  scheduler.Scheduler
+	fetcher    *fetcher.Fetcher
 }
 
-func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, dir, hostname, machineId string) Manager {
+func New(r repository.Repository, s store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, path, dir, hostname, machineId string) Manager {
 	m := Manager{
 		repository:              r,
 		repositoryDir:           dir,
@@ -73,7 +75,6 @@ func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, 
 		evalFunc:                nix.Eval,
 		buildFunc:               nix.Build,
 		deployerFunc:            nix.Deploy,
-		triggerRepository:       make(chan []string),
 		stateRequestCh:          make(chan struct{}),
 		stateResultCh:           make(chan State),
 		cominServiceRestartFunc: utils.CominServiceRestart,
@@ -82,6 +83,8 @@ func New(r repository.Repository, s store.Store, p prometheus.Prometheus, path, 
 		triggerDeploymentCh:     make(chan generation.Generation, 1),
 		prometheus:              p,
 		storage:                 s,
+		scheduler:               sched,
+		fetcher:                 fetcher,
 	}
 	if len(s.DeploymentList()) > 0 {
 		d := s.DeploymentList()[0]
@@ -97,15 +100,11 @@ func (m Manager) GetState() State {
 	return <-m.stateResultCh
 }
 
-func (m Manager) Fetch(remotes []string) {
-	m.triggerRepository <- remotes
-}
-
 func (m Manager) toState() State {
 	return State{
 		Generation:       m.generation,
 		RepositoryStatus: m.repositoryStatus,
-		IsFetching:       m.isFetching,
+		IsFetching:       m.fetcher.IsFetching,
 		IsRunning:        m.isRunning,
 		Deployment:       m.deployment,
 		Hostname:         m.hostname,
@@ -163,7 +162,6 @@ func (m Manager) onDeployment(ctx context.Context, deploymentResult deployment.D
 
 func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.RepositoryStatus) Manager {
 	logrus.Debugf("Fetch done with %#v", rs)
-	m.isFetching = false
 	m.repositoryStatus = rs
 
 	for _, r := range rs.Remotes {
@@ -192,10 +190,6 @@ func (m Manager) onRepositoryStatus(ctx context.Context, rs repository.Repositor
 }
 
 func (m Manager) onTriggerRepository(ctx context.Context, remoteNames []string) Manager {
-	if m.isFetching {
-		logrus.Debugf("The manager is already fetching the repository")
-		return m
-	}
 	// FIXME: we will remove this in future versions
 	if m.isRunning {
 		logrus.Debugf("The manager is already running: it is currently not able to run tasks in parallel")
@@ -203,7 +197,6 @@ func (m Manager) onTriggerRepository(ctx context.Context, remoteNames []string) 
 	}
 	logrus.Debugf("Trigger fetch and update remotes %s", remoteNames)
 	m.isRunning = true
-	m.isFetching = true
 	m.repositoryStatusCh = m.repository.FetchAndUpdate(ctx, remoteNames)
 	return m
 }
@@ -223,9 +216,24 @@ func (m Manager) Run() {
 		select {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
-		case remoteNames := <-m.triggerRepository:
-			m = m.onTriggerRepository(ctx, remoteNames)
-		case rs := <-m.repositoryStatusCh:
+		case rs := <-m.fetcher.RepositoryStatusCh:
+			// we stop a builder if running and start a new build
+
+		case evalResult := <-m.generation.EvalCh():
+			m = m.onEvaluated(ctx, evalResult)
+
+		case buildResult := <-m.generation.BuildCh():
+			m = m.onBuilt(ctx, buildResult)
+		case generation := <-m.triggerDeploymentCh:
+			m = m.onTriggerDeployment(ctx, generation)
+		case deploymentResult := <-m.deploymentResultCh:
+			continue
+		}
+
+		select {
+		case <-m.stateRequestCh:
+			m.stateResultCh <- m.toState()
+		case rs := <-m.fetcher.RepositoryStatusCh:
 			m = m.onRepositoryStatus(ctx, rs)
 		case evalResult := <-m.generation.EvalCh():
 			m = m.onEvaluated(ctx, evalResult)
