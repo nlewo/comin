@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ func TestFetcher(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	f := NewFetcher(r)
 	f.Start()
+	var commitId string
 
 	for i := 0; i < 2; i++ {
 		assert.False(t, f.IsFetching)
@@ -23,16 +25,35 @@ func TestFetcher(t *testing.T) {
 		}, 5*time.Second, 100*time.Millisecond, "fetcher is not fetching")
 
 		// This is to simulate a git fetch
+		commitId = fmt.Sprintf("id-%d", i)
 		r.RsCh <- repository.RepositoryStatus{
-			SelectedCommitId: "foo",
+			SelectedCommitId: commitId,
 		}
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
 			rs := <-f.RepositoryStatusCh
-			assert.Equal(c, "foo", rs.SelectedCommitId)
+			assert.Equal(c, commitId, rs.SelectedCommitId)
 		}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
 		assert.False(t, f.IsFetching)
 	}
+
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id-5",
+	}
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		rs := <-f.RepositoryStatusCh
+		assert.Equal(c, "id-5", rs.SelectedCommitId)
+	}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
+
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id-5",
+	}
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id-6",
+	}
+	rs := <-f.RepositoryStatusCh
+	assert.NotEqual(t, "id-5", rs.SelectedCommitId)
 }
 
 func TestUnion(t *testing.T) {

@@ -12,6 +12,7 @@ type Fetcher struct {
 	RepositoryStatusCh chan repository.RepositoryStatus
 	repo               repository.Repository
 	IsFetching         bool
+	rs                 repository.RepositoryStatus
 }
 
 func NewFetcher(repo repository.Repository) *Fetcher {
@@ -37,7 +38,10 @@ func (f *Fetcher) Start() {
 				remotes = union(remotes, submittedRemotes)
 			case rs := <-workerRepositoryStatusCh:
 				f.IsFetching = false
-				f.RepositoryStatusCh <- rs
+				if rs.SelectedCommitId != f.rs.SelectedCommitId || rs.SelectedBranchIsTesting != f.rs.SelectedBranchIsTesting {
+					f.rs = rs
+					f.RepositoryStatusCh <- rs
+				}
 			}
 			if !f.IsFetching && len(remotes) != 0 {
 				f.IsFetching = true
