@@ -2,17 +2,17 @@ package fetcher
 
 import (
 	"context"
+	"time"
 
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
 )
 
 type Fetcher struct {
+	State
 	submitRemotes      chan []string
 	RepositoryStatusCh chan repository.RepositoryStatus
 	repo               repository.Repository
-	IsFetching         bool
-	rs                 repository.RepositoryStatus
 }
 
 func NewFetcher(repo repository.Repository) *Fetcher {
@@ -27,6 +27,23 @@ func (f *Fetcher) TriggerFetch(remotes []string) {
 	f.submitRemotes <- remotes
 }
 
+type RemoteState struct {
+	Name      string    `json:"name"`
+	FetchedAt time.Time `json:"fetched_at"`
+}
+type State struct {
+	IsFetching       bool `jsona:"is_fetching"`
+	RepositoryStatus repository.RepositoryStatus
+}
+
+// FIXME: make it thread safe
+func (f *Fetcher) GetState() State {
+	return State{
+		IsFetching:       f.IsFetching,
+		RepositoryStatus: f.RepositoryStatus,
+	}
+}
+
 func (f *Fetcher) Start() {
 	logrus.Info("fetcher: starting")
 	go func() {
@@ -38,8 +55,10 @@ func (f *Fetcher) Start() {
 				remotes = union(remotes, submittedRemotes)
 			case rs := <-workerRepositoryStatusCh:
 				f.IsFetching = false
-				if rs.SelectedCommitId != f.rs.SelectedCommitId || rs.SelectedBranchIsTesting != f.rs.SelectedBranchIsTesting {
-					f.rs = rs
+				// TODO: increment fetch counter
+				// m.prometheus.IncFetchCounter(r.Name, status)
+				if rs.SelectedCommitId != f.RepositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting != f.RepositoryStatus.SelectedBranchIsTesting {
+					f.RepositoryStatus = rs
 					f.RepositoryStatusCh <- rs
 				}
 			}

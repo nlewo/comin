@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nlewo/comin/internal/generation"
+	"github.com/nlewo/comin/internal/builder"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,10 +49,10 @@ func StatusFromString(status string) Status {
 type DeployFunc func(context.Context, string, string, string) (bool, string, error)
 
 type Deployment struct {
-	UUID       string                `json:"uuid"`
-	Generation generation.Generation `json:"generation"`
-	StartAt    time.Time             `json:"start_at"`
-	EndAt      time.Time             `json:"end_at"`
+	UUID       string             `json:"uuid"`
+	Generation builder.Generation `json:"generation"`
+	StartAt    time.Time          `json:"start_at"`
+	EndAt      time.Time          `json:"end_at"`
 	// It is ignored in the JSON marshaling
 	Err          error  `json:"-"`
 	ErrorMsg     string `json:"error_msg"`
@@ -72,7 +72,7 @@ type DeploymentResult struct {
 	ProfilePath  string
 }
 
-func New(g generation.Generation, deployerFunc DeployFunc, deploymentCh chan DeploymentResult) Deployment {
+func New(g builder.Generation, deployerFunc DeployFunc, deploymentCh chan DeploymentResult) Deployment {
 	operation := "switch"
 	if g.SelectedBranchIsTesting {
 		operation = "test"
@@ -116,7 +116,7 @@ func (d Deployment) Deploy(ctx context.Context) Deployment {
 		// FIXME: propagate context
 		cominNeedRestart, profilePath, err := d.deployerFunc(
 			ctx,
-			d.Generation.EvalMachineId,
+			d.Generation.MachineId,
 			d.Generation.OutPath,
 			d.Operation,
 		)

@@ -101,19 +101,17 @@ var statusCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		fmt.Printf("Status of the machine %s\n", status.Hostname)
+		fmt.Printf("Status of the machine %s\n", status.Builder.Hostname)
 		needToReboot := "no"
 		if status.NeedToReboot {
 			needToReboot = "yes"
 		}
 		fmt.Printf("  Need to reboot: %s\n", needToReboot)
-		for _, r := range status.RepositoryStatus.Remotes {
+		for _, r := range status.Fetcher.RepositoryStatus.Remotes {
 			fmt.Printf("  Remote %s fetched %s\n",
 				r.Url, humanize.Time(r.FetchedAt),
 			)
 		}
-		deploymentStatus(status.Deployment)
-		generationStatus(status.Generation)
 	},
 }
 

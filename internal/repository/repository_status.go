@@ -1,11 +1,10 @@
 package repository
 
 import (
-	"encoding/json"
-	"fmt"
+	"time"
+
 	deepcopy "github.com/barkimedes/go-deepcopy"
 	"github.com/nlewo/comin/internal/types"
-	"time"
 )
 
 type MainBranch struct {
@@ -87,11 +86,6 @@ func (r RepositoryStatus) remoteExists(remoteName string) bool {
 	return false
 }
 
-func (r RepositoryStatus) Show() {
-	res, _ := json.MarshalIndent(r, "", "\t")
-	fmt.Printf("\n%s\n", string(res))
-}
-
 func (r RepositoryStatus) GetRemote(remoteName string) *Remote {
 	for _, remote := range r.Remotes {
 		if remote.Name == remoteName {
@@ -102,7 +96,6 @@ func (r RepositoryStatus) GetRemote(remoteName string) *Remote {
 }
 
 func (r RepositoryStatus) Copy() RepositoryStatus {
-	fmt.Printf("%v", r)
 	rs, err := deepcopy.Anything(r)
 	if err != nil {
 		return RepositoryStatus{}
