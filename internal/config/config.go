@@ -6,6 +6,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func Read(path string) (config types.Configuration, err error) {
@@ -25,7 +26,7 @@ func Read(path string) (config types.Configuration, err error) {
 			if err != nil {
 				return config, err
 			}
-			config.Remotes[i].Auth.AccessToken = string(content)
+			config.Remotes[i].Auth.AccessToken = strings.TrimSpace(string(content))
 		}
 		if remote.Timeout == 0 {
 			config.Remotes[i].Timeout = 300
