@@ -174,6 +174,19 @@
         type = listOf str;
         default = [];
       };
+      executor = mkOption {
+        description = "Select which executor will be used for evaluating and building the NixOS system configuration. Specify settings used by that executor.";
+        type = lib.types.submodule {
+          freeformType = (pkgs.formats.yaml { }).type;
+          options = {
+            type = lib.mkOption {
+              type = lib.types.str;
+              default = "nix";
+            };
+          };
+        };
+        default = {  };
+      };
     };
   };
 }
