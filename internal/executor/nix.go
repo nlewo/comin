@@ -19,22 +19,11 @@ func NewNixExecutor(configurationAttr string) (*NixLocal, error) {
 }
 
 func (n *NixLocal) ReadMachineId() (string, error) {
-	if n.configurationAttr == "darwinConfigurations" {
-		return utils.ReadMachineIdDarwin()
-	}
-	return utils.ReadMachineIdLinux()
+	return utils.ReadMachineId(n.configurationAttr)
 }
 
 func (n *NixLocal) NeedToReboot() bool {
-	if n.configurationAttr == "darwinConfigurations" {
-		// TODO: Implement proper reboot detection for Darwin
-		// Unlike NixOS which has /run/current-system vs /run/booted-system paths,
-		// Darwin/macOS doesn't have equivalent mechanisms for detecting when
-		// a reboot is needed after nix-darwin configuration changes.
-		// For now, conservatively assume no reboot is needed.
-		return false
-	}
-	return utils.NeedToRebootLinux()
+	return utils.NeedToReboot(n.configurationAttr)
 }
 
 func (n *NixLocal) IsStorePathExist(storePath string) bool {
