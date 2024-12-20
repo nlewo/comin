@@ -104,6 +104,21 @@ func build(ctx context.Context, drvPath string) (err error) {
 	return
 }
 
+// fetchBuild fetches the build output from the Nix binary cache
+// instead of evaluating locally.
+func fetchBuild(ctx context.Context, outPath string) (err error) {
+	args := []string{
+		"build",
+		fmt.Sprintf("%s", outPath),
+		"-L",
+		"--no-link"}
+	err = runNixCommand(args, os.Stdout, os.Stderr)
+	if err != nil {
+		return
+	}
+	return
+}
+
 func cominUnitFileHash() string {
 	logrus.Infof("nix: generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
 	cmd := exec.Command("systemctl", "cat", "comin.service")

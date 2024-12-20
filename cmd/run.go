@@ -67,9 +67,9 @@ var runCmd = &cobra.Command{
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
-		executor, err := executor.New()
+		executor, err := executor.New(cfg.ExecutorConfig)
 		if err != nil {
-			logrus.Error("Failed to create executor")
+			logrus.Errorf("Failed to create %s executor", cfg.ExecutorConfig.Type)
 			return
 		}
 
