@@ -69,6 +69,16 @@ func Read(path string) (config types.Configuration, err error) {
 	if !slices.Contains(supportedRepositoryTypes, config.RepositoryType) {
 		return config, fmt.Errorf("config: repository type is '%s' while it be one of '%s'", config.RepositoryType, supportedRepositoryTypes)
 	}
+	if config.ExecutorConfig.Type == "" {
+		config.ExecutorConfig.Type = "nix"
+	}
+	supportedExecutorTypes := []string{"nix", "garnix"}
+	if !slices.Contains(supportedExecutorTypes, config.ExecutorConfig.Type) {
+		return config, fmt.Errorf("config: executor type is '%s' while it must be one of '%s'", config.ExecutorConfig.Type, supportedExecutorTypes)
+	}
+	if config.ExecutorConfig.Type == "garnix" && config.RepositoryType != "flake" {
+		return config, fmt.Errorf("config: executor type 'garnix' requires repository_type 'flake', got '%s'", config.RepositoryType)
+	}
 	if config.Grpc.UnixSocketPath == "" {
 		config.Grpc.UnixSocketPath = filepath.Join(config.StateDir, "grpc.sock")
 	}

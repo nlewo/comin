@@ -57,6 +57,9 @@ func TestConfig(t *testing.T) {
 		Grpc: types.Grpc{
 			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		},
+		ExecutorConfig: types.ExecutorConfig{
+			Type: "nix",
+		},
 	}
 	config, err := Read(configPath)
 	assert.Nil(t, err)

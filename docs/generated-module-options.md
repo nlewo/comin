@@ -252,6 +252,158 @@ string
 
 
 
+## services\.comin\.executor
+
+
+
+Select which executor will be used for evaluating and building the system configuration\.
+
+The ` garnix ` executor delegates evaluation and building to garnix\.io and fetches
+the result from its binary cache\. For this to work, the user must add
+` cache.garnix.io ` to ` nix.settings.substituters ` and the corresponding
+` cache.garnix.io-1:... ` key to ` nix.settings.trusted-public-keys `\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.executor\.garnix
+
+
+
+Configuration for the Garnix executor\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.executor\.garnix\.baseUrl
+
+
+
+Base URL for the Garnix API\. Defaults to https://garnix\.io/ when empty\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.garnix\.cacheUrl
+
+
+
+URL of the Garnix binary cache\. Defaults to https://cache\.garnix\.io/ when empty\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.garnix\.cache_size
+
+
+
+LRU cache size for drvPath -> outPath mappings\. Defaults to 2 when 0\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
+## services\.comin\.executor\.garnix\.retry_interval
+
+
+
+Polling interval (in seconds) when waiting for a Garnix build\. Defaults to 60 when 0\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
+## services\.comin\.executor\.type
+
+
+
+Type of executor to use (nix or garnix)\.
+
+
+
+*Type:*
+one of “nix”, “garnix”
+
+
+
+*Default:*
+
+```nix
+"nix"
+```
+
+
+
 ## services\.comin\.exporter
 
 
