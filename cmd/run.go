@@ -35,9 +35,15 @@ var runCmd = &cobra.Command{
 
 		gitConfig := config.MkGitConfig(cfg)
 
-		executor, err := executorPkg.NewNixOS()
-		if runtime.GOOS == "darwin" {
-			executor, err = executorPkg.NewNixDarwin()
+		var executor executorPkg.Executor
+		if cfg.ExecutorConfig.Type == "garnix" {
+			executor, err = executorPkg.NewGarnixExecutor(cfg.ExecutorConfig.GarnixConfig, runtime.GOOS)
+		} else {
+			if runtime.GOOS == "darwin" {
+				executor, err = executorPkg.NewNixDarwin()
+			} else {
+				executor, err = executorPkg.NewNixOS()
+			}
 		}
 		if err != nil {
 			logrus.Errorf("Failed to create the executor: %s", err)

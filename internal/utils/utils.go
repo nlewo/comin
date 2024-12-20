@@ -23,6 +23,13 @@ func FormatCommitMsg(msg string) string {
 	return formatted
 }
 
+func ReadMachineId(platform string) (machineId string, err error) {
+	if platform == "darwinConfigurations" {
+		return ReadMachineIdDarwin()
+	}
+	return ReadMachineIdLinux()
+}
+
 func ReadMachineIdLinux() (machineId string, err error) {
 	machineIdBytes, err := os.ReadFile("/etc/machine-id")
 	machineId = strings.TrimSuffix(string(machineIdBytes), "\n")

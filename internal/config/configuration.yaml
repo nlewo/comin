@@ -19,3 +19,5 @@ branches:
     protected: false
 poller:
   period: 10
+executor:
+  type: nix
