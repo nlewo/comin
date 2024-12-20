@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path"
+	"runtime"
 	"time"
 
 	brokerPkg "github.com/nlewo/comin/internal/broker"
@@ -61,7 +62,15 @@ var runCmd = &cobra.Command{
 		}
 
 		var executor executorPkg.Executor
-		executor, err = executorPkg.New(cfg.RepositoryType, gitConfig.Path, gitConfig.Submodules)
+		if cfg.ExecutorConfig.Type == "garnix" {
+			systemAttr := "nixosConfigurations"
+			if runtime.GOOS == "darwin" {
+				systemAttr = "darwinConfigurations"
+			}
+			executor, err = executorPkg.NewGarnixExecutor(cfg.ExecutorConfig.GarnixConfig, systemAttr)
+		} else {
+			executor, err = executorPkg.New(cfg.RepositoryType, gitConfig.Path, gitConfig.Submodules)
+		}
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
