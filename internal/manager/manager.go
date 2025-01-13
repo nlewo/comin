@@ -34,7 +34,7 @@ type Manager struct {
 	prometheus prometheus.Prometheus
 	storage    store.Store
 	scheduler  scheduler.Scheduler
-	fetcher    *fetcher.Fetcher
+	Fetcher    *fetcher.Fetcher
 	builder    *builder.Builder
 	deployer   *deployer.Deployer
 }
@@ -48,7 +48,7 @@ func New(s store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetc
 		prometheus:              p,
 		storage:                 s,
 		scheduler:               sched,
-		fetcher:                 fetcher,
+		Fetcher:                 fetcher,
 		builder:                 builder,
 		deployer:                deployer,
 	}
@@ -63,7 +63,7 @@ func (m *Manager) GetState() State {
 func (m *Manager) toState() State {
 	return State{
 		NeedToReboot: m.needToReboot,
-		Fetcher:      m.fetcher.GetState(),
+		Fetcher:      m.Fetcher.GetState(),
 		Builder:      m.builder.State(),
 		Deployer:     m.deployer.State(),
 	}
@@ -76,7 +76,7 @@ func (m *Manager) FetchAndBuild() {
 	go func() {
 		for {
 			select {
-			case rs := <-m.fetcher.RepositoryStatusCh:
+			case rs := <-m.Fetcher.RepositoryStatusCh:
 				logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
 				m.builder.Eval(rs)
 			case generation := <-m.builder.EvaluationDone:

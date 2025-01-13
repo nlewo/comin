@@ -69,7 +69,7 @@ func TestBuild(t *testing.T) {
 	d := deployer.New(deployFunc, nil)
 	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
-	assert.False(t, m.fetcher.GetState().IsFetching)
+	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
 	assert.False(t, m.builder.State().IsBuilding)
 
@@ -167,7 +167,7 @@ func TestDeploy(t *testing.T) {
 	d := deployer.New(deployFunc, nil)
 	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
-	assert.False(t, m.fetcher.GetState().IsFetching)
+	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
 	assert.False(t, m.builder.State().IsBuilding)
 

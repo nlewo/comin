@@ -33,16 +33,38 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 		handlerStatus(m, w, r)
 		return
 	}
+	handlerFetcherFn := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		s := m.GetState().Fetcher
+		rJson, _ := json.MarshalIndent(s, "", "\t")
+		io.WriteString(w, string(rJson))
+	}
+	handlerFetcherFetchFn := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			s := m.GetState().Fetcher
+			remotes := make([]string, 0)
+			for _, r := range s.RepositoryStatus.Remotes {
+				remotes = append(remotes, r.Name)
+			}
+			m.Fetcher.TriggerFetch(remotes)
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
 
-	muxStatus := http.NewServeMux()
-	muxStatus.HandleFunc("/status", handlerStatusFn)
+	muxApi := http.NewServeMux()
+	muxApi.HandleFunc("/api/status", handlerStatusFn)
+	muxApi.HandleFunc("/api/fetcher", handlerFetcherFn)
+	muxApi.HandleFunc("/api/fetcher/fetch", handlerFetcherFetchFn)
 	muxMetrics := http.NewServeMux()
 	muxMetrics.Handle("/metrics", p.Handler())
 
 	go func() {
 		url := fmt.Sprintf("%s:%d", apiAddress, apiPort)
 		logrus.Infof("Starting the API server on %s", url)
-		if err := http.ListenAndServe(url, muxStatus); err != nil {
+		if err := http.ListenAndServe(url, muxApi); err != nil {
 			logrus.Errorf("Error while running the API server: %s", err)
 			os.Exit(1)
 		}
