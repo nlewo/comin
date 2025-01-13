@@ -66,7 +66,7 @@ func printCommit(selectedRemoteName, selectedBranchName, selectedCommitId, selec
 }
 
 func getStatus() (status manager.State, err error) {
-	url := "http://localhost:4242/status"
+	url := "http://localhost:4242/api/status"
 	client := http.Client{
 		Timeout: time.Second * 2,
 	}
