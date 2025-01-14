@@ -145,6 +145,7 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) {
 		MainBranchName:          rs.MainBranchName,
 		MainCommitId:            rs.MainCommitId,
 		EvalStartedAt:           time.Now().UTC(),
+		EvalStatus:              Evaluating,
 	}
 	b.generation = &g
 
