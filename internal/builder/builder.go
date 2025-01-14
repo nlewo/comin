@@ -201,6 +201,7 @@ func (b *Builder) Build() error {
 	}
 	b.generation.BuildStartedAt = time.Now().UTC()
 	b.generation.BuildStatus = Building
+	b.IsBuilding = true
 
 	buildator := &Buildator{
 		drvPath:   b.generation.DrvPath,
@@ -225,6 +226,7 @@ func (b *Builder) Build() error {
 			b.generation.BuildStatus = BuildFailed
 			b.generation.BuildErrStr = b.buildator.err.Error()
 		}
+		b.IsBuilding = false
 		select {
 		case b.BuildDone <- *b.generation:
 		default:

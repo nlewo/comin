@@ -68,7 +68,6 @@ func TestBuilderBuild(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, b.IsBuilding)
 		g := b.GetGeneration()
-		assert.False(c, g.Built)
 		assert.ErrorContains(c, g.BuildErr, "context canceled")
 	}, 2*time.Second, 100*time.Millisecond)
 
@@ -103,7 +102,7 @@ func TestEval(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, b.IsEvaluating)
 		g := b.GetGeneration()
-		assert.True(c, g.Evaluated)
+		assert.Equal(c, Evaluated, g.EvalStatus)
 		assert.Equal(c, "drv-path", g.DrvPath)
 		assert.Equal(c, "out-path", g.OutPath)
 	}, 2*time.Second, 100*time.Millisecond)
