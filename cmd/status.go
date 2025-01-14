@@ -10,28 +10,11 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/nlewo/comin/internal/builder"
-	"github.com/nlewo/comin/internal/deployment"
 	"github.com/nlewo/comin/internal/manager"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
-
-func deploymentStatus(d deployment.Deployment) {
-	fmt.Printf("  Current Deployment\n")
-	fmt.Printf("    Operation: %s\n", d.Operation)
-	switch d.Status {
-	case deployment.Init:
-		fmt.Printf("    Status: initializated\n")
-	case deployment.Running:
-		fmt.Printf("    Status: running (since %s)\n", humanize.Time(d.StartAt))
-	case deployment.Done:
-		fmt.Printf("    Status: succeeded (%s)\n", humanize.Time(d.EndAt))
-	case deployment.Failed:
-		fmt.Printf("    Status: failed (%s)\n", humanize.Time(d.EndAt))
-	}
-	printCommit(d.Generation.SelectedRemoteName, d.Generation.SelectedBranchName, d.Generation.SelectedCommitId, d.Generation.SelectedCommitMsg)
-}
 
 func printCommit(selectedRemoteName, selectedBranchName, selectedCommitId, selectedCommitMsg string) {
 	fmt.Printf("    Commit %s from '%s/%s'\n",
