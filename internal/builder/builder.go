@@ -167,12 +167,14 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) {
 		b.generation.EvalErr = b.evaluator.err
 		if b.evaluator.err != nil {
 			b.generation.EvalErrStr = b.evaluator.err.Error()
+			b.generation.EvalStatus = EvalFailed
+		} else {
+			b.generation.EvalStatus = Evaluated
 		}
 		b.generation.EvalErr = b.evaluator.err
 		b.generation.DrvPath = evaluator.drvPath
 		b.generation.OutPath = evaluator.outPath
 		b.generation.MachineId = evaluator.machineId
-		b.generation.Evaluated = true
 		b.generation.EvalEndedAt = time.Now().UTC()
 		b.IsEvaluating = false
 		select {
@@ -188,17 +190,17 @@ func (b *Builder) Build() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if b.generation == nil || !b.generation.Evaluated {
+	if b.generation == nil || b.generation.EvalStatus != Evaluated {
 		return fmt.Errorf("The generation is not evaluated")
 	}
 	if b.IsBuilding {
 		return fmt.Errorf("The builder is already building")
 	}
-	if b.generation.Built {
+	if b.generation.BuildStatus == Built {
 		return fmt.Errorf("The generation is already built")
 	}
-	b.IsBuilding = true
 	b.generation.BuildStartedAt = time.Now().UTC()
+	b.generation.BuildStatus = Building
 
 	buildator := &Buildator{
 		drvPath:   b.generation.DrvPath,
@@ -218,11 +220,11 @@ func (b *Builder) Build() error {
 		b.generation.BuildEndedAt = time.Now().UTC()
 		b.generation.BuildErr = b.buildator.err
 		if b.buildator.err == nil {
-			b.generation.Built = true
+			b.generation.BuildStatus = Built
 		} else {
+			b.generation.BuildStatus = BuildFailed
 			b.generation.BuildErrStr = b.buildator.err.Error()
 		}
-		b.IsBuilding = false
 		select {
 		case b.BuildDone <- *b.generation:
 		default:
