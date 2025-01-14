@@ -165,6 +165,10 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		b.generation.EvalErr = b.evaluator.err
+		if b.evaluator.err != nil {
+			b.generation.EvalErrStr = b.evaluator.err.Error()
+		}
+		b.generation.EvalErr = b.evaluator.err
 		b.generation.DrvPath = evaluator.drvPath
 		b.generation.OutPath = evaluator.outPath
 		b.generation.MachineId = evaluator.machineId
@@ -213,8 +217,10 @@ func (b *Builder) Build() error {
 		defer b.mu.Unlock()
 		b.generation.BuildEndedAt = time.Now().UTC()
 		b.generation.BuildErr = b.buildator.err
-		if b.generation.BuildErr == nil {
+		if b.buildator.err == nil {
 			b.generation.Built = true
+		} else {
+			b.generation.BuildErrStr = b.buildator.err.Error()
 		}
 		b.IsBuilding = false
 		select {
