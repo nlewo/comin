@@ -42,7 +42,7 @@
             ./main.go
           ];
         };
-        vendorHash = "sha256-9qObgfXvMkwE+1BVZNQXVhKhL6LqMqyIUhGnXf8q9SI=";
+        vendorHash = "sha256-VP8y/iSBIXZFfSmhHsXkp6RxP+2DovX3PbEDtMUMyYE=";
         ldflags = [
           "-X github.com/nlewo/comin/cmd.version=${version}"
         ];
