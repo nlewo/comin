@@ -2,6 +2,7 @@ package deployer
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -31,20 +32,6 @@ func StatusToString(status Status) string {
 		return "failed"
 	}
 	return ""
-}
-
-func StatusFromString(status string) Status {
-	switch status {
-	case "init":
-		return Init
-	case "running":
-		return Running
-	case "done":
-		return Done
-	case "failed":
-		return Failed
-	}
-	return Init
 }
 
 type Deployment struct {
@@ -98,6 +85,29 @@ func (d *Deployer) State() State {
 	}
 }
 
+func (s State) Show(padding string) {
+	fmt.Printf("  Deployer\n")
+	if s.Deployment == nil {
+		fmt.Printf("%sNo deployment occured yet\n", padding)
+		return
+	}
+	switch s.Deployment.Status {
+	case Running:
+		fmt.Printf("%sDeployment is running since %s\n", padding, s.Deployment.StartedAt)
+		fmt.Printf("%s  Generation %s\n", padding, s.Deployment.Generation.UUID)
+		fmt.Printf("%s  Operation %s\n", padding, s.Deployment.Operation)
+	case Done:
+		fmt.Printf("%sDeployment succeeded %s\n", padding, s.Deployment.EndedAt)
+		fmt.Printf("%s  Generation %s\n", padding, s.Deployment.Generation.UUID)
+		fmt.Printf("%s  Operation %s\n", padding, s.Deployment.Operation)
+		fmt.Printf("%s  ProfilePath %s\n", padding, s.Deployment.ProfilePath)
+	case Failed:
+		fmt.Printf("%sDeployment failed %s\n", padding, s.Deployment.EndedAt)
+		fmt.Printf("%s  Generation %s\n", padding, s.Deployment.Generation.UUID)
+		fmt.Printf("%s  Operation %s\n", padding, s.Deployment.Operation)
+	}
+}
+
 func New(deployFunc DeployFunc, previousDeployment *Deployment) *Deployer {
 	return &Deployer{
 		DeploymentDoneCh:      make(chan Deployment, 1),
@@ -145,6 +155,7 @@ func (d *Deployer) Run() {
 				Generation: *g,
 				Operation:  operation,
 				StartedAt:  time.Now().UTC(),
+				Status:     Running,
 			}
 			d.mu.Lock()
 			d.previousDeployment = d.Deployment
@@ -164,6 +175,9 @@ func (d *Deployer) Run() {
 			d.Deployment.Err = err
 			if err != nil {
 				d.Deployment.ErrorMsg = err.Error()
+				d.Deployment.Status = Failed
+			} else {
+				d.Deployment.Status = Done
 			}
 			d.Deployment.RestartComin = cominNeedRestart
 			d.Deployment.ProfilePath = profilePath

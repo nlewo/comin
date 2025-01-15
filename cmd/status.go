@@ -11,21 +11,9 @@ import (
 
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/manager"
-	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
-
-func printCommit(selectedRemoteName, selectedBranchName, selectedCommitId, selectedCommitMsg string) {
-	fmt.Printf("    Commit %s from '%s/%s'\n",
-		selectedCommitId,
-		selectedRemoteName,
-		selectedBranchName,
-	)
-	fmt.Printf("      %s\n",
-		utils.FormatCommitMsg(selectedCommitMsg),
-	)
-}
 
 func getStatus() (status manager.State, err error) {
 	url := "http://localhost:4242/api/status"
@@ -77,6 +65,7 @@ var statusCmd = &cobra.Command{
 		}
 		fmt.Printf("  Builder\n")
 		builder.GenerationShow(*status.Builder.Generation)
+		status.Deployer.Show("    ")
 	},
 }
 
