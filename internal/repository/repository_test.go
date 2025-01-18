@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,7 +32,7 @@ func TestNew(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, "")
+	r, err := New(gitConfig, "", prometheus.New())
 	assert.Nil(t, err)
 	assert.Equal(t, "r1", r.RepositoryStatus.Remotes[0].Name)
 }
@@ -60,7 +61,7 @@ func TestPreferMain(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, "")
+	r, err := New(gitConfig, "", prometheus.New())
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3
@@ -115,7 +116,7 @@ func TestMainCommitId(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, cMain)
+	r, _ := New(gitConfig, cMain, prometheus.New())
 
 	// r1/main: c1 - c2 - c3 - c4
 	// r1/testing: c1 - c2 - c3 - c4 - c5
@@ -168,7 +169,7 @@ func TestContinueIfHardReset(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, cMain)
+	r, _ := New(gitConfig, cMain, prometheus.New())
 
 	r.Fetch([]string{"r1", "r2"})
 	r.Update()
@@ -236,7 +237,7 @@ func TestMultipleRemote(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, "")
+	r, err := New(gitConfig, "", prometheus.New())
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r2/main: c1 - c2 - c3
@@ -325,9 +326,7 @@ func TestMultipleRemote(t *testing.T) {
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 
 	assert.Equal(t, "r1", r.RepositoryStatus.Remotes[0].Name)
-	assert.False(t, r.RepositoryStatus.Remotes[0].LastFetched)
 	assert.Equal(t, "r2", r.RepositoryStatus.Remotes[1].Name)
-	assert.True(t, r.RepositoryStatus.Remotes[1].LastFetched)
 
 	// Fetch the r1 remote
 	// r1/main: c1 - c2 - c3 - c4 - c5 - c6 - c8 - *c9
@@ -378,7 +377,7 @@ func TestTestingSwitch(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, "")
+	r, _ := New(gitConfig, "", prometheus.New())
 
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3
@@ -447,7 +446,7 @@ func TestWithoutTesting(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, "")
+	r, _ := New(gitConfig, "", prometheus.New())
 
 	r.Fetch([]string{"r1"})
 	_ = r.Update()
@@ -480,7 +479,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, "")
+	r, _ := New(gitConfig, "", prometheus.New())
 
 	// The remote repository is initially checkouted
 	r.Fetch([]string{"origin"})
@@ -539,7 +538,7 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, "")
+	r, _ := New(gitConfig, "", prometheus.New())
 
 	// The remote repository is initially checkouted
 	r.Fetch([]string{"origin"})
@@ -598,7 +597,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 			},
 		},
 	}
-	r, _ := New(gitConfig, "")
+	r, _ := New(gitConfig, "", prometheus.New())
 
 	// The remote repository is initially checkouted on main
 	r.Fetch([]string{"origin"})
@@ -666,7 +665,7 @@ func TestTestingHardReset(t *testing.T) {
 			},
 		},
 	}
-	r, err := New(gitConfig, "")
+	r, err := New(gitConfig, "", prometheus.New())
 	assert.Nil(t, err)
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3

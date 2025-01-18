@@ -31,9 +31,6 @@ type Remote struct {
 	Testing       *TestingBranch `json:"testing,omitempty"`
 	FetchedAt     time.Time      `json:"fetched_at,omitempty"`
 	Fetched       bool           `json:"fetched,omitempty"`
-	// Is this remote the last festched one? This is mainly useful
-	// to increase Prometheus counters.b
-	LastFetched bool `json:"last_fetched,omitempty"`
 }
 
 type RepositoryStatus struct {

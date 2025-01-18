@@ -55,8 +55,6 @@ func (f *Fetcher) Start() {
 				remotes = union(remotes, submittedRemotes)
 			case rs := <-workerRepositoryStatusCh:
 				f.IsFetching = false
-				// TODO: increment fetch counter
-				// m.prometheus.IncFetchCounter(r.Name, status)
 				if rs.SelectedCommitId != f.RepositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting != f.RepositoryStatus.SelectedBranchIsTesting {
 					f.RepositoryStatus = rs
 					f.RepositoryStatusCh <- rs

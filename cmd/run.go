@@ -56,7 +56,7 @@ var runCmd = &cobra.Command{
 			mainCommitId = ld.Generation.MainCommitId
 			lastDeployment = &ld
 		}
-		repository, err := repository.New(gitConfig, mainCommitId)
+		repository, err := repository.New(gitConfig, mainCommitId, metrics)
 		if err != nil {
 			logrus.Errorf("Failed to initialize the repository: %s", err)
 			os.Exit(1)
