@@ -58,13 +58,24 @@ var statusCmd = &cobra.Command{
 		}
 		fmt.Printf("  Need to reboot: %s\n", needToReboot)
 		fmt.Printf("  Fetcher\n")
+		if status.Fetcher.RepositoryStatus.SelectedCommitShouldBeSigned {
+			if status.Fetcher.RepositoryStatus.SelectedCommitSigned {
+				fmt.Printf("    Commit %s signed by %s\n", status.Fetcher.RepositoryStatus.SelectedCommitId, status.Fetcher.RepositoryStatus.SelectedCommitSignedBy)
+			} else {
+				fmt.Printf("    Commit %s is not signed while it should be\n", status.Fetcher.RepositoryStatus.SelectedCommitId)
+			}
+		}
 		for _, r := range status.Fetcher.RepositoryStatus.Remotes {
 			fmt.Printf("    Remote %s %s fetched %s\n",
 				r.Name, r.Url, humanize.Time(r.FetchedAt),
 			)
 		}
 		fmt.Printf("  Builder\n")
-		builder.GenerationShow(*status.Builder.Generation)
+		if status.Builder.Generation != nil {
+			builder.GenerationShow(*status.Builder.Generation)
+		} else {
+			fmt.Printf("    No build available\n")
+		}
 		status.Deployer.Show("    ")
 	},
 }

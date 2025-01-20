@@ -1,12 +1,13 @@
 package config
 
 import (
-	"github.com/nlewo/comin/internal/types"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/nlewo/comin/internal/types"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 func Read(path string) (config types.Configuration, err error) {
@@ -57,8 +58,9 @@ func Read(path string) (config types.Configuration, err error) {
 
 func MkGitConfig(config types.Configuration) types.GitConfig {
 	return types.GitConfig{
-		Path:    filepath.Join(config.StateDir, "repository"),
-		Dir:     config.FlakeSubdirectory,
-		Remotes: config.Remotes,
+		Path:              filepath.Join(config.StateDir, "repository"),
+		Dir:               config.FlakeSubdirectory,
+		Remotes:           config.Remotes,
+		GpgPublicKeyPaths: config.GpgPublicKeyPaths,
 	}
 }

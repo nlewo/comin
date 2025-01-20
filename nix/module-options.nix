@@ -169,6 +169,11 @@
           Note it is only used by comin at evaluation.
         '';
       };
+      gpgPublicKeyPaths = mkOption {
+        description = "A list of GPG public key file paths. Each of this file should contains an armored GPG key.";
+        type = listOf string;
+        default = [];
+      };
     };
   };
 }

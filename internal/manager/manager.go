@@ -77,8 +77,12 @@ func (m *Manager) FetchAndBuild() {
 		for {
 			select {
 			case rs := <-m.Fetcher.RepositoryStatusCh:
-				logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-				m.builder.Eval(rs)
+				if !rs.SelectedCommitShouldBeSigned || rs.SelectedCommitSigned {
+					logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
+					m.builder.Eval(rs)
+				} else {
+					logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
+				}
 			case generation := <-m.builder.EvaluationDone:
 				if generation.EvalErr != nil {
 					continue
