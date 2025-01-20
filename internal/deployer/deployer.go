@@ -3,9 +3,11 @@ package deployer
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/sirupsen/logrus"
@@ -85,27 +87,33 @@ func (d *Deployer) State() State {
 	}
 }
 
+func showDeployment(padding string, d Deployment) {
+	switch d.Status {
+	case Running:
+		fmt.Printf("%sDeployment is running since %s\n", padding, humanize.Time(d.StartedAt))
+		fmt.Printf("%sOperation %s\n", padding, d.Operation)
+	case Done:
+		fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt))
+		fmt.Printf("%sOperation %s\n", padding, d.Operation)
+		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
+	case Failed:
+		fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt))
+		fmt.Printf("%sOperation %s\n", padding, d.Operation)
+		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
+	}
+	fmt.Printf("%sGeneration %s\n", padding, d.Generation.UUID)
+	fmt.Printf("%sCommit ID %s from %s/%s\n", padding, d.Generation.SelectedCommitId, d.Generation.SelectedRemoteName, d.Generation.SelectedBranchName)
+	fmt.Printf("%sCommit message %s\n", padding, strings.Trim(d.Generation.SelectedCommitMsg, "\n"))
+	fmt.Printf("%sOutpath %s\n", padding, d.Generation.OutPath)
+}
+
 func (s State) Show(padding string) {
 	fmt.Printf("  Deployer\n")
 	if s.Deployment == nil {
-		fmt.Printf("%sNo deployment occured yet\n", padding)
+		showDeployment(padding, *s.PreviousDeployment)
 		return
 	}
-	switch s.Deployment.Status {
-	case Running:
-		fmt.Printf("%sDeployment is running since %s\n", padding, s.Deployment.StartedAt)
-		fmt.Printf("%s  Generation %s\n", padding, s.Deployment.Generation.UUID)
-		fmt.Printf("%s  Operation %s\n", padding, s.Deployment.Operation)
-	case Done:
-		fmt.Printf("%sDeployment succeeded %s\n", padding, s.Deployment.EndedAt)
-		fmt.Printf("%s  Generation %s\n", padding, s.Deployment.Generation.UUID)
-		fmt.Printf("%s  Operation %s\n", padding, s.Deployment.Operation)
-		fmt.Printf("%s  ProfilePath %s\n", padding, s.Deployment.ProfilePath)
-	case Failed:
-		fmt.Printf("%sDeployment failed %s\n", padding, s.Deployment.EndedAt)
-		fmt.Printf("%s  Generation %s\n", padding, s.Deployment.Generation.UUID)
-		fmt.Printf("%s  Operation %s\n", padding, s.Deployment.Operation)
-	}
+	showDeployment(padding, *s.Deployment)
 }
 
 func New(deployFunc DeployFunc, previousDeployment *Deployment) *Deployer {

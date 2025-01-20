@@ -91,6 +91,7 @@ type Generation struct {
 
 func GenerationShow(g Generation) {
 	padding := "    "
+	fmt.Printf("%sGeneration UUID %s\n", padding, g.UUID)
 	fmt.Printf("%sCommit ID %s from %s/%s\n", padding, g.SelectedCommitId, g.SelectedRemoteName, g.SelectedBranchName)
 	fmt.Printf("%sCommit message: %s\n", padding, strings.Trim(g.SelectedCommitMsg, "\n"))
 
