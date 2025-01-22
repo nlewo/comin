@@ -2,13 +2,18 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/nlewo/comin/internal/deployment"
+	"github.com/nlewo/comin/internal/builder"
+	"github.com/nlewo/comin/internal/deployer"
+	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -17,184 +22,234 @@ type metricsMock struct{}
 
 func (m metricsMock) SetDeploymentInfo(commitId, status string) {}
 
-type repositoryMock struct {
-	rsCh chan repository.RepositoryStatus
-}
-
-func newRepositoryMock() (r *repositoryMock) {
-	rsCh := make(chan repository.RepositoryStatus)
-	return &repositoryMock{
-		rsCh: rsCh,
+var mkNixEvalMock = func(evalOk chan bool) builder.EvalFunc {
+	return func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
+		ok := <-evalOk
+		if ok {
+			return "drv-path", "out-path", "", nil
+		} else {
+			return "", "", "", fmt.Errorf("An error occured")
+		}
 	}
 }
-func (r *repositoryMock) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan repository.RepositoryStatus) {
-	return r.rsCh
-}
 
-func TestRun(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "")
-
-	evalDone := make(chan struct{})
-	buildDone := make(chan struct{})
-	nixEvalMock := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
-		<-evalDone
-		return "drv-path", "out-path", "", nil
-	}
-	nixBuildMock := func(ctx context.Context, drvPath string) error {
-		<-buildDone
-		return nil
-	}
-	m.evalFunc = nixEvalMock
-	m.buildFunc = nixBuildMock
-
-	deployFunc := func(context.Context, string, string, string) (bool, string, error) {
+var mkDeployerMock = func() *deployer.Deployer {
+	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "", nil
 	}
-	m.deployerFunc = deployFunc
-
-	go m.Run()
-
-	// the state is empty
-	assert.Equal(t, State{}, m.GetState())
-
-	// the repository is fetched
-	m.Fetch([]string{"origin"})
-	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
-
-	// we inject a repositoryStatus
-	r.rsCh <- repository.RepositoryStatus{
-		SelectedCommitId: "foo",
-	}
-	assert.Equal(
-		t,
-		repository.RepositoryStatus{SelectedCommitId: "foo"},
-		m.GetState().RepositoryStatus)
-
-	// we simulate the end of the evaluation
-	close(evalDone)
-	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, "drv-path", m.GetState().Generation.DrvPath)
-		assert.NotEmpty(c, m.GetState().Generation.EvalEndedAt)
-	}, 5*time.Second, 100*time.Millisecond, "evaluation is not finished")
-
-	// we simulate the end of the build
-	close(buildDone)
-	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.NotEmpty(c, m.GetState().Generation.BuildEndedAt)
-	}, 5*time.Second, 100*time.Millisecond, "build is not finished")
-
-	// we simulate the end of the deploy
-	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.NotEmpty(c, m.GetState().Deployment.EndAt)
-	}, 5*time.Second, 100*time.Millisecond, "deployment is not finished")
-
+	return deployer.New(deployFunc, nil)
 }
 
-func TestFetchBusy(t *testing.T) {
+var mkNixBuildMock = func(buildOk chan bool) builder.BuildFunc {
+	return func(ctx context.Context, drvPath string) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case ok := <-buildOk:
+			if ok {
+				return nil
+			} else {
+				return fmt.Errorf("An error occured")
+			}
+		}
+	}
+}
+
+func TestBuild(t *testing.T) {
+	evalOk := make(chan bool)
+	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "machine-id")
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	b := builder.New("repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+		return false, "profile-path", nil
+	}
+	d := deployer.New(deployFunc, nil)
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
+	assert.False(t, m.Fetcher.GetState().IsFetching)
+	assert.False(t, m.builder.State().IsEvaluating)
+	assert.False(t, m.builder.State().IsBuilding)
 
-	assert.Equal(t, State{}, m.GetState())
+	commitId := "id-1"
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: commitId,
+	}
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(c, m.builder.State().IsEvaluating)
+		assert.False(c, m.builder.State().IsBuilding)
+	}, 5*time.Second, 100*time.Millisecond)
 
-	m.Fetch([]string{"origin"})
-	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
+	// This simulates the failure of an evaluation
+	evalOk <- false
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(c, m.builder.State().IsEvaluating)
+		assert.False(c, m.builder.State().IsBuilding)
+		assert.NotNil(c, m.builder.GetGeneration().EvalErr)
+		assert.Nil(c, m.deployer.GenerationToDeploy)
+	}, 5*time.Second, 100*time.Millisecond)
 
-	m.Fetch([]string{"origin"})
-	assert.Equal(t, repository.RepositoryStatus{}, m.GetState().RepositoryStatus)
+	commitId = "id-2"
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: commitId,
+	}
+	// This simulates the success of an evaluation
+	evalOk <- true
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(c, m.builder.State().IsEvaluating)
+		assert.True(c, m.builder.State().IsBuilding)
+		assert.Nil(c, m.builder.GetGeneration().EvalErr)
+		assert.Nil(c, m.deployer.GenerationToDeploy)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// This simulates the failure of a build
+	buildOk <- false
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(c, m.builder.State().IsEvaluating)
+		assert.False(c, m.builder.State().IsBuilding)
+		assert.NotNil(c, m.builder.GetGeneration().BuildErr)
+		assert.Nil(c, m.deployer.GenerationToDeploy)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// This simulates the success of a build
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id-3",
+	}
+	evalOk <- true
+	buildOk <- true
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(c, m.builder.State().IsEvaluating)
+		assert.False(c, m.builder.State().IsBuilding)
+		assert.Nil(c, m.builder.GetGeneration().BuildErr)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// This simulates the success of another build and ensure this
+	// new build is the one proposed for deployment.
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id-4",
+	}
+	evalOk <- true
+	buildOk <- true
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(c, m.builder.State().IsEvaluating)
+		assert.False(c, m.builder.State().IsBuilding)
+		assert.Nil(c, m.builder.GetGeneration().BuildErr)
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// This simulates the push of new commit while building
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id-5",
+	}
+	evalOk <- true
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(c, m.builder.State().IsBuilding)
+	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func TestDeploy(t *testing.T) {
+	evalOk := make(chan bool)
+	buildOk := make(chan bool)
+	logrus.SetLevel(logrus.DebugLevel)
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	b := builder.New("repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+		return false, "profile-path", nil
+	}
+	d := deployer.New(deployFunc, nil)
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	go m.Run()
+	assert.False(t, m.Fetcher.GetState().IsFetching)
+	assert.False(t, m.builder.State().IsEvaluating)
+	assert.False(t, m.builder.State().IsBuilding)
+
+	m.deployer.Submit(builder.Generation{})
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, "profile-path", m.deployer.State().Deployment.ProfilePath)
+	}, 5*time.Second, 100*time.Millisecond)
+
 }
 
 func TestRestartComin(t *testing.T) {
+	evalOk := make(chan bool)
+	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "machine-id")
-	dCh := make(chan deployment.DeploymentResult)
-	m.deploymentResultCh = dCh
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	b := builder.New("repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+		return true, "profile-path", nil
+	}
+	d := deployer.New(deployFunc, nil)
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	go m.Run()
+
 	isCominRestarted := false
 	cominServiceRestartMock := func() error {
 		isCominRestarted = true
 		return nil
 	}
 	m.cominServiceRestartFunc = cominServiceRestartMock
-	go m.Run()
-	m.deploymentResultCh <- deployment.DeploymentResult{
-		RestartComin: true,
-	}
+
+	m.deployer.Submit(builder.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, isCominRestarted)
 	}, 5*time.Second, 100*time.Millisecond, "comin has not been restarted yet")
-
-}
-
-func TestOptionnalMachineId(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "the-test-machine-id")
-
-	evalDone := make(chan struct{})
-	buildDone := make(chan struct{})
-	nixEvalMock := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
-		<-evalDone
-		// When comin.machineId is empty, comin evaluates it as an empty string
-		evaluatedMachineId := ""
-		return "drv-path", "out-path", evaluatedMachineId, nil
-	}
-	nixBuildMock := func(ctx context.Context, drvPath string) error {
-		<-buildDone
-		return nil
-	}
-	m.evalFunc = nixEvalMock
-	m.buildFunc = nixBuildMock
-
-	go m.Run()
-	m.Fetch([]string{"origin"})
-	r.rsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
-
-	// we simulate the end of the evaluation
-	close(evalDone)
-
-	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(t, m.GetState().IsRunning)
-	}, 5*time.Second, 100*time.Millisecond, "evaluation is not finished")
 }
 
 func TestIncorrectMachineId(t *testing.T) {
+	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)
-	r := newRepositoryMock()
-	m := New(r, store.New("", 1, 1), prometheus.New(), "", "", "", "the-test-machine-id")
-
-	evalDone := make(chan struct{})
-	buildDone := make(chan struct{})
-	nixEvalMock := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
-		<-evalDone
-		return "drv-path", "out-path", "incorrect-machine-id", nil
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	nixEval := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
+		return "drv-path", "out-path", "invalid-machine-id", nil
 	}
-	nixBuildMock := func(ctx context.Context, drvPath string) error {
-		<-buildDone
-		return nil
-	}
-	m.evalFunc = nixEvalMock
-	m.buildFunc = nixBuildMock
-
+	b := builder.New("repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	d := mkDeployerMock()
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
 	go m.Run()
 
-	// the state is empty
-	assert.Equal(t, State{}, m.GetState())
-
-	// the repository is fetched
-	m.Fetch([]string{"origin"})
-	r.rsCh <- repository.RepositoryStatus{SelectedCommitId: "foo"}
-
-	assert.True(t, m.GetState().IsRunning)
-
-	// we simulate the end of the evaluation
-	close(evalDone)
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id",
+	}
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		// The manager is no longer running since the machine id are not identical
-		assert.False(t, m.GetState().IsRunning)
-	}, 5*time.Second, 100*time.Millisecond, "evaluation is not finished")
+		assert.False(t, m.GetState().Builder.IsBuilding)
+	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func TestCorrectMachineId(t *testing.T) {
+	buildOk := make(chan bool)
+	logrus.SetLevel(logrus.DebugLevel)
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	nixEval := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
+		return "drv-path", "out-path", "the-test-machine-id", nil
+	}
+	b := builder.New("repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	d := mkDeployerMock()
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
+	go m.Run()
+
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "id",
+	}
+
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(t, m.GetState().Builder.IsBuilding)
+	}, 5*time.Second, 100*time.Millisecond)
 }

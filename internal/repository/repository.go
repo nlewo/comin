@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
@@ -15,6 +16,7 @@ type repository struct {
 	Repository       *git.Repository
 	GitConfig        types.GitConfig
 	RepositoryStatus RepositoryStatus
+	prometheus       prometheus.Prometheus
 }
 
 type Repository interface {
@@ -22,8 +24,10 @@ type Repository interface {
 }
 
 // repositoryStatus is the last saved repositoryStatus
-func New(config types.GitConfig, mainCommitId string) (r *repository, err error) {
-	r = &repository{}
+func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prometheus) (r *repository, err error) {
+	r = &repository{
+		prometheus: prometheus,
+	}
 	r.GitConfig = config
 	r.Repository, err = repositoryOpen(config)
 	if err != nil {
@@ -50,22 +54,24 @@ func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (
 
 func (r *repository) Fetch(remoteNames []string) {
 	var err error
+	var status string
 	r.RepositoryStatus.Error = nil
 	r.RepositoryStatus.ErrorMsg = ""
 	for _, remote := range r.GitConfig.Remotes {
 		repositoryStatusRemote := r.RepositoryStatus.GetRemote(remote.Name)
-		repositoryStatusRemote.LastFetched = false
 		if !slices.Contains(remoteNames, remote.Name) {
 			continue
 		}
-		repositoryStatusRemote.LastFetched = true
 		if err = fetch(*r, remote); err != nil {
 			repositoryStatusRemote.FetchErrorMsg = err.Error()
+			status = "failed"
 		} else {
 			repositoryStatusRemote.FetchErrorMsg = ""
 			repositoryStatusRemote.Fetched = true
+			status = "succeeded"
 		}
 		repositoryStatusRemote.FetchedAt = time.Now().UTC()
+		r.prometheus.IncFetchCounter(remote.Name, status)
 	}
 }
 

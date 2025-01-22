@@ -37,10 +37,10 @@ func getExpectedMachineId(path, hostname string) (machineId string, err error) {
 		return
 	}
 	if machineIdPtr != nil {
-		logrus.Debugf("Getting comin.machineId = %s", *machineIdPtr)
+		logrus.Debugf("nix: getting comin.machineId = %s", *machineIdPtr)
 		machineId = *machineIdPtr
 	} else {
-		logrus.Debugf("Getting comin.machineId = null (not set)")
+		logrus.Debugf("nix: getting comin.machineId = null (not set)")
 		machineId = ""
 	}
 	return
@@ -187,7 +187,9 @@ func switchToConfiguration(operation string, outPath string, dryRun bool) error 
 	return nil
 }
 
-func Deploy(ctx context.Context, expectedMachineId, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+	// FIXME: this check doesn't have to be here. It should be
+	// done by the manager.
 	beforeCominUnitFileHash := cominUnitFileHash()
 
 	// This is required to write boot entries

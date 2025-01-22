@@ -5,14 +5,14 @@ import (
 	"errors"
 	"os"
 
-	"github.com/nlewo/comin/internal/deployment"
+	"github.com/nlewo/comin/internal/deployer"
 	"github.com/sirupsen/logrus"
 )
 
 type Data struct {
 	Version string `json:"version"`
 	// Deployments are order from the most recent to older
-	Deployments []deployment.Deployment `json:"deployments"`
+	Deployments []deployer.Deployment `json:"deployments"`
 }
 
 type Store struct {
@@ -28,13 +28,13 @@ func New(filename string, capacityMain, capacityTesting int) Store {
 		capacityMain:    capacityMain,
 		capacityTesting: capacityTesting,
 	}
-	s.Deployments = make([]deployment.Deployment, 0)
+	s.Deployments = make([]deployer.Deployment, 0)
 	s.Version = "1"
 	return s
 
 }
 
-func (s *Store) DeploymentInsertAndCommit(dpl deployment.Deployment) (ok bool, evicted deployment.Deployment) {
+func (s *Store) DeploymentInsertAndCommit(dpl deployer.Deployment) (ok bool, evicted deployer.Deployment) {
 	ok, evicted = s.DeploymentInsert(dpl)
 	if ok {
 		logrus.Infof("The deployment %s has been removed from store.json file", evicted.UUID)
@@ -49,7 +49,7 @@ func (s *Store) DeploymentInsertAndCommit(dpl deployment.Deployment) (ok bool, e
 
 // DeploymentInsert inserts a deployment and return an evicted
 // deployment because the capacity has been reached.
-func (s *Store) DeploymentInsert(dpl deployment.Deployment) (getsEvicted bool, evicted deployment.Deployment) {
+func (s *Store) DeploymentInsert(dpl deployer.Deployment) (getsEvicted bool, evicted deployer.Deployment) {
 	var qty, older int
 	capacity := s.capacityMain
 	if dpl.IsTesting() {
@@ -67,15 +67,15 @@ func (s *Store) DeploymentInsert(dpl deployment.Deployment) (getsEvicted bool, e
 		getsEvicted = true
 		s.Deployments = append(s.Deployments[:older], s.Deployments[older+1:]...)
 	}
-	s.Deployments = append([]deployment.Deployment{dpl}, s.Deployments...)
+	s.Deployments = append([]deployer.Deployment{dpl}, s.Deployments...)
 	return
 }
 
-func (s *Store) DeploymentList() []deployment.Deployment {
+func (s *Store) DeploymentList() []deployer.Deployment {
 	return s.Deployments
 }
 
-func (s *Store) LastDeployment() (ok bool, d deployment.Deployment) {
+func (s *Store) LastDeployment() (ok bool, d deployer.Deployment) {
 	if len(s.DeploymentList()) > 1 {
 		return true, s.DeploymentList()[0]
 	}
