@@ -1,4 +1,4 @@
-overlay: { config, pkgs, lib, ... }:
+self: { config, pkgs, lib, ... }:
 let
   cfg = config;
   yaml = pkgs.formats.yaml { };
@@ -13,11 +13,14 @@ let
     };
   };
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
+
+  inherit (pkgs.stdenv.hostPlatform) system;
+  package = self.packages.${system}.comin;
 in {
   imports = [ ./module-options.nix ];
   config = lib.mkIf cfg.services.comin.enable {
-    nixpkgs.overlays = [ overlay ];
-    environment.systemPackages = [ pkgs.comin ];
+    assertions = [ { assertion = lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake"; } ];
+    environment.systemPackages = [ package ];
     networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
@@ -27,7 +30,7 @@ in {
       restartIfChanged = false;
       serviceConfig = {
         ExecStart =
-          "${pkgs.comin}/bin/comin "
+          "${package}/bin/comin "
           + (lib.optionalString cfg.services.comin.debug "--debug ")
           + " run "
           + "--config ${cominConfigYaml}";
