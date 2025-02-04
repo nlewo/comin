@@ -16,6 +16,24 @@ boolean
 
 
 
+## services\.comin\.package
+
+
+
+The comin package to use\.
+
+
+
+*Type:*
+null or package
+
+
+
+*Default:*
+` "pkgs.comin or comin.packages.\${system}.default or null" `
+
+
+
 ## services\.comin\.debug
 
 Whether to run comin in debug mode\. Be careful, secrets are shown!\.

@@ -8,6 +8,9 @@
           Whether to run the comin service.
         '';
       };
+      package = lib.mkPackageOption pkgs "comin" { nullable = true; } // {
+        defaultText = "pkgs.comin or comin.packages.\${system}.default or null";
+      };
       hostname = mkOption {
         type = str;
         default = config.networking.hostName;

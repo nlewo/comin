@@ -15,13 +15,20 @@ let
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 
   inherit (pkgs.stdenv.hostPlatform) system;
-  package = self.packages.${system}.comin;
+  inherit (cfg.services.comin) package;
 in {
   imports = [ ./module-options.nix ];
   config = lib.mkIf cfg.services.comin.enable {
-    assertions = [ { assertion = lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake"; } ];
+    assertions = [
+      { assertion = package != null; message = "`services.comin.package` cannot be null."; }
+      # If the package is null and our `system` isn't supported by the Flake, it's probably safe to show this error message
+      { assertion = package == null -> lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake."; }
+    ];
+
     environment.systemPackages = [ package ];
     networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
+    # Use package from overlay first, then Flake package if available
+    services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
       path = [ config.nix.package ];
