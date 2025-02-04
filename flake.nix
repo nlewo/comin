@@ -1,6 +1,8 @@
 {
   description = "Comin - GitOps for NixOS Machines";
 
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+
   outputs = { self, nixpkgs }:
   let
     systems = [ "aarch64-linux" "x86_64-linux" ];
@@ -25,7 +27,7 @@
       package = self.packages."${system}".comin;
     });
 
-    nixosModules.comin = import ./nix/module.nix self;
+    nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
     devShells.x86_64-linux.default = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
     in pkgs.mkShell {

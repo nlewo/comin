@@ -50,7 +50,7 @@
             openFirewall = mkOption {
               type = types.bool;
               default = false;
-              description = lib.mdDoc ''
+              description = ''
                 Open port in firewall for incoming connections to the Prometheus exporter.
               '';
             };
