@@ -37,7 +37,7 @@ in {
       restartIfChanged = false;
       serviceConfig = {
         ExecStart =
-          "${package}/bin/comin "
+          (lib.getExe package)
           + (lib.optionalString cfg.services.comin.debug "--debug ")
           + " run "
           + "--config ${cominConfigYaml}";

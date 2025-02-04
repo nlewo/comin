@@ -45,4 +45,8 @@ buildGoModule rec {
     # This is because Nix needs Git at runtime by the go-git library
     wrapProgram $out/bin/comin --set GIT_CONFIG_SYSTEM ${gitConfigFile} --prefix PATH : ${git}/bin
   '';
+
+  meta = {
+    mainProgram = "comin";
+  };
 }
