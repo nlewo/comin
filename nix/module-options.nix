@@ -8,6 +8,9 @@
           Whether to run the comin service.
         '';
       };
+      package = lib.mkPackageOption pkgs "comin" { nullable = true; } // {
+        defaultText = "pkgs.comin or comin.packages.\${system}.default or null";
+      };
       hostname = mkOption {
         type = str;
         default = config.networking.hostName;
@@ -47,7 +50,7 @@
             openFirewall = mkOption {
               type = types.bool;
               default = false;
-              description = lib.mdDoc ''
+              description = ''
                 Open port in firewall for incoming connections to the Prometheus exporter.
               '';
             };
