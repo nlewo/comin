@@ -140,6 +140,24 @@ string
 
 
 
+## services\.comin\.gpgPublicKeyPaths
+
+
+
+A list of GPG public key file paths\. Each of this file should contains an armored GPG key\.
+
+
+
+*Type:*
+list of Concatenated string
+
+
+
+*Default:*
+` [ ] `
+
+
+
 ## services\.comin\.hostname
 
 

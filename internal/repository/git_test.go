@@ -1,17 +1,23 @@
 package repository
 
 import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"path/filepath"
-	"testing"
-	"time"
 )
 
 func commitFile(remoteRepository *git.Repository, dir, branch, content string) (commitId string, err error) {
+	return commitFileAndSign(remoteRepository, dir, branch, content, nil)
+}
+
+func commitFileAndSign(remoteRepository *git.Repository, dir, branch, content string, signKey *openpgp.Entity) (commitId string, err error) {
 	w, err := remoteRepository.Worktree()
 	if err != nil {
 		return
@@ -22,7 +28,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 	})
 
 	filename := filepath.Join(dir, content)
-	err = ioutil.WriteFile(filename, []byte(content), 0644)
+	err = os.WriteFile(filename, []byte(content), 0644)
 	if err != nil {
 		return
 	}
@@ -36,6 +42,7 @@ func commitFile(remoteRepository *git.Repository, dir, branch, content string) (
 			Email: "john@doe.org",
 			When:  time.Unix(0, 0),
 		},
+		SignKey: signKey,
 	})
 	if err != nil {
 		return
@@ -118,4 +125,29 @@ func TestIsAncestor(t *testing.T) {
 	assert.True(t, ret)
 
 	//time.Sleep(100*time.Second)
+}
+
+func TestHeadSignedBy(t *testing.T) {
+	dir := t.TempDir()
+	remoteRepository, _ := git.PlainInit(dir, false)
+
+	r, err := os.Open("./test.private")
+	entityList, _ := openpgp.ReadArmoredKeyRing(r)
+	commitFileAndSign(remoteRepository, dir, "main", "file-1", entityList[0])
+
+	failPublic, _ := os.ReadFile("./fail.public")
+	testPublic, _ := os.ReadFile("./test.public")
+	signedBy, err := headSignedBy(remoteRepository, []string{string(failPublic), string(testPublic)})
+	assert.Nil(t, err)
+	assert.Equal(t, "test <test@comin.space>", signedBy.PrimaryIdentity().Name)
+
+	signedBy, err = headSignedBy(remoteRepository, []string{string(failPublic)})
+	assert.ErrorContains(t, err, "is not signed")
+	assert.Nil(t, signedBy)
+
+	commitFileAndSign(remoteRepository, dir, "main", "file-2", nil)
+	signedBy, err = headSignedBy(remoteRepository, []string{string(failPublic), string(testPublic)})
+	assert.ErrorContains(t, err, "is not signed")
+	assert.Nil(t, signedBy)
+
 }

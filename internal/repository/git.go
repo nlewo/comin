@@ -3,9 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"time"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
 	gitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -222,31 +222,21 @@ func manageRemote(r *git.Repository, remote types.Remote) error {
 	return nil
 }
 
-func verifyHead(r *git.Repository, config types.GitConfig) error {
+func headSignedBy(r *git.Repository, publicKeys []string) (signedBy *openpgp.Entity, err error) {
 	head, err := r.Head()
 	if head == nil {
-		return fmt.Errorf("Repository HEAD should not be nil")
+		return nil, fmt.Errorf("Repository HEAD should not be nil")
 	}
-	logrus.Debugf("Repository HEAD is %s", head.Strings()[1])
-
 	commit, err := r.CommitObject(head.Hash())
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	for _, keyPath := range config.GpgPublicKeyPaths {
-		key, err := ioutil.ReadFile(keyPath)
-		if err != nil {
-			return err
-		}
-		entity, err := commit.Verify(string(key))
-		if err != nil {
-			logrus.Debug(err)
-		} else {
+	for _, k := range publicKeys {
+		entity, err := commit.Verify(k)
+		if err == nil {
 			logrus.Debugf("Commit %s signed by %s", head.Hash(), entity.PrimaryIdentity().Name)
-			return nil
+			return entity, nil
 		}
-
 	}
-	return fmt.Errorf("Commit %s is not signed", head.Hash())
+	return nil, fmt.Errorf("Commit %s is not signed", head.Hash())
 }

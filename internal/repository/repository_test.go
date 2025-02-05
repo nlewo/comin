@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"os"
 	"testing"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/types"
@@ -35,6 +37,22 @@ func TestNew(t *testing.T) {
 	r, err := New(gitConfig, "", prometheus.New())
 	assert.Nil(t, err)
 	assert.Equal(t, "r1", r.RepositoryStatus.Remotes[0].Name)
+}
+
+func TestNewGpg(t *testing.T) {
+	const invalidPublic = "not an armored public key"
+	gitConfig := types.GitConfig{
+		GpgPublicKeyPaths: []string{"./fail.public", "./test.public"},
+	}
+	r, err := New(gitConfig, "", prometheus.New())
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(r.gpgPubliKeys))
+
+	gitConfig = types.GitConfig{
+		GpgPublicKeyPaths: []string{"./fail.public", "./test.public", "./invalid.public"},
+	}
+	r, err = New(gitConfig, "", prometheus.New())
+	assert.ErrorContains(t, err, "Failed to read the GPG public key")
 }
 
 func TestPreferMain(t *testing.T) {
@@ -696,4 +714,76 @@ func TestTestingHardReset(t *testing.T) {
 	assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
+}
+
+func TestUpdateGpg(t *testing.T) {
+	dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	r1, err := initRemoteRepostiory(dir, true)
+
+	f, _ := os.Open("./test.private")
+	entityList, _ := openpgp.ReadArmoredKeyRing(f)
+	entity := entityList[0]
+	commitFileAndSign(r1, dir, "main", "file-1", entity)
+	cMain := HeadCommitId(r1)
+
+	gitConfig := types.GitConfig{
+		Path:              cominRepositoryDir,
+		GpgPublicKeyPaths: []string{"./test.public", "./fail.public"},
+		Remotes: []types.Remote{
+			{
+				Name: "r1",
+				URL:  dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+				},
+				Timeout: 30,
+			},
+		},
+	}
+	r, err := New(gitConfig, "", prometheus.New())
+	assert.Nil(t, err)
+	r.Fetch([]string{"r1"})
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
+	assert.True(t, r.RepositoryStatus.SelectedCommitSigned)
+	assert.Equal(t, "test <test@comin.space>", r.RepositoryStatus.SelectedCommitSignedBy)
+	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned)
+
+	commitFile(r1, dir, "main", "file-2")
+	r.Fetch([]string{"r1"})
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.Equal(t, HeadCommitId(r1), r.RepositoryStatus.SelectedCommitId)
+	assert.False(t, r.RepositoryStatus.SelectedCommitSigned)
+	assert.Equal(t, "", r.RepositoryStatus.SelectedCommitSignedBy)
+	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned)
+
+	// No GPG keys available so commits don't need to be signed
+	gitConfig = types.GitConfig{
+		Path: cominRepositoryDir,
+		Remotes: []types.Remote{
+			{
+				Name: "r1",
+				URL:  dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+				},
+				Timeout: 30,
+			},
+		},
+	}
+	r, err = New(gitConfig, "", prometheus.New())
+	assert.Nil(t, err)
+	r.Fetch([]string{"r1"})
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.False(t, r.RepositoryStatus.SelectedCommitSigned)
+	assert.Equal(t, "", r.RepositoryStatus.SelectedCommitSignedBy)
+	assert.False(t, r.RepositoryStatus.SelectedCommitShouldBeSigned)
 }

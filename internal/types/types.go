@@ -52,4 +52,5 @@ type Configuration struct {
 	Remotes           []Remote   `yaml:"remotes"`
 	ApiServer         HttpServer `yaml:"api_server"`
 	Exporter          HttpServer `yaml:"exporter"`
+	GpgPublicKeyPaths []string   `yaml:"gpg_public_key_paths"`
 }

@@ -13,6 +13,7 @@ NixOS configuration associated to the machine.
 - :fast_forward: Fast iterations with [local remotes](./docs/howtos.md#iterate-faster-with-local-repository)
 - :satellite: Observable via [Prometheus metrics](./docs/generated-module-options.md#servicescominexporter)
 - :pushpin: Create and delete system profiles
+- :lock: Optionally check [Git commit signatures](./docs/howtos.md#check-git-commit-signatures)
 
 ## Quick start
 

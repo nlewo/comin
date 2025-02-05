@@ -11,6 +11,7 @@ let
       listen_address = cfg.services.comin.exporter.listen_address;
       port = cfg.services.comin.exporter.port;
     };
+    gpg_public_key_paths = cfg.services.comin.gpgPublicKeyPaths;
   };
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 

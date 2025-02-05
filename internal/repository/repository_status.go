@@ -36,17 +36,21 @@ type Remote struct {
 type RepositoryStatus struct {
 	// This is the deployed Main commit ID. It is used to ensure
 	// fast forward
-	SelectedCommitId        string    `json:"selected_commit_id"`
-	SelectedCommitMsg       string    `json:"selected_commit_msg"`
-	SelectedRemoteName      string    `json:"selected_remote_name"`
-	SelectedBranchName      string    `json:"selected_branch_name"`
-	SelectedBranchIsTesting bool      `json:"selected_branch_is_testing"`
-	MainCommitId            string    `json:"main_commit_id"`
-	MainRemoteName          string    `json:"main_remote_name"`
-	MainBranchName          string    `json:"main_branch_name"`
-	Remotes                 []*Remote `json:"remotes"`
-	Error                   error     `json:"-"`
-	ErrorMsg                string    `json:"error_msg"`
+	SelectedCommitId        string `json:"selected_commit_id"`
+	SelectedCommitMsg       string `json:"selected_commit_msg"`
+	SelectedRemoteName      string `json:"selected_remote_name"`
+	SelectedBranchName      string `json:"selected_branch_name"`
+	SelectedBranchIsTesting bool   `json:"selected_branch_is_testing"`
+	SelectedCommitSigned    bool   `json:"selected_commit_signed"`
+	SelectedCommitSignedBy  string `json:"selected_commit_signed_by"`
+	// True if public keys were available when the commit has been checked out
+	SelectedCommitShouldBeSigned bool      `json:"selected_commit_should_be_signed"`
+	MainCommitId                 string    `json:"main_commit_id"`
+	MainRemoteName               string    `json:"main_remote_name"`
+	MainBranchName               string    `json:"main_branch_name"`
+	Remotes                      []*Remote `json:"remotes"`
+	Error                        error     `json:"-"`
+	ErrorMsg                     string    `json:"error_msg"`
 }
 
 func NewRepositoryStatus(config types.GitConfig, mainCommitId string) RepositoryStatus {

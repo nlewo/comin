@@ -1,10 +1,14 @@
 package repository
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"slices"
 	"time"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/internal/prometheus"
@@ -17,6 +21,7 @@ type repository struct {
 	GitConfig        types.GitConfig
 	RepositoryStatus RepositoryStatus
 	prometheus       prometheus.Prometheus
+	gpgPubliKeys     []string
 }
 
 type Repository interface {
@@ -25,9 +30,24 @@ type Repository interface {
 
 // repositoryStatus is the last saved repositoryStatus
 func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prometheus) (r *repository, err error) {
-	r = &repository{
-		prometheus: prometheus,
+	gpgPublicKeys := make([]string, len(config.GpgPublicKeyPaths))
+	for i, path := range config.GpgPublicKeyPaths {
+		k, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to open the GPG public key file %s: %w", path, err)
+		}
+		_, err = openpgp.ReadArmoredKeyRing(bytes.NewReader(k))
+		if err != nil {
+			return nil, fmt.Errorf("Failed to read the GPG public key %s: %w", path, err)
+		}
+		gpgPublicKeys[i] = string(k)
 	}
+
+	r = &repository{
+		prometheus:   prometheus,
+		gpgPubliKeys: gpgPublicKeys,
+	}
+
 	r.GitConfig = config
 	r.Repository, err = repositoryOpen(config)
 	if err != nil {
@@ -38,6 +58,7 @@ func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prom
 		return
 	}
 	r.RepositoryStatus = NewRepositoryStatus(config, mainCommitId)
+
 	return
 }
 
@@ -176,6 +197,24 @@ func (r *repository) Update() error {
 		r.RepositoryStatus.Error = err
 		r.RepositoryStatus.ErrorMsg = err.Error()
 		return err
+	}
+
+	if len(r.gpgPubliKeys) > 0 {
+		r.RepositoryStatus.SelectedCommitShouldBeSigned = true
+		signedBy, err := headSignedBy(r.Repository, r.gpgPubliKeys)
+		if err != nil {
+			r.RepositoryStatus.Error = err
+			r.RepositoryStatus.ErrorMsg = err.Error()
+		}
+		if signedBy == nil {
+			r.RepositoryStatus.SelectedCommitSigned = false
+			r.RepositoryStatus.SelectedCommitSignedBy = ""
+		} else {
+			r.RepositoryStatus.SelectedCommitSigned = true
+			r.RepositoryStatus.SelectedCommitSignedBy = signedBy.PrimaryIdentity().Name
+		}
+	} else {
+		r.RepositoryStatus.SelectedCommitShouldBeSigned = false
 	}
 	return nil
 }

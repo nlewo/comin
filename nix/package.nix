@@ -36,7 +36,7 @@ buildGoModule rec {
       ../main.go
     ];
   };
-  vendorHash = "sha256-VP8y/iSBIXZFfSmhHsXkp6RxP+2DovX3PbEDtMUMyYE=";
+  vendorHash = "sha256-8RkxEDnPZJAWOo9uITELewc2UfoJ86DMGUi+Mi801/g=";
   ldflags = [
     "-X github.com/nlewo/comin/cmd.version=${version}"
   ];
