@@ -171,7 +171,7 @@
       };
       gpgPublicKeyPaths = mkOption {
         description = "A list of GPG public key file paths. Each of this file should contains an armored GPG key.";
-        type = listOf string;
+        type = listOf str;
         default = [];
       };
     };

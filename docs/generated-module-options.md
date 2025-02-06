@@ -149,7 +149,7 @@ A list of GPG public key file paths\. Each of this file should contains an armor
 
 
 *Type:*
-list of Concatenated string
+list of string
 
 
 
