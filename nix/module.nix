@@ -1,4 +1,4 @@
-self: { config, pkgs, lib, ... }:
+{ self }: { config, pkgs, lib, ... }:
 let
   cfg = config;
   yaml = pkgs.formats.yaml { };
