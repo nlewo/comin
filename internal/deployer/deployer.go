@@ -122,6 +122,7 @@ func New(deployFunc DeployFunc, previousDeployment *Deployment) *Deployer {
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
 		previousDeployment:    previousDeployment,
+		Deployment:            previousDeployment,
 	}
 }
 
