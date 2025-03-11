@@ -13,10 +13,10 @@ import (
 )
 
 func handlerStatus(m *manager.Manager, w http.ResponseWriter, r *http.Request) {
-	logrus.Infof("Getting status request %s from %s", r.URL, r.RemoteAddr)
+	logrus.Debugf("Getting status request %s from %s", r.URL, r.RemoteAddr)
 	w.WriteHeader(http.StatusOK)
 	s := m.GetState()
-	logrus.Debugf("State is %#v", s)
+	logrus.Debugf("Manager state is %#v", s)
 	rJson, err := json.MarshalIndent(s, "", "\t")
 	if err != nil {
 		logrus.Error(err)
