@@ -186,7 +186,7 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) {
 }
 
 // Build builds a generation which has been previously evaluated.
-func (b *Builder) Build() error {
+func (b *Builder) Build(generationUUID string) error {
 	ctx := context.TODO()
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -200,6 +200,11 @@ func (b *Builder) Build() error {
 	if b.generation.BuildStatus == Built {
 		return fmt.Errorf("The generation is already built")
 	}
+	if b.generation.UUID != generationUUID {
+		return fmt.Errorf("The generation UUID to build is %s while the current generation UUID is %s", generationUUID, b.generation.UUID)
+	}
+	logrus.Infof("builder: a generation is building for commit %s", b.generation.SelectedCommitId)
+
 	b.generation.BuildStartedAt = time.Now().UTC()
 	b.generation.BuildStatus = Building
 	b.IsBuilding = true

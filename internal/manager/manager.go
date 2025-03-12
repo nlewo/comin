@@ -1,6 +1,8 @@
 package manager
 
 import (
+	"fmt"
+
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/fetcher"
@@ -13,10 +15,14 @@ import (
 )
 
 type State struct {
-	NeedToReboot bool           `json:"need_to_reboot"`
-	Fetcher      fetcher.State  `json:"fetcher"`
-	Builder      builder.State  `json:"builder"`
-	Deployer     deployer.State `json:"deployer"`
+	NeedToReboot bool `json:"need_to_reboot"`
+	// This is set if a user confirmation is asked before
+	// building (and deploying) a generation
+	ConfirmBuildEnabled  bool           `json:"confirm_build_enabled"`
+	ConfirmBuildRequired bool           `json:"confirm_build_required"`
+	Fetcher              fetcher.State  `json:"fetcher"`
+	Builder              builder.State  `json:"builder"`
+	Deployer             deployer.State `json:"deployer"`
 }
 
 type Manager struct {
@@ -37,11 +43,18 @@ type Manager struct {
 	Fetcher    *fetcher.Fetcher
 	builder    *builder.Builder
 	deployer   *deployer.Deployer
+
+	confirmBuildEnabled   bool
+	confirmBuildRequired  bool
+	confirmBuildCh        chan string
+	generationUUIDToBuild string
 }
 
-func New(s store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string) *Manager {
+func New(s store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, confirmBuild bool) *Manager {
 	m := &Manager{
 		machineId:               machineId,
+		confirmBuildEnabled:     confirmBuild,
+		confirmBuildCh:          make(chan string),
 		stateRequestCh:          make(chan struct{}),
 		stateResultCh:           make(chan State),
 		cominServiceRestartFunc: utils.CominServiceRestart,
@@ -62,11 +75,27 @@ func (m *Manager) GetState() State {
 
 func (m *Manager) toState() State {
 	return State{
-		NeedToReboot: m.needToReboot,
-		Fetcher:      m.Fetcher.GetState(),
-		Builder:      m.builder.State(),
-		Deployer:     m.deployer.State(),
+		NeedToReboot:         m.needToReboot,
+		ConfirmBuildEnabled:  m.confirmBuildEnabled,
+		ConfirmBuildRequired: m.confirmBuildRequired,
+		Fetcher:              m.Fetcher.GetState(),
+		Builder:              m.builder.State(),
+		Deployer:             m.deployer.State(),
 	}
+}
+
+func (m *Manager) ConfirmBuild(generationUUID string) error {
+	if !m.confirmBuildEnabled {
+		return fmt.Errorf("Build doesn't need to be confirm to get deployed")
+	}
+	if !m.confirmBuildRequired {
+		return fmt.Errorf("No build confirmation is required")
+	}
+	if gUUID := m.builder.State().Generation.UUID; gUUID != generationUUID {
+		return fmt.Errorf("The current builder.generation.UUID %s is not equal to the requested generation UUID %s", gUUID, generationUUID)
+	}
+	m.confirmBuildCh <- generationUUID
+	return nil
 }
 
 // FetchAndBuild fetches new commits. If a new commit is available, it
@@ -90,8 +119,19 @@ func (m *Manager) FetchAndBuild() {
 				if generation.MachineId != "" && m.machineId != generation.MachineId {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
-					logrus.Infof("manager: a generation is building for commit %s", generation.SelectedCommitId)
-					m.builder.Build()
+					if m.confirmBuildEnabled {
+						logrus.Infof("manager: a build confirmation is required")
+						m.confirmBuildRequired = true
+					} else {
+						if err := m.builder.Build(generation.UUID); err != nil {
+							logrus.Error(err)
+						}
+					}
+				}
+			case generationUUID := <-m.confirmBuildCh:
+				m.confirmBuildRequired = false
+				if err := m.builder.Build(generationUUID); err != nil {
+					logrus.Error(err)
 				}
 			case generation := <-m.builder.BuildDone:
 				if generation.BuildErr == nil {

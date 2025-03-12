@@ -70,7 +70,7 @@ var runCmd = &cobra.Command{
 		builder := builder.New(gitConfig.Path, gitConfig.Dir, cfg.Hostname, 5*time.Minute, nix.Eval, 30*time.Minute, nix.Build)
 		deployer := deployer.New(nix.Deploy, lastDeployment)
 
-		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId)
+		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, cfg.ConfirmBuildEnabled)
 
 		http.Serve(manager,
 			metrics,

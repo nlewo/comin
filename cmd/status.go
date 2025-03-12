@@ -74,6 +74,10 @@ func longStatus(status manager.State) {
 }
 
 func onelineStatus(status manager.State) {
+	if status.ConfirmBuildEnabled && status.ConfirmBuildRequired {
+		fmt.Printf("asking for build confirmation")
+		return
+	}
 	if status.Builder.IsEvaluating {
 		fmt.Printf("evaluating %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalStartedAt))
