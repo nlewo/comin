@@ -102,6 +102,10 @@ func onelineStatus(status manager.State) {
 	if status.NeedToReboot {
 		fmt.Printf(" ")
 	}
+	if status.ConfirmBuildEnabled && status.ConfirmBuildRequired {
+		fmt.Printf(" ")
+		return
+	}
 }
 
 var statusCmd = &cobra.Command{

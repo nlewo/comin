@@ -21,6 +21,16 @@
           nixosConfigurations."<hostname>".config.system.build.toplevel
         '';
       };
+      confirmBuildEnabled = mkOption {
+        type = bool;
+        default = false;
+        description = ''
+          Whether to enable the confirm of a build. If enable, comin asks
+          for a confirmation before building anything. Once confirmed
+          (via the comin CLI client), comin builds and deploys the
+          generation.
+        '';
+      };
       flakeSubdirectory = mkOption {
         type = str;
         default = ".";

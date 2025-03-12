@@ -67,7 +67,7 @@ func TestBuild(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil)
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "", false)
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
@@ -165,7 +165,7 @@ func TestDeploy(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil)
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "", false)
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
@@ -190,7 +190,7 @@ func TestRestartComin(t *testing.T) {
 		return true, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil)
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "", false)
 	go m.Run()
 
 	isCominRestarted := false
@@ -217,7 +217,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	}
 	b := builder.New("repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", false)
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
@@ -241,7 +241,7 @@ func TestCorrectMachineId(t *testing.T) {
 	}
 	b := builder.New("repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", false)
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
@@ -252,4 +252,44 @@ func TestCorrectMachineId(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(t, m.GetState().Builder.IsBuilding)
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func TestConfirm(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	f.Start()
+	nixEval := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
+		return "drv-path", "out-path", "", nil
+	}
+	nixBuild := func(ctx context.Context, repositoryPath string) error {
+		return nil
+	}
+	b := builder.New("repoPath", "", "", 2*time.Second, nixEval, 2*time.Second, nixBuild)
+	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+		return false, "profile-path", nil
+	}
+	d := deployer.New(deployFunc, nil)
+	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "", false)
+	assert.ErrorContains(t, m.ConfirmBuild(""), "Build doesn't need to be confirm to get deployed")
+	m = New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "", true)
+	assert.ErrorContains(t, m.ConfirmBuild(""), "No build confirmation is required")
+	go m.Run()
+	assert.False(t, m.Fetcher.GetState().IsFetching)
+	assert.False(t, m.builder.State().IsEvaluating)
+	assert.False(t, m.builder.State().IsBuilding)
+	f.TriggerFetch([]string{"remote"})
+	r.RsCh <- repository.RepositoryStatus{
+		SelectedCommitId: "commit-id",
+	}
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(t, builder.Evaluated, m.GetState().Builder.Generation.EvalStatus)
+		assert.Equal(t, builder.BuildInit, m.GetState().Builder.Generation.BuildStatus)
+	}, 3*time.Second, 100*time.Millisecond)
+	assert.ErrorContains(t, m.ConfirmBuild(""), "is not equal to the requested generation")
+	m.ConfirmBuild(m.GetState().Builder.Generation.UUID)
+
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(t, builder.Built, m.GetState().Builder.Generation.BuildStatus)
+	}, 3*time.Second, 100*time.Millisecond)
 }

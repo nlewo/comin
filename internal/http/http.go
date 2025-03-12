@@ -53,11 +53,26 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
+	handlerConfirmFn := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			generationUUID := m.GetState().Builder.Generation.UUID
+			err := m.ConfirmBuild(generationUUID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusConflict)
+			} else {
+				w.WriteHeader(http.StatusOK)
+			}
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
 
 	muxApi := http.NewServeMux()
 	muxApi.HandleFunc("/api/status", handlerStatusFn)
 	muxApi.HandleFunc("/api/fetcher", handlerFetcherFn)
 	muxApi.HandleFunc("/api/fetcher/fetch", handlerFetcherFetchFn)
+	muxApi.HandleFunc("/api/confirm", handlerConfirmFn)
 	muxMetrics := http.NewServeMux()
 	muxMetrics.Handle("/metrics", p.Handler())
 

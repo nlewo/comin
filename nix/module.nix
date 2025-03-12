@@ -12,6 +12,7 @@ let
       port = cfg.services.comin.exporter.port;
     };
     gpg_public_key_paths = cfg.services.comin.gpgPublicKeyPaths;
+    confirm_build_enabled = cfg.services.comin.confirmBuildEnabled;
   };
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 

@@ -45,12 +45,13 @@ type HttpServer struct {
 }
 
 type Configuration struct {
-	Hostname          string     `yaml:"hostname"`
-	StateDir          string     `yaml:"state_dir"`
-	StateFilepath     string     `yaml:"state_filepath"`
-	FlakeSubdirectory string     `yaml:"flake_subdirectory"`
-	Remotes           []Remote   `yaml:"remotes"`
-	ApiServer         HttpServer `yaml:"api_server"`
-	Exporter          HttpServer `yaml:"exporter"`
-	GpgPublicKeyPaths []string   `yaml:"gpg_public_key_paths"`
+	Hostname            string     `yaml:"hostname"`
+	StateDir            string     `yaml:"state_dir"`
+	StateFilepath       string     `yaml:"state_filepath"`
+	FlakeSubdirectory   string     `yaml:"flake_subdirectory"`
+	Remotes             []Remote   `yaml:"remotes"`
+	ApiServer           HttpServer `yaml:"api_server"`
+	Exporter            HttpServer `yaml:"exporter"`
+	GpgPublicKeyPaths   []string   `yaml:"gpg_public_key_paths"`
+	ConfirmBuildEnabled bool       `yaml:"confirm_build_enabled"`
 }

@@ -46,7 +46,7 @@ func TestBuilderBuild(t *testing.T) {
 
 	b := New("", "", "my-machine", 2*time.Second, mkNixEvalMock(evalDone), 2*time.Second, mkNixBuildMock(buildDone))
 
-	assert.ErrorContains(t, b.Build(), "The generation is not evaluated")
+	assert.ErrorContains(t, b.Build(""), "The generation is not evaluated")
 	// Run the evaluator
 	b.Eval(repository.RepositoryStatus{})
 	close(evalDone)
@@ -55,11 +55,11 @@ func TestBuilderBuild(t *testing.T) {
 		assert.False(c, b.IsEvaluating)
 	}, 2*time.Second, 100*time.Millisecond)
 
-	b.Build()
+	b.Build(b.generation.UUID)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, b.IsBuilding)
 	}, 2*time.Second, 100*time.Millisecond)
-	err := b.Build()
+	err := b.Build(b.generation.UUID)
 	assert.ErrorContains(t, err, "The builder is already building")
 
 	// Stop the evaluator and builder
@@ -72,7 +72,7 @@ func TestBuilderBuild(t *testing.T) {
 	}, 2*time.Second, 100*time.Millisecond)
 
 	// The builder timeouts
-	err = b.Build()
+	err = b.Build(b.generation.UUID)
 	assert.Nil(t, err)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g := b.GetGeneration()
@@ -80,7 +80,7 @@ func TestBuilderBuild(t *testing.T) {
 	}, 3*time.Second, 100*time.Millisecond)
 
 	// The builder succeeds
-	err = b.Build()
+	err = b.Build(b.generation.UUID)
 	assert.Nil(t, err)
 	buildDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -88,7 +88,7 @@ func TestBuilderBuild(t *testing.T) {
 	}, 3*time.Second, 100*time.Millisecond)
 
 	// The generation is already built
-	err = b.Build()
+	err = b.Build(b.generation.UUID)
 	assert.ErrorContains(t, err, "The generation is already built")
 }
 
