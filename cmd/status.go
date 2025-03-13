@@ -75,29 +75,32 @@ func longStatus(status manager.State) {
 
 func onelineStatus(status manager.State) {
 	if status.Builder.IsEvaluating {
-		fmt.Printf("evaluating %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+		fmt.Printf(" eval   %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalStartedAt))
 	} else if status.Builder.IsBuilding {
-		fmt.Printf("building %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+		fmt.Printf(" build  %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.BuildStartedAt))
-	} else if status.Builder.Generation.EvalStatus != builder.EvalFailed {
-		fmt.Printf("⛌ %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+	} else if status.Builder.Generation.EvalStatus == builder.EvalFailed {
+		fmt.Printf(" %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalEndedAt))
 	} else if status.Builder.Generation.BuildStatus == builder.BuildFailed {
-		fmt.Printf("⛌ %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+		fmt.Printf(" %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.BuildEndedAt))
 	} else if status.Deployer.Deployment != nil {
 		switch status.Deployer.Deployment.Status {
 		case deployer.Running:
-			fmt.Printf("deploying %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+			fmt.Printf(" deploy %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt))
 		case deployer.Failed:
-			fmt.Printf("⛌ %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+			fmt.Printf(" %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt))
 		case deployer.Done:
-			fmt.Printf("✓ %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+			fmt.Printf(" %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt))
 		}
+	}
+	if status.NeedToReboot {
+		fmt.Printf(" ")
 	}
 }
 
