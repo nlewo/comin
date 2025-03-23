@@ -39,7 +39,7 @@ in {
       serviceConfig = {
         ExecStart =
           (lib.getExe package)
-          + (lib.optionalString cfg.services.comin.debug "--debug ")
+          + (lib.optionalString cfg.services.comin.debug " --debug ")
           + " run "
           + "--config ${cominConfigYaml}";
         Restart = "always";
