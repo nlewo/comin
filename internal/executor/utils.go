@@ -1,4 +1,4 @@
-package nix
+package executor
 
 import (
 	"bytes"
@@ -61,16 +61,7 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 	return nil
 }
 
-func Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
-	drvPath, outPath, err = ShowDerivation(ctx, flakeUrl, hostname)
-	if err != nil {
-		return
-	}
-	machineId, err = getExpectedMachineId(flakeUrl, hostname)
-	return
-}
-
-func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
+func showDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
 	args := []string{
 		"show-derivation",
@@ -100,51 +91,25 @@ func ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath str
 	return
 }
 
-type Path struct {
-	Path string `json:"path"`
-}
-
-type Output struct {
-	Out Path `json:"out"`
-}
-
-type Derivation struct {
-	Outputs Output `json:"outputs"`
-}
-
-type Show struct {
-	NixosConfigurations map[string]struct{} `json:"nixosConfigurations"`
-}
-
-func List(flakeUrl string) (hosts []string, err error) {
+func build(ctx context.Context, drvPath string) (err error) {
 	args := []string{
-		"flake",
-		"show",
-		"--json",
-		flakeUrl,
-	}
-	var stdout bytes.Buffer
-	err = runNixCommand(args, &stdout, os.Stderr)
+		"build",
+		fmt.Sprintf("%s^*", drvPath),
+		"-L",
+		"--no-link"}
+	err = runNixCommand(args, os.Stdout, os.Stderr)
 	if err != nil {
 		return
-	}
-
-	var output Show
-	err = json.Unmarshal(stdout.Bytes(), &output)
-	if err != nil {
-		return
-	}
-	hosts = make([]string, 0, len(output.NixosConfigurations))
-	for key := range output.NixosConfigurations {
-		hosts = append(hosts, key)
 	}
 	return
 }
 
-func Build(ctx context.Context, drvPath string) (err error) {
+// fetchBuild fetches the build output from the Nix binary cache
+// instead of evaluating locally.
+func fetchBuild(ctx context.Context, outPath string) (err error) {
 	args := []string{
 		"build",
-		fmt.Sprintf("%s^*", drvPath),
+		fmt.Sprintf("%s", outPath),
 		"-L",
 		"--no-link"}
 	err = runNixCommand(args, os.Stdout, os.Stderr)
@@ -187,7 +152,7 @@ func switchToConfiguration(operation string, outPath string, dryRun bool) error 
 	return nil
 }
 
-func Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
 	// FIXME: this check doesn't have to be here. It should be
 	// done by the manager.
 	beforeCominUnitFileHash := cominUnitFileHash()
