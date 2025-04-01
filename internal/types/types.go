@@ -44,13 +44,26 @@ type HttpServer struct {
 	Port          int    `yaml:"port"`
 }
 
+type GarnixConfig struct {
+	BaseUrl       string `yaml:"baseUrl"`
+	CacheUrl      string `yaml:"cacheUrl"`
+	RetryInterval int    `yaml:"retry_interval"`
+	CacheSize     int    `yaml:"cache_size"`
+}
+
+type ExecutorConfig struct {
+	Type         string       `yaml:"type"`
+	GarnixConfig GarnixConfig `yaml:"garnix"`
+}
+
 type Configuration struct {
-	Hostname          string     `yaml:"hostname"`
-	StateDir          string     `yaml:"state_dir"`
-	StateFilepath     string     `yaml:"state_filepath"`
-	FlakeSubdirectory string     `yaml:"flake_subdirectory"`
-	Remotes           []Remote   `yaml:"remotes"`
-	ApiServer         HttpServer `yaml:"api_server"`
-	Exporter          HttpServer `yaml:"exporter"`
-	GpgPublicKeyPaths []string   `yaml:"gpg_public_key_paths"`
+	Hostname          string         `yaml:"hostname"`
+	StateDir          string         `yaml:"state_dir"`
+	StateFilepath     string         `yaml:"state_filepath"`
+	FlakeSubdirectory string         `yaml:"flake_subdirectory"`
+	Remotes           []Remote       `yaml:"remotes"`
+	ApiServer         HttpServer     `yaml:"api_server"`
+	Exporter          HttpServer     `yaml:"exporter"`
+	GpgPublicKeyPaths []string       `yaml:"gpg_public_key_paths"`
+	ExecutorConfig    ExecutorConfig `yaml:"executor"`
 }
