@@ -8,10 +8,10 @@ import (
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/config"
 	"github.com/nlewo/comin/internal/deployer"
+	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/http"
 	"github.com/nlewo/comin/internal/manager"
-	"github.com/nlewo/comin/internal/nix"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/scheduler"
@@ -67,8 +67,14 @@ var runCmd = &cobra.Command{
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
-		builder := builder.New(gitConfig.Path, gitConfig.Dir, cfg.Hostname, 5*time.Minute, nix.Eval, 30*time.Minute, nix.Build)
-		deployer := deployer.New(nix.Deploy, lastDeployment)
+		executor, err := executor.New()
+		if err != nil {
+			logrus.Error("Failed to create executor")
+			return
+		}
+
+		builder := builder.New(gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, executor.Eval, 30*time.Minute, executor.Build)
+		deployer := deployer.New(executor.Deploy, lastDeployment)
 
 		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId)
 
