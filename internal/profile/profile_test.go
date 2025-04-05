@@ -12,11 +12,11 @@ import (
 func TestRemoveProfilePath(t *testing.T) {
 	dir := t.TempDir()
 	file1 := path.Join(dir, "file1")
-	os.Create(file1)
+	_, _ = os.Create(file1)
 	file2 := path.Join(dir, "file2")
-	os.Create(file2)
+	_, _ = os.Create(file2)
 
-	RemoveProfilePath(file1)
+	_ = RemoveProfilePath(file1)
 	entries, _ := os.ReadDir(dir)
 	files := make([]string, len(entries))
 	for i, e := range entries {

@@ -22,7 +22,7 @@ func commitFileAndSign(remoteRepository *git.Repository, dir, branch, content st
 	if err != nil {
 		return
 	}
-	err = w.Checkout(&git.CheckoutOptions{
+	_ = w.Checkout(&git.CheckoutOptions{
 		Branch: plumbing.NewBranchReferenceName(branch),
 		Force:  true,
 	})
@@ -106,7 +106,7 @@ func TestIsAncestor(t *testing.T) {
 
 	commits := make([]object.Commit, 3)
 	idx := 0
-	err = iter.ForEach(func(commit *object.Commit) error {
+	_ = iter.ForEach(func(commit *object.Commit) error {
 		commits[idx] = *commit
 		idx += 1
 		return nil
@@ -131,9 +131,9 @@ func TestHeadSignedBy(t *testing.T) {
 	dir := t.TempDir()
 	remoteRepository, _ := git.PlainInit(dir, false)
 
-	r, err := os.Open("./test.private")
+	r, _ := os.Open("./test.private")
 	entityList, _ := openpgp.ReadArmoredKeyRing(r)
-	commitFileAndSign(remoteRepository, dir, "main", "file-1", entityList[0])
+	_, _ = commitFileAndSign(remoteRepository, dir, "main", "file-1", entityList[0])
 
 	failPublic, _ := os.ReadFile("./fail.public")
 	testPublic, _ := os.ReadFile("./test.public")
@@ -145,7 +145,7 @@ func TestHeadSignedBy(t *testing.T) {
 	assert.ErrorContains(t, err, "is not signed")
 	assert.Nil(t, signedBy)
 
-	commitFileAndSign(remoteRepository, dir, "main", "file-2", nil)
+	_, _ = commitFileAndSign(remoteRepository, dir, "main", "file-2", nil)
 	signedBy, err = headSignedBy(remoteRepository, []string{string(failPublic), string(testPublic)})
 	assert.ErrorContains(t, err, "is not signed")
 	assert.Nil(t, signedBy)

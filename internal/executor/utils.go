@@ -56,7 +56,7 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 	cmd.Stderr = stderr
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("Command '%s' fails with %s", cmdStr, err)
+		return fmt.Errorf("command '%s' fails with %s", cmdStr, err)
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func switchToConfiguration(operation string, outPath string, dryRun bool) error 
 		logrus.Infof("nix: dry-run enabled: '%s switch' has not been executed", switchToConfigurationExe)
 	} else {
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("Command %s switch fails with %s", switchToConfigurationExe, err)
+			return fmt.Errorf("command %s switch fails with %s", switchToConfigurationExe, err)
 		}
 		logrus.Infof("nix: switch successfully terminated")
 	}

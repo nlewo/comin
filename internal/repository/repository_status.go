@@ -78,15 +78,6 @@ func (r RepositoryStatus) IsTesting() bool {
 	return r.SelectedBranchIsTesting
 }
 
-func (r RepositoryStatus) remoteExists(remoteName string) bool {
-	for _, remote := range r.Remotes {
-		if remote.Name == remoteName {
-			return true
-		}
-	}
-	return false
-}
-
 func (r RepositoryStatus) GetRemote(remoteName string) *Remote {
 	for _, remote := range r.Remotes {
 		if remote.Name == remoteName {

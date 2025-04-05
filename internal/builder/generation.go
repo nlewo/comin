@@ -103,13 +103,13 @@ func GenerationShow(g Generation) {
 		fmt.Printf("%sEvaluation started %s\n", padding, humanize.Time(g.EvalStartedAt))
 		return
 	}
-	if g.EvalStatus == Evaluated {
+	switch g.EvalStatus {
+	case Evaluated:
 		fmt.Printf("%sEvaluation succedded %s\n", padding, humanize.Time(g.EvalEndedAt))
 		fmt.Printf("%s  DrvPath: %s\n", padding, g.DrvPath)
-	} else if g.EvalStatus == EvalFailed {
+	case EvalFailed:
 		fmt.Printf("%sEvaluation failed %s\n", padding, humanize.Time(g.EvalEndedAt))
 	}
-
 	if g.BuildStatus == BuildInit {
 		fmt.Printf("%sNo build started\n", padding)
 		return
@@ -118,10 +118,11 @@ func GenerationShow(g Generation) {
 		fmt.Printf("%sBuild started %s\n", padding, humanize.Time(g.BuildStartedAt))
 		return
 	}
-	if g.BuildStatus == Built {
+	switch g.BuildStatus {
+	case Built:
 		fmt.Printf("%sBuilt %s\n", padding, humanize.Time(g.BuildEndedAt))
 		fmt.Printf("%s  Outpath:  %s\n", padding, g.OutPath)
-	} else if g.BuildStatus == BuildFailed {
+	case BuildFailed:
 		fmt.Printf("%sBuild failed %s\n", padding, humanize.Time(g.BuildEndedAt))
 	}
 }

@@ -20,7 +20,7 @@ func TestDeploymentCommitAndLoad(t *testing.T) {
 	assert.Equal(t, 0, len(s.Deployments))
 
 	s.DeploymentInsert(deployer.Deployment{UUID: "1", Operation: "switch"})
-	s.Commit()
+	_ = s.Commit()
 	assert.Nil(t, err)
 
 	s1 = New(filename, 2, 2)
@@ -75,19 +75,7 @@ func TestDeploymentInsert(t *testing.T) {
 	hasEvicted, evicted = s.DeploymentInsert(deployer.Deployment{UUID: "7", Operation: "switch"})
 	assert.True(t, hasEvicted)
 	assert.Equal(t, "2", evicted.UUID)
-	expected = []deployer.Deployment{
-		{UUID: "6", Operation: "test"},
-		{UUID: "5", Operation: "test"},
-		{UUID: "7", Operation: "switch"},
-		{UUID: "3", Operation: "switch"},
-	}
 	hasEvicted, evicted = s.DeploymentInsert(deployer.Deployment{UUID: "8", Operation: "switch"})
 	assert.True(t, hasEvicted)
 	assert.Equal(t, "3", evicted.UUID)
-	expected = []deployer.Deployment{
-		{UUID: "6", Operation: "test"},
-		{UUID: "5", Operation: "test"},
-		{UUID: "8", Operation: "switch"},
-		{UUID: "7", Operation: "switch"},
-	}
 }

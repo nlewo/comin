@@ -91,7 +91,7 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
 					logrus.Infof("manager: a generation is building for commit %s", generation.SelectedCommitId)
-					m.builder.Build()
+					_ = m.builder.Build()
 				}
 			case generation := <-m.builder.BuildDone:
 				if generation.BuildErr == nil {
@@ -120,7 +120,7 @@ func (m *Manager) Run() {
 			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, deployer.StatusToString(dpl.Status))
 			getsEvicted, evicted := m.storage.DeploymentInsertAndCommit(dpl)
 			if getsEvicted && evicted.ProfilePath != "" {
-				profile.RemoveProfilePath(evicted.ProfilePath)
+				_ = profile.RemoveProfilePath(evicted.ProfilePath)
 			}
 			m.needToReboot = utils.NeedToReboot()
 			m.prometheus.SetHostInfo(m.needToReboot)

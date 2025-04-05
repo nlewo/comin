@@ -34,11 +34,11 @@ func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prom
 	for i, path := range config.GpgPublicKeyPaths {
 		k, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to open the GPG public key file %s: %w", path, err)
+			return nil, fmt.Errorf("failed to open the GPG public key file %s: %w", path, err)
 		}
 		_, err = openpgp.ReadArmoredKeyRing(bytes.NewReader(k))
 		if err != nil {
-			return nil, fmt.Errorf("Failed to read the GPG public key %s: %w", path, err)
+			return nil, fmt.Errorf("failed to read the GPG public key %s: %w", path, err)
 		}
 		gpgPublicKeys[i] = string(k)
 	}
@@ -67,7 +67,7 @@ func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (
 	go func() {
 		// FIXME: switch to the FetchContext to clean resource up on timeout
 		r.Fetch(remoteNames)
-		r.Update()
+		_ = r.Update()
 		rsCh <- r.RepositoryStatus
 	}()
 	return rsCh

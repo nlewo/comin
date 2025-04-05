@@ -28,7 +28,7 @@ func (s Scheduler) FetchRemotes(fetcher *fetcher.Fetcher, remotes []types.Remote
 	for _, remote := range remotes {
 		if remote.Poller.Period != 0 {
 			logrus.Infof("scheduler: starting the period job for the remote '%s' with period %ds", remote.Name, remote.Poller.Period)
-			s.s.NewJob(
+			_, _ = s.s.NewJob(
 				gocron.DurationJob(
 					time.Duration(remote.Poller.Period)*time.Second,
 				),

@@ -61,9 +61,7 @@ type Deployer struct {
 	previousDeployment *Deployment
 	IsDeploying        bool
 	// The next generation to deploy. nil when there is no new generation to deploy
-	GenerationToDeploy *builder.Generation
-	// Is there a generation which
-	generationAvailable   bool
+	GenerationToDeploy    *builder.Generation
 	generationAvailableCh chan struct{}
 }
 
@@ -190,9 +188,7 @@ func (d *Deployer) Run() {
 			}
 			d.Deployment.RestartComin = cominNeedRestart
 			d.Deployment.ProfilePath = profilePath
-			select {
-			case d.DeploymentDoneCh <- *d.Deployment:
-			}
+			d.DeploymentDoneCh <- *d.Deployment
 			d.mu.Unlock()
 		}
 	}()

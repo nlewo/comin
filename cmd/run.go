@@ -88,6 +88,6 @@ var runCmd = &cobra.Command{
 
 func init() {
 	runCmd.PersistentFlags().StringVarP(&configFilepath, "config", "", "", "the configuration file path")
-	runCmd.MarkPersistentFlagRequired("config")
+	_ = runCmd.MarkPersistentFlagRequired("config")
 	rootCmd.AddCommand(runCmd)
 }

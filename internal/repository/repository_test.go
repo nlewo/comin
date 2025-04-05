@@ -15,7 +15,7 @@ func TestNew(t *testing.T) {
 	var err error
 	r1Dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()
-	_, err = initRemoteRepostiory(r1Dir, true)
+	_, _ = initRemoteRepostiory(r1Dir, true)
 	gitConfig := types.GitConfig{
 		Path: cominRepositoryDir,
 		Remotes: []types.Remote{
@@ -40,7 +40,6 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewGpg(t *testing.T) {
-	const invalidPublic = "not an armored public key"
 	gitConfig := types.GitConfig{
 		GpgPublicKeyPaths: []string{"./fail.public", "./test.public"},
 	}
@@ -51,15 +50,15 @@ func TestNewGpg(t *testing.T) {
 	gitConfig = types.GitConfig{
 		GpgPublicKeyPaths: []string{"./fail.public", "./test.public", "./invalid.public"},
 	}
-	r, err = New(gitConfig, "", prometheus.New())
-	assert.ErrorContains(t, err, "Failed to read the GPG public key")
+	_, err = New(gitConfig, "", prometheus.New())
+	assert.ErrorContains(t, err, "failed to read the GPG public key")
 }
 
 func TestPreferMain(t *testing.T) {
 	var err error
 	r1Dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()
-	r1, err := initRemoteRepostiory(r1Dir, true)
+	r1, _ := initRemoteRepostiory(r1Dir, true)
 	cMain := HeadCommitId(r1)
 	gitConfig := types.GitConfig{
 		Path: cominRepositoryDir,
@@ -92,7 +91,7 @@ func TestPreferMain(t *testing.T) {
 
 	// r1/main: c1 - c2 - c3
 	// r1/testing: c1 - c2 - c3 - *c4
-	c4, err := commitFile(r1, r1Dir, "testing", "file-4")
+	c4, _ := commitFile(r1, r1Dir, "testing", "file-4")
 	r.Fetch([]string{"r1"})
 	err = r.Update()
 	assert.Nil(t, err)
@@ -102,7 +101,7 @@ func TestPreferMain(t *testing.T) {
 
 	// r1/main: c1 - c2 - c3 - *c4
 	// r1/testing: c1 - c2 - c3 - c4
-	c4, err = commitFile(r1, r1Dir, "main", "file-4")
+	c4, _ = commitFile(r1, r1Dir, "main", "file-4")
 	r.Fetch([]string{"r1"})
 	err = r.Update()
 	assert.Nil(t, err)
@@ -139,10 +138,10 @@ func TestMainCommitId(t *testing.T) {
 	// r1/main: c1 - c2 - c3 - c4
 	// r1/testing: c1 - c2 - c3 - c4 - c5
 	c4, _ := commitFile(r1, r1Dir, "main", "file-4")
-	commitFile(r1, r1Dir, "testing", "file-4")
+	_, _ = commitFile(r1, r1Dir, "testing", "file-4")
 	c5, _ := commitFile(r1, r1Dir, "testing", "file-5")
 	r.Fetch([]string{"r1"})
-	r.Update()
+	_ = r.Update()
 	assert.Equal(t, c4, r.RepositoryStatus.MainCommitId)
 	assert.Equal(t, c5, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "testing", r.RepositoryStatus.SelectedBranchName)
@@ -190,7 +189,7 @@ func TestContinueIfHardReset(t *testing.T) {
 	r, _ := New(gitConfig, cMain, prometheus.New())
 
 	r.Fetch([]string{"r1", "r2"})
-	r.Update()
+	_ = r.Update()
 
 	// r1/main: c1 - c2 - ^c3
 	// r1/testing: c1 - c2 - c3
@@ -198,7 +197,7 @@ func TestContinueIfHardReset(t *testing.T) {
 	// r2/testing: c1 - c2 - c3 - *c4
 	c4, _ := commitFile(r2, r2Dir, "testing", "file-4")
 	r.Fetch([]string{"r1", "r2"})
-	r.Update()
+	_ = r.Update()
 	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "testing", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r2", r.RepositoryStatus.SelectedRemoteName)
@@ -209,7 +208,7 @@ func TestContinueIfHardReset(t *testing.T) {
 	// r2/testing: c1 - c2 - c3 - ^c4
 	c4, _ = commitFile(r2, r2Dir, "main", "file-4")
 	r.Fetch([]string{"r1", "r2"})
-	r.Update()
+	_ = r.Update()
 	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.MainBranchName)
 	assert.Equal(t, "r2", r.RepositoryStatus.MainRemoteName)
@@ -220,7 +219,7 @@ func TestMultipleRemote(t *testing.T) {
 	r1Dir := t.TempDir()
 	r2Dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()
-	r1, err := initRemoteRepostiory(r1Dir, true)
+	r1, _ := initRemoteRepostiory(r1Dir, true)
 	r2, err := initRemoteRepostiory(r2Dir, true)
 	assert.Nil(t, err)
 
@@ -277,7 +276,7 @@ func TestMultipleRemote(t *testing.T) {
 
 	// r1/main: c1 - c2 - c3 - c4
 	// r2/main: c1 - c2 - c3 - c4 - *c5
-	commitFile(r2, r2Dir, "main", "file-4")
+	_, _ = commitFile(r2, r2Dir, "main", "file-4")
 	newCommitId, err = commitFile(r2, r2Dir, "main", "file-5")
 	assert.Nil(t, err)
 	r.Fetch([]string{"r1", "r2"})
@@ -300,10 +299,10 @@ func TestMultipleRemote(t *testing.T) {
 	// r2/main: c1 - c2 - c3 - c4 - c5 - c6
 	// r2/testing: c1 - c2 - c3 - c4 - c5 - c6 - *c7
 	c6, _ := commitFile(r1, r1Dir, "main", "file-6")
-	commitFile(r2, r2Dir, "main", "file-6")
-	commitFile(r2, r2Dir, "testing", "file-4")
-	commitFile(r2, r2Dir, "testing", "file-5")
-	commitFile(r2, r2Dir, "testing", "file-6")
+	_, _ = commitFile(r2, r2Dir, "main", "file-6")
+	_, _ = commitFile(r2, r2Dir, "testing", "file-4")
+	_, _ = commitFile(r2, r2Dir, "testing", "file-5")
+	_, _ = commitFile(r2, r2Dir, "testing", "file-6")
 	c7, _ := commitFile(r2, r2Dir, "testing", "file-7")
 	r.Fetch([]string{"r1", "r2"})
 	_ = r.Update()
@@ -432,7 +431,7 @@ func TestTestingSwitch(t *testing.T) {
 	// r1/testing: c1 - c2 - c3
 	// r2/main: c1 - c2 - c3 - *c4
 	// r2/testing: c1 - c2 - c3 - c4
-	commitFile(r2, r2Dir, "main", "file-4")
+	_, _ = commitFile(r2, r2Dir, "main", "file-4")
 	r.Fetch([]string{"r1", "r2"})
 	_ = r.Update()
 	assert.Equal(t, c4, r.RepositoryStatus.SelectedCommitId)
@@ -515,7 +514,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 
 	// A new commit is pushed to the remote repository: the local
 	// repository is updated
-	newCommitId, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
+	newCommitId, _ := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
 	assert.Equal(t, newCommitId, r.RepositoryStatus.SelectedCommitId)
@@ -524,7 +523,7 @@ func TestRepositoryUpdateMain(t *testing.T) {
 
 	// A commit is pushed to the testing branch which is currently
 	// behind the main branch: the repository is not updated
-	_, err = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
+	_, _ = commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
 	assert.Equal(t, newCommitId, r.RepositoryStatus.SelectedCommitId)
@@ -567,8 +566,8 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 
 	// Two commits are added to get a previous commit hash in
 	// order to reset it.
-	previousHash, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
-	newCommitId, err := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-5")
+	previousHash, _ := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-4")
+	newCommitId, _ := commitFile(remoteRepository, remoteRepositoryDir, "main", "file-5")
 
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
@@ -588,7 +587,7 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 	assert.Equal(t, newCommitId, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "origin", r.RepositoryStatus.SelectedRemoteName)
-	assert.Contains(t, r.RepositoryStatus.Remotes[0].Main.ErrorMsg, "This branch has been hard reset")
+	assert.Contains(t, r.RepositoryStatus.Remotes[0].Main.ErrorMsg, "this branch has been hard reset")
 }
 
 func TestRepositoryUpdateTesting(t *testing.T) {
@@ -626,7 +625,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
-	commitId4, err := commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
+	commitId4, _ := commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-4")
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
 	assert.Equal(t, commitId4, r.RepositoryStatus.SelectedCommitId)
@@ -635,7 +634,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 
 	// A new commit is pushed to the testing branch remote repository: the local
 	// repository is updated
-	commitId5, err := commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
+	commitId5, _ := commitFile(remoteRepository, remoteRepositoryDir, "testing", "file-5")
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
 	assert.Equal(t, commitId5, r.RepositoryStatus.SelectedCommitId)
@@ -644,7 +643,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 
 	// The main branch is rebased on top of testing: we switch
 	// back the the main branch
-	testingHeadRef, err := remoteRepository.Reference(
+	testingHeadRef, _ := remoteRepository.Reference(
 		plumbing.ReferenceName("refs/heads/testing"),
 		true)
 	ref := plumbing.NewHashReference("refs/heads/main", testingHeadRef.Hash())
@@ -663,7 +662,7 @@ func TestTestingHardReset(t *testing.T) {
 	var err error
 	r1Dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()
-	r1, err := initRemoteRepostiory(r1Dir, true)
+	r1, _ := initRemoteRepostiory(r1Dir, true)
 	cMain := HeadCommitId(r1)
 	gitConfig := types.GitConfig{
 		Path: cominRepositoryDir,
@@ -696,7 +695,7 @@ func TestTestingHardReset(t *testing.T) {
 
 	// r1/main: c1 - c2 - c3
 	// r1/testing: c1 - c2 - c3 - *c4
-	c4, err := commitFile(r1, r1Dir, "testing", "file-4")
+	c4, _ := commitFile(r1, r1Dir, "testing", "file-4")
 	r.Fetch([]string{"r1"})
 	err = r.Update()
 	assert.Nil(t, err)
@@ -707,7 +706,7 @@ func TestTestingHardReset(t *testing.T) {
 	// r1/main: c1 - c2 - *c3
 	// r1/testing: c1 - c2 - c3
 	ref := plumbing.NewHashReference("refs/heads/testing", plumbing.NewHash(cMain))
-	r1.Storer.SetReference(ref)
+	_ = r1.Storer.SetReference(ref)
 	r.Fetch([]string{"r1"})
 	err = r.Update()
 	assert.Nil(t, err)
@@ -719,12 +718,12 @@ func TestTestingHardReset(t *testing.T) {
 func TestUpdateGpg(t *testing.T) {
 	dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()
-	r1, err := initRemoteRepostiory(dir, true)
+	r1, _ := initRemoteRepostiory(dir, true)
 
 	f, _ := os.Open("./test.private")
 	entityList, _ := openpgp.ReadArmoredKeyRing(f)
 	entity := entityList[0]
-	commitFileAndSign(r1, dir, "main", "file-1", entity)
+	_, _ = commitFileAndSign(r1, dir, "main", "file-1", entity)
 	cMain := HeadCommitId(r1)
 
 	gitConfig := types.GitConfig{
@@ -753,7 +752,7 @@ func TestUpdateGpg(t *testing.T) {
 	assert.Equal(t, "test <test@comin.space>", r.RepositoryStatus.SelectedCommitSignedBy)
 	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned)
 
-	commitFile(r1, dir, "main", "file-2")
+	_, _ = commitFile(r1, dir, "main", "file-2")
 	r.Fetch([]string{"r1"})
 	err = r.Update()
 	assert.Nil(t, err)
