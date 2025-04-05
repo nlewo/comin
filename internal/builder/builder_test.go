@@ -46,7 +46,7 @@ func TestBuilderBuild(t *testing.T) {
 
 	b := New("", "", "my-machine", 2*time.Second, mkNixEvalMock(evalDone), 2*time.Second, mkNixBuildMock(buildDone))
 
-	assert.ErrorContains(t, b.Build(), "The generation is not evaluated")
+	assert.ErrorContains(t, b.Build(), "the generation is not evaluated")
 	// Run the evaluator
 	b.Eval(repository.RepositoryStatus{})
 	close(evalDone)
@@ -55,12 +55,12 @@ func TestBuilderBuild(t *testing.T) {
 		assert.False(c, b.IsEvaluating)
 	}, 2*time.Second, 100*time.Millisecond)
 
-	b.Build()
+	_ = b.Build()
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, b.IsBuilding)
 	}, 2*time.Second, 100*time.Millisecond)
 	err := b.Build()
-	assert.ErrorContains(t, err, "The builder is already building")
+	assert.ErrorContains(t, err, "the builder is already building")
 
 	// Stop the evaluator and builder
 	b.Stop()
@@ -89,7 +89,7 @@ func TestBuilderBuild(t *testing.T) {
 
 	// The generation is already built
 	err = b.Build()
-	assert.ErrorContains(t, err, "The generation is already built")
+	assert.ErrorContains(t, err, "the generation is already built")
 }
 
 func TestEval(t *testing.T) {

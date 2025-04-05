@@ -192,13 +192,13 @@ func (b *Builder) Build() error {
 	defer b.mu.Unlock()
 
 	if b.generation == nil || b.generation.EvalStatus != Evaluated {
-		return fmt.Errorf("The generation is not evaluated")
+		return fmt.Errorf("the generation is not evaluated")
 	}
 	if b.IsBuilding {
-		return fmt.Errorf("The builder is already building")
+		return fmt.Errorf("the builder is already building")
 	}
 	if b.generation.BuildStatus == Built {
-		return fmt.Errorf("The generation is already built")
+		return fmt.Errorf("the generation is already built")
 	}
 	b.generation.BuildStartedAt = time.Now().UTC()
 	b.generation.BuildStatus = Building

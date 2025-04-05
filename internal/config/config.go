@@ -15,7 +15,7 @@ func Read(path string) (config types.Configuration, err error) {
 	if err != nil {
 		return
 	}
-	defer file.Close()
+	defer file.Close() // nolint
 
 	d := yaml.NewDecoder(file)
 	if err := d.Decode(&config); err != nil {

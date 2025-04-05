@@ -38,7 +38,7 @@ func RepositoryClone(directory, url, commitId, accessToken string) error {
 		Hash: plumbing.NewHash(commitId),
 	})
 	if err != nil {
-		return fmt.Errorf("Cannot checkout the commit ID %s: '%s'", commitId, err)
+		return fmt.Errorf("cannot checkout the commit ID %s: '%s'", commitId, err)
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func hasNotBeenHardReset(r repository, branchName string, currentMainHash *plumb
 			return err
 		}
 		if !ok {
-			return fmt.Errorf("This branch has been hard reset: its head '%s' is not on top of '%s'",
+			return fmt.Errorf("this branch has been hard reset: its head '%s' is not on top of '%s'",
 				remoteMainHead.String(), currentMainHash.String())
 		}
 	}
@@ -77,7 +77,7 @@ func getHeadFromRemoteAndBranch(r repository, remoteName, branchName, currentMai
 	var currentMainHash *plumbing.Hash
 	head := getRemoteCommitHash(r, remoteName, branchName)
 	if head == nil {
-		return newHead, "", fmt.Errorf("The branch '%s/%s' doesn't exist", remoteName, branchName)
+		return newHead, "", fmt.Errorf("the branch '%s/%s' doesn't exist", remoteName, branchName)
 	}
 	if currentMainCommitId != "" {
 		c := plumbing.NewHash(currentMainCommitId)
@@ -100,7 +100,7 @@ func hardReset(r repository, newHead plumbing.Hash) error {
 	var w *git.Worktree
 	w, err := r.Repository.Worktree()
 	if err != nil {
-		return fmt.Errorf("Failed to get the worktree")
+		return fmt.Errorf("failed to get the worktree")
 	}
 	err = w.Checkout(&git.CheckoutOptions{
 		Hash:  newHead,
@@ -154,7 +154,7 @@ func isAncestor(r *git.Repository, base, top plumbing.Hash) (found bool, err err
 
 	// To skip the first commit
 	isFirst := true
-	iter.ForEach(func(commit *object.Commit) error {
+	_ = iter.ForEach(func(commit *object.Commit) error {
 		if !isFirst && commit.Hash == base {
 			found = true
 			// This error is ignored and used to terminate early the loop :/
@@ -223,9 +223,9 @@ func manageRemote(r *git.Repository, remote types.Remote) error {
 }
 
 func headSignedBy(r *git.Repository, publicKeys []string) (signedBy *openpgp.Entity, err error) {
-	head, err := r.Head()
+	head, _ := r.Head()
 	if head == nil {
-		return nil, fmt.Errorf("Repository HEAD should not be nil")
+		return nil, fmt.Errorf("repository HEAD should not be nil")
 	}
 	commit, err := r.CommitObject(head.Hash())
 	if err != nil {
@@ -238,5 +238,5 @@ func headSignedBy(r *git.Repository, publicKeys []string) (signedBy *openpgp.Ent
 			return entity, nil
 		}
 	}
-	return nil, fmt.Errorf("Commit %s is not signed", head.Hash())
+	return nil, fmt.Errorf("commit %s is not signed", head.Hash())
 }

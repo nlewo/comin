@@ -32,7 +32,7 @@ func getStatus() (status manager.State, err error) {
 		return
 	}
 	if res.Body != nil {
-		defer res.Body.Close()
+		defer res.Body.Close() // nolint
 	}
 	body, err := io.ReadAll(res.Body)
 	if err != nil {

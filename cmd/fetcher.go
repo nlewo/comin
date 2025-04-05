@@ -20,7 +20,7 @@ var fetchCmd = &cobra.Command{
 		if err != nil {
 			return
 		}
-		client.Do(req)
+		_, _ = client.Do(req)
 	},
 }
 

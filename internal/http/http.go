@@ -21,8 +21,7 @@ func handlerStatus(m *manager.Manager, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logrus.Error(err)
 	}
-	io.WriteString(w, string(rJson))
-	return
+	_, _ = io.Writer.Write(w, rJson)
 }
 
 // Serve starts http servers. We create two HTTP servers to easily be
@@ -31,13 +30,12 @@ func handlerStatus(m *manager.Manager, w http.ResponseWriter, r *http.Request) {
 func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPort int, metricsAddress string, metricsPort int) {
 	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
 		handlerStatus(m, w, r)
-		return
 	}
 	handlerFetcherFn := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		s := m.GetState().Fetcher
 		rJson, _ := json.MarshalIndent(s, "", "\t")
-		io.WriteString(w, string(rJson))
+		_, _ = io.Writer.Write(w, rJson)
 	}
 	handlerFetcherFetchFn := func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

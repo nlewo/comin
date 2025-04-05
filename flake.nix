@@ -1,7 +1,7 @@
 {
   description = "Comin - GitOps for NixOS Machines";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs";
 
   outputs = { self, nixpkgs }:
   let
@@ -33,6 +33,7 @@
     in pkgs.mkShell {
       buildInputs = [
         pkgs.go pkgs.godef pkgs.gopls
+        pkgs.golangci-lint
       ];
     };
   };

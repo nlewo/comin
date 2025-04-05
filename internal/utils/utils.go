@@ -16,7 +16,7 @@ func CominServiceRestart() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("Command 'systemctl restart --no-block comin.service' fails with %s", err)
+		return fmt.Errorf("command 'systemctl restart --no-block comin.service' fails with %s", err)
 	}
 	return nil
 }
@@ -41,7 +41,7 @@ func ReadMachineId() (machineId string, err error) {
 	machineIdBytes, err := os.ReadFile("/etc/machine-id")
 	machineId = strings.TrimSuffix(string(machineIdBytes), "\n")
 	if err != nil {
-		return "", fmt.Errorf("Can not read file '/etc/machine-id': %s", err)
+		return "", fmt.Errorf("can not read file '/etc/machine-id': %s", err)
 	}
 	return
 }

@@ -18,10 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type metricsMock struct{}
-
-func (m metricsMock) SetDeploymentInfo(commitId, status string) {}
-
 var mkNixEvalMock = func(evalOk chan bool) builder.EvalFunc {
 	return func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
 		ok := <-evalOk

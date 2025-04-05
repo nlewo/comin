@@ -45,7 +45,7 @@ type HttpServer struct {
 }
 
 type Configuration struct {
-	Hostname          string     `yaml:"hostname"`
+	Hostname          string       `yaml:"hostname"`
 	StateDir          string     `yaml:"state_dir"`
 	StateFilepath     string     `yaml:"state_filepath"`
 	FlakeSubdirectory string     `yaml:"flake_subdirectory"`
