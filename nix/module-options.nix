@@ -1,5 +1,11 @@
-{ config, pkgs, lib, ... }: {
-  options = with lib; with types; {
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}: {
+  options = with lib;
+  with types; {
     services.comin = {
       enable = mkOption {
         type = types.bool;
@@ -8,9 +14,11 @@
           Whether to run the comin service.
         '';
       };
-      package = lib.mkPackageOption pkgs "comin" { nullable = true; } // {
-        defaultText = "pkgs.comin or comin.packages.\${system}.default or null";
-      };
+      package =
+        lib.mkPackageOption pkgs "comin" {nullable = true;}
+        // {
+          defaultText = "pkgs.comin or comin.packages.\${system}.default or null";
+        };
       hostname = mkOption {
         type = str;
         default = config.networking.hostName;
@@ -188,6 +196,11 @@
         example = lib.literalExpression ''
           pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
         '';
+      };
+      allowForcePushMain = mkOption {
+        description = "Switch to configuration even when a force-push was detected on main.";
+        type = bool;
+        default = false;
       };
     };
   };
