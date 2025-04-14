@@ -174,6 +174,11 @@
         type = listOf str;
         default = [];
       };
+      allowForcePushMain = mkOption {
+        description = "Switch to configuration even when a force-push was detected on main.";
+        type = bool;
+        default = false;
+      };
     };
   };
 }
