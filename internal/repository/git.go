@@ -85,7 +85,11 @@ func getHeadFromRemoteAndBranch(r repository, remoteName, branchName, currentMai
 	}
 
 	if err = hasNotBeenHardReset(r, branchName, currentMainHash, head); err != nil {
-		return
+		if r.GitConfig.AllowForcePushMain {
+			logrus.Infof("Force-push detected but ignored due to 'allowForcePushMain' being set")
+		} else {
+			return
+		}
 	}
 
 	commitObject, err := r.Repository.CommitObject(*head)
