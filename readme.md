@@ -67,3 +67,4 @@ seconds.
 - [Authentication](./docs/authentication.md)
 - [Comin module options](./docs/generated-module-options.md)
 - [Design](./docs/design.md)
+- [Contribute](./docs/contribute.md)
