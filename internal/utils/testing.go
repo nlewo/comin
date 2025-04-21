@@ -19,8 +19,6 @@ func NewRepositoryMock() (r *RepositoryMock) {
 func (r *RepositoryMock) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan repository.RepositoryStatus) {
 	return r.RsCh
 }
-func (r *RepositoryMock) Fetch(remoteNames []string) {
-}
-func (r *RepositoryMock) Update() (repository.RepositoryStatus, error) {
-	return repository.RepositoryStatus{}, nil
+func (r *RepositoryMock) GetRepositoryStatus() repository.RepositoryStatus {
+	return repository.RepositoryStatus{}
 }

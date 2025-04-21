@@ -16,11 +16,14 @@ type Fetcher struct {
 }
 
 func NewFetcher(repo repository.Repository) *Fetcher {
-	return &Fetcher{
+	f := &Fetcher{
 		repo:               repo,
 		submitRemotes:      make(chan []string),
 		RepositoryStatusCh: make(chan repository.RepositoryStatus),
 	}
+	f.RepositoryStatus = repo.GetRepositoryStatus()
+	return f
+
 }
 
 func (f *Fetcher) TriggerFetch(remotes []string) {
@@ -52,6 +55,7 @@ func (f *Fetcher) Start() {
 		for {
 			select {
 			case submittedRemotes := <-f.submitRemotes:
+				logrus.Debugf("fetch: remotes submitted: %s", submittedRemotes)
 				remotes = union(remotes, submittedRemotes)
 			case rs := <-workerRepositoryStatusCh:
 				f.IsFetching = false

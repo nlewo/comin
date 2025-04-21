@@ -26,6 +26,8 @@ type repository struct {
 
 type Repository interface {
 	FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan RepositoryStatus)
+	// GetRepositoryStatus is currently not thread safe and is only used to initialize the fetcher
+	GetRepositoryStatus() RepositoryStatus
 }
 
 // repositoryStatus is the last saved repositoryStatus
@@ -62,6 +64,10 @@ func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prom
 	return
 }
 
+func (r *repository) GetRepositoryStatus() RepositoryStatus {
+	return r.RepositoryStatus
+}
+
 func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan RepositoryStatus) {
 	rsCh = make(chan RepositoryStatus)
 	go func() {
@@ -78,6 +84,7 @@ func (r *repository) Fetch(remoteNames []string) {
 	var status string
 	r.RepositoryStatus.Error = nil
 	r.RepositoryStatus.ErrorMsg = ""
+	logrus.Debugf("repository: fetching %s", remoteNames)
 	for _, remote := range r.GitConfig.Remotes {
 		repositoryStatusRemote := r.RepositoryStatus.GetRemote(remote.Name)
 		if !slices.Contains(remoteNames, remote.Name) {
