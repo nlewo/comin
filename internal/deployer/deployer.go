@@ -176,6 +176,7 @@ func (d *Deployer) Run() {
 				g.OutPath,
 				operation,
 			)
+
 			d.mu.Lock()
 			d.IsDeploying = false
 			d.Deployment.EndedAt = time.Now().UTC()
@@ -190,6 +191,11 @@ func (d *Deployer) Run() {
 			d.Deployment.ProfilePath = profilePath
 			d.DeploymentDoneCh <- *d.Deployment
 			d.mu.Unlock()
+
+			err = RunPostDeploymentCommand(d.Deployment)
+			if err != nil {
+				logrus.Errorf("deployer: deploying generation %s, post deployment command failed %v", g.UUID, err)
+			}
 		}
 	}()
 }
