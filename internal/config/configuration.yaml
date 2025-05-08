@@ -1,5 +1,6 @@
 hostname: machine
 state_dir: /var/lib/comin
+post_deployment_command: "/some/path"
 remotes:
   - name: origin
     type: https
