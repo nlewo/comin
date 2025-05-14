@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 func envGitSha(d *Deployment) string {
@@ -27,7 +29,7 @@ func envCominHostname(d *Deployment) string {
 	return d.Generation.Hostname
 }
 
-func envCominState(d *Deployment) string {
+func envCominStatus(d *Deployment) string {
 	return StatusToString(d.Status)
 }
 
@@ -46,18 +48,18 @@ func envCominFlakeUrl(d *Deployment) string {
 	return d.Generation.FlakeUrl
 }
 
-func RunPostDeploymentCommand(command string, d *Deployment) error {
+func runPostDeploymentCommand(command string, d *Deployment) (string, error) {
 
 	cmd := exec.Command(command)
 
 	cmd.Env = append(os.Environ(),
-		"GIT_SHA="+envGitSha(d),
-		"GIT_REF="+envGitRef(d),
-		"GIT_MSG="+envGitMessage(d),
+		"COMIN_GIT_SHA="+envGitSha(d),
+		"COMIN_GIT_REF="+envGitRef(d),
+		"COMIN_GIT_MSG="+envGitMessage(d),
 		"COMIN_HOSTNAME="+envCominHostname(d),
 		"COMIN_FLAKE_URL="+envCominFlakeUrl(d),
 		"COMIN_GENERATION="+envCominGeneration(d),
-		"COMIN_STATE="+envCominState(d),
+		"COMIN_STATE="+envCominStatus(d),
 		// "COMIN_RESTART="+envCominRestart(d),
 		"COMIN_ERROR_MSG="+envCominErrorMessage(d),
 		// d.Generation.EvalErrStr,
@@ -65,12 +67,12 @@ func RunPostDeploymentCommand(command string, d *Deployment) error {
 	)
 
 	output, err := cmd.CombinedOutput()
+	outputString := string(output)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		return err
+		return outputString, err
 	}
 
-	fmt.Println(string(output))
+	logrus.Debugf("cmd:[%s] output:[%s]", command, outputString)
 
-	return nil
+	return outputString, nil
 }

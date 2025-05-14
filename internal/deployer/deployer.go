@@ -197,9 +197,9 @@ func (d *Deployer) Run() {
 
 			cmd := d.config.PostDeploymentCommand
 			if cmd != "" {
-				err = RunPostDeploymentCommand(cmd, d.Deployment)
+				_, err = runPostDeploymentCommand(cmd, d.Deployment)
 				if err != nil {
-					logrus.Errorf("deployer: deploying generation %s, post deployment command failed %v", g.UUID, err)
+					logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", g.UUID, cmd, err)
 				}
 			}
 		}
