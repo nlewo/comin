@@ -24,6 +24,6 @@ func TestBasic(t *testing.T) {
 		Operation:    "",
 	}
 
-	err := RunPostDeploymentCommand(&deployment)
+	err := RunPostDeploymentCommand("env", &deployment)
 	assert.NoError(t, err)
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/builder"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +17,7 @@ func TestDeployerBasic(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := New(deployFunc, nil)
+	d := New(deployFunc, nil, types.Configuration{})
 	d.Run()
 	assert.False(t, d.IsDeploying)
 
@@ -47,7 +48,7 @@ func TestDeployerSubmit(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := New(deployFunc, nil)
+	d := New(deployFunc, nil, types.Configuration{})
 	d.Run()
 	assert.False(t, d.IsDeploying)
 

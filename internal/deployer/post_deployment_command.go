@@ -1,25 +1,39 @@
 package deployer
 
-// "fmt"
-// "os"
-// "os/exec"
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
 
-func RunPostDeploymentCommand(d *Deployment) error {
+func envSha() string {
+	return "SHA"
+}
 
-	// cmd := exec.Command("./script.sh")
+func envRef() string {
+	return "REF"
+}
 
-	// cmd.Env = append(os.Environ(),
-	// 	"GIT_SHA=value1",
-	// 	"GIT_REF=value2",
-	// 	"COMIN_STATE=value3",
-	// )
+func envState() string {
+	return "STATE"
+}
 
-	// output, err := cmd.CombinedOutput()
-	// if err != nil {
-	// 	fmt.Printf("Error: %s\n", err)
-	// }
+func RunPostDeploymentCommand(command string, d *Deployment) error {
 
-	// fmt.Println(string(output))
+	cmd := exec.Command(command)
+
+	cmd.Env = append(os.Environ(),
+		"GIT_SHA="+envSha(),
+		"GIT_REF="+envRef(),
+		"COMIN_STATE="+envState(),
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("Error: %s\n", err)
+	}
+
+	fmt.Println(string(output))
 
 	return nil
 }

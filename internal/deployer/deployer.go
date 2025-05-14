@@ -10,6 +10,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/builder"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -63,6 +64,7 @@ type Deployer struct {
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy    *builder.Generation
 	generationAvailableCh chan struct{}
+	config                types.Configuration
 }
 
 func (d Deployment) IsTesting() bool {
@@ -114,13 +116,14 @@ func (s State) Show(padding string) {
 	showDeployment(padding, *s.Deployment)
 }
 
-func New(deployFunc DeployFunc, previousDeployment *Deployment) *Deployer {
+func New(deployFunc DeployFunc, previousDeployment *Deployment, config types.Configuration) *Deployer {
 	return &Deployer{
 		DeploymentDoneCh:      make(chan Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
 		previousDeployment:    previousDeployment,
 		Deployment:            previousDeployment,
+		config:                config,
 	}
 }
 
@@ -192,9 +195,12 @@ func (d *Deployer) Run() {
 			d.DeploymentDoneCh <- *d.Deployment
 			d.mu.Unlock()
 
-			err = RunPostDeploymentCommand(d.Deployment)
-			if err != nil {
-				logrus.Errorf("deployer: deploying generation %s, post deployment command failed %v", g.UUID, err)
+			cmd := d.config.PostDeploymentCommand
+			if cmd != "" {
+				err = RunPostDeploymentCommand(cmd, d.Deployment)
+				if err != nil {
+					logrus.Errorf("deployer: deploying generation %s, post deployment command failed %v", g.UUID, err)
+				}
 			}
 		}
 	}()
