@@ -13,7 +13,6 @@ import (
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
-	"github.com/nlewo/comin/internal/types"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +33,7 @@ var mkDeployerMock = func() *deployer.Deployer {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "", nil
 	}
-	return deployer.New(deployFunc, nil, types.Configuration{})
+	return deployer.New(deployFunc, nil, "")
 }
 
 var mkNixBuildMock = func(buildOk chan bool) builder.BuildFunc {
@@ -63,7 +62,7 @@ func TestBuild(t *testing.T) {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
-	d := deployer.New(deployFunc, nil, types.Configuration{})
+	d := deployer.New(deployFunc, nil, "")
 	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
@@ -161,7 +160,7 @@ func TestDeploy(t *testing.T) {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
-	d := deployer.New(deployFunc, nil, types.Configuration{})
+	d := deployer.New(deployFunc, nil, "")
 	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
@@ -186,7 +185,7 @@ func TestRestartComin(t *testing.T) {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return true, "profile-path", nil
 	}
-	d := deployer.New(deployFunc, nil, types.Configuration{})
+	d := deployer.New(deployFunc, nil, "")
 	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
 

@@ -10,7 +10,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/builder"
-	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -64,7 +63,7 @@ type Deployer struct {
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy    *builder.Generation
 	generationAvailableCh chan struct{}
-	config                types.Configuration
+	postDeploymentCommand string
 }
 
 func (d Deployment) IsTesting() bool {
@@ -116,14 +115,14 @@ func (s State) Show(padding string) {
 	showDeployment(padding, *s.Deployment)
 }
 
-func New(deployFunc DeployFunc, previousDeployment *Deployment, config types.Configuration) *Deployer {
+func New(deployFunc DeployFunc, previousDeployment *Deployment, postDeploymentCommand string) *Deployer {
 	return &Deployer{
 		DeploymentDoneCh:      make(chan Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
 		previousDeployment:    previousDeployment,
 		Deployment:            previousDeployment,
-		config:                config,
+		postDeploymentCommand: postDeploymentCommand,
 	}
 }
 
@@ -195,7 +194,7 @@ func (d *Deployer) Run() {
 			d.DeploymentDoneCh <- *d.Deployment
 			d.mu.Unlock()
 
-			cmd := d.config.PostDeploymentCommand
+			cmd := d.postDeploymentCommand
 			if cmd != "" {
 				_, err = runPostDeploymentCommand(cmd, d.Deployment)
 				if err != nil {
