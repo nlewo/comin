@@ -1,18 +1,20 @@
 package config
 
 import (
+	"testing"
+
 	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestConfig(t *testing.T) {
 	configPath := "./configuration.yaml"
 	expected := types.Configuration{
-		Hostname:          "machine",
-		StateDir:          "/var/lib/comin",
-		StateFilepath:     "/var/lib/comin/state.json",
-		FlakeSubdirectory: ".",
+		Hostname:              "machine",
+		StateDir:              "/var/lib/comin",
+		StateFilepath:         "/var/lib/comin/state.json",
+		PostDeploymentCommand: "/some/path",
+		FlakeSubdirectory:     ".",
 		Remotes: []types.Remote{
 			{
 				Name: "origin",
