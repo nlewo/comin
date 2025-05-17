@@ -9,72 +9,31 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
-	"github.com/nlewo/comin/internal/builder"
+	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 )
-
-type Status int64
-
-const (
-	Init Status = iota
-	Running
-	Done
-	Failed
-)
-
-func StatusToString(status Status) string {
-	switch status {
-	case Init:
-		return "init"
-	case Running:
-		return "running"
-	case Done:
-		return "done"
-	case Failed:
-		return "failed"
-	}
-	return ""
-}
-
-type Deployment struct {
-	UUID       string             `json:"uuid"`
-	Generation builder.Generation `json:"generation"`
-	StartedAt  time.Time          `json:"started_at"`
-	EndedAt    time.Time          `json:"ended_at"`
-	// It is ignored in the JSON marshaling
-	Err          error  `json:"-"`
-	ErrorMsg     string `json:"error_msg"`
-	RestartComin bool   `json:"restart_comin"`
-	ProfilePath  string `json:"profile_path"`
-	Status       Status `json:"status"`
-	Operation    string `json:"operation"`
-}
 
 type DeployFunc func(context.Context, string, string) (bool, string, error)
 
 type Deployer struct {
-	GenerationCh       chan builder.Generation
+	GenerationCh       chan store.Generation
 	deployerFunc       DeployFunc
-	DeploymentDoneCh   chan Deployment
+	DeploymentDoneCh   chan store.Deployment
 	mu                 sync.Mutex
-	Deployment         *Deployment
-	previousDeployment *Deployment
+	Deployment         *store.Deployment
+	previousDeployment *store.Deployment
 	IsDeploying        bool
 	// The next generation to deploy. nil when there is no new generation to deploy
-	GenerationToDeploy    *builder.Generation
+	GenerationToDeploy    *store.Generation
 	generationAvailableCh chan struct{}
 	postDeploymentCommand string
 }
 
-func (d Deployment) IsTesting() bool {
-	return d.Operation == "test"
-}
-
 type State struct {
-	IsDeploying        bool                `json:"is_deploying"`
-	GenerationToDeploy *builder.Generation `json:"generation_to_deploy"`
-	Deployment         *Deployment         `json:"deployment"`
-	PreviousDeployment *Deployment         `json:"previous_deployment"`
+	IsDeploying        bool              `json:"is_deploying"`
+	GenerationToDeploy *store.Generation `json:"generation_to_deploy"`
+	Deployment         *store.Deployment `json:"deployment"`
+	PreviousDeployment *store.Deployment `json:"previous_deployment"`
 }
 
 func (d *Deployer) State() State {
@@ -86,16 +45,16 @@ func (d *Deployer) State() State {
 	}
 }
 
-func showDeployment(padding string, d Deployment) {
+func showDeployment(padding string, d store.Deployment) {
 	switch d.Status {
-	case Running:
+	case store.Running:
 		fmt.Printf("%sDeployment is running since %s\n", padding, humanize.Time(d.StartedAt))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
-	case Done:
+	case store.Done:
 		fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
-	case Failed:
+	case store.Failed:
 		fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
@@ -115,9 +74,9 @@ func (s State) Show(padding string) {
 	showDeployment(padding, *s.Deployment)
 }
 
-func New(deployFunc DeployFunc, previousDeployment *Deployment, postDeploymentCommand string) *Deployer {
+func New(deployFunc DeployFunc, previousDeployment *store.Deployment, postDeploymentCommand string) *Deployer {
 	return &Deployer{
-		DeploymentDoneCh:      make(chan Deployment, 1),
+		DeploymentDoneCh:      make(chan store.Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
 		previousDeployment:    previousDeployment,
@@ -130,7 +89,7 @@ func New(deployFunc DeployFunc, previousDeployment *Deployment, postDeploymentCo
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
 // of the last deployment, this generation is skipped.
-func (d *Deployer) Submit(generation builder.Generation) {
+func (d *Deployer) Submit(generation store.Generation) {
 	logrus.Infof("deployer: submiting generation %s", generation.UUID)
 	d.mu.Lock()
 	if d.previousDeployment == nil || generation.SelectedCommitId != d.previousDeployment.Generation.SelectedCommitId || generation.SelectedBranchIsTesting != d.previousDeployment.Generation.SelectedBranchIsTesting {
@@ -159,12 +118,12 @@ func (d *Deployer) Run() {
 			if g.SelectedBranchIsTesting {
 				operation = "test"
 			}
-			dpl := Deployment{
+			dpl := store.Deployment{
 				UUID:       uuid.NewString(),
 				Generation: *g,
 				Operation:  operation,
 				StartedAt:  time.Now().UTC(),
-				Status:     Running,
+				Status:     store.Running,
 			}
 			d.mu.Lock()
 			d.previousDeployment = d.Deployment
@@ -185,9 +144,9 @@ func (d *Deployer) Run() {
 			d.Deployment.Err = err
 			if err != nil {
 				d.Deployment.ErrorMsg = err.Error()
-				d.Deployment.Status = Failed
+				d.Deployment.Status = store.Failed
 			} else {
-				d.Deployment.Status = Done
+				d.Deployment.Status = store.Done
 			}
 			d.Deployment.RestartComin = cominNeedRestart
 			d.Deployment.ProfilePath = profilePath
