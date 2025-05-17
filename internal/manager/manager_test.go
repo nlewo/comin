@@ -57,13 +57,15 @@ func TestBuild(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
+	tmp := t.TempDir()
+	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	f.Start()
-	b := builder.New("repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil, "")
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
@@ -84,7 +86,8 @@ func TestBuild(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.builder.State().IsEvaluating)
 		assert.False(c, m.builder.State().IsBuilding)
-		assert.NotNil(c, m.builder.GetGeneration().EvalErr)
+		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.NotNil(c, g.EvalErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
@@ -98,7 +101,8 @@ func TestBuild(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.builder.State().IsEvaluating)
 		assert.True(c, m.builder.State().IsBuilding)
-		assert.Nil(c, m.builder.GetGeneration().EvalErr)
+		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.Nil(c, g.EvalErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
@@ -107,7 +111,8 @@ func TestBuild(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.builder.State().IsEvaluating)
 		assert.False(c, m.builder.State().IsBuilding)
-		assert.NotNil(c, m.builder.GetGeneration().BuildErr)
+		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.NotNil(c, g.BuildErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
@@ -121,7 +126,8 @@ func TestBuild(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.builder.State().IsEvaluating)
 		assert.False(c, m.builder.State().IsBuilding)
-		assert.Nil(c, m.builder.GetGeneration().BuildErr)
+		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.Nil(c, g.BuildErr)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the success of another build and ensure this
@@ -135,7 +141,8 @@ func TestBuild(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.builder.State().IsEvaluating)
 		assert.False(c, m.builder.State().IsBuilding)
-		assert.Nil(c, m.builder.GetGeneration().BuildErr)
+		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.Nil(c, g.BuildErr)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the push of new commit while building
@@ -156,18 +163,20 @@ func TestDeploy(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
 	f.Start()
-	b := builder.New("repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	tmp := t.TempDir()
+	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil, "")
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
 	assert.False(t, m.builder.State().IsBuilding)
 
-	m.deployer.Submit(builder.Generation{})
+	m.deployer.Submit(store.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "profile-path", m.deployer.State().Deployment.ProfilePath)
 	}, 5*time.Second, 100*time.Millisecond)
@@ -181,12 +190,14 @@ func TestRestartComin(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
 	f.Start()
-	b := builder.New("repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	tmp := t.TempDir()
+	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return true, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil, "")
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "")
 	go m.Run()
 
 	isCominRestarted := false
@@ -196,7 +207,7 @@ func TestRestartComin(t *testing.T) {
 	}
 	m.cominServiceRestartFunc = cominServiceRestartMock
 
-	m.deployer.Submit(builder.Generation{})
+	m.deployer.Submit(store.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, isCominRestarted)
 	}, 5*time.Second, 100*time.Millisecond, "comin has not been restarted yet")
@@ -211,9 +222,11 @@ func TestIncorrectMachineId(t *testing.T) {
 	nixEval := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
 		return "drv-path", "out-path", "invalid-machine-id", nil
 	}
-	b := builder.New("repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	tmp := t.TempDir()
+	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
@@ -235,9 +248,11 @@ func TestCorrectMachineId(t *testing.T) {
 	nixEval := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
 		return "drv-path", "out-path", "the-test-machine-id", nil
 	}
-	b := builder.New("repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	tmp := t.TempDir()
+	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(store.New("", 1, 1), prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
