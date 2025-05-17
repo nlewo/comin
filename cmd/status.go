@@ -9,9 +9,8 @@ import (
 
 	"github.com/dustin/go-humanize"
 
-	"github.com/nlewo/comin/internal/builder"
-	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/manager"
+	store "github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -65,7 +64,7 @@ func longStatus(status manager.State) {
 	}
 	fmt.Printf("  Builder\n")
 	if status.Builder.Generation != nil {
-		builder.GenerationShow(*status.Builder.Generation)
+		store.GenerationShow(*status.Builder.Generation)
 	} else {
 		fmt.Printf("    No build available\n")
 	}
@@ -83,21 +82,21 @@ func onelineStatus(status manager.State) {
 	} else if status.Builder.IsBuilding {
 		fmt.Printf("building %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.BuildStartedAt))
-	} else if status.Builder.Generation.EvalStatus == builder.EvalFailed {
+	} else if status.Builder.Generation.EvalStatus == store.EvalFailed {
 		fmt.Printf("🔥 %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalEndedAt))
-	} else if status.Builder.Generation.BuildStatus == builder.BuildFailed {
+	} else if status.Builder.Generation.BuildStatus == store.BuildFailed {
 		fmt.Printf("🔥 %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.BuildEndedAt))
 	} else if status.Deployer.Deployment != nil {
 		switch status.Deployer.Deployment.Status {
-		case deployer.Running:
+		case store.Running:
 			fmt.Printf("deploying %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt))
-		case deployer.Failed:
+		case store.Failed:
 			fmt.Printf("🔥 %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt))
-		case deployer.Done:
+		case store.Done:
 			fmt.Printf("✔️ %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt))
 		}

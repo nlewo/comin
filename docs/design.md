@@ -21,3 +21,13 @@ Here is the algorithm used to choose the next commit to deploy:
 4. Get the first `testing` commit on top of the previously chosen
    `main` commit. If no such commit exists, comin uses the previously
    chosen `main` commit.
+
+## Internal architecture
+
+The main comin components are
+
+- the fetcher: fetch commits from remote and produce `RepositoryStatus`.
+- the builder: from a `RepositoryStatus`, it creates a `Generation` which is then evaluated and built.
+- the deployer: from a `Generation`, it creates a `Deployment` which
+  is used to decide how to run the `switch-to-configuration` script.
+- the manager: it is in charge of managing all this components
