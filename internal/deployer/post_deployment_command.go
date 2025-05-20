@@ -37,12 +37,6 @@ func envCominErrorMessage(d *Deployment) string {
 	return d.ErrorMsg
 }
 
-// func envCominRestart(d *Deployment) string {
-// 	if d.RestartComin {
-// 		return "true"
-// 	}
-// 	return "false"
-// }
 
 func envCominFlakeUrl(d *Deployment) string {
 	return d.Generation.FlakeUrl
