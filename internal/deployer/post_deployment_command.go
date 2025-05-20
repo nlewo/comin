@@ -37,7 +37,6 @@ func envCominErrorMessage(d *Deployment) string {
 	return d.ErrorMsg
 }
 
-
 func envCominFlakeUrl(d *Deployment) string {
 	return d.Generation.FlakeUrl
 }
