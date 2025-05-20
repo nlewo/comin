@@ -54,7 +54,6 @@ func runPostDeploymentCommand(command string, d *Deployment) (string, error) {
 		"COMIN_FLAKE_URL="+envCominFlakeUrl(d),
 		"COMIN_GENERATION="+envCominGeneration(d),
 		"COMIN_STATUS="+envCominStatus(d),
-		// "COMIN_RESTART="+envCominRestart(d),
 		"COMIN_ERROR_MSG="+envCominErrorMessage(d),
 	)
 
