@@ -62,7 +62,6 @@ func runPostDeploymentCommand(command string, d *Deployment) (string, error) {
 		"COMIN_STATUS="+envCominStatus(d),
 		// "COMIN_RESTART="+envCominRestart(d),
 		"COMIN_ERROR_MSG="+envCominErrorMessage(d),
-		// d.Generation.EvalErrStr,
 		// d.Generation.BuildErrStr
 	)
 
