@@ -63,6 +63,7 @@ type Deployer struct {
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy    *builder.Generation
 	generationAvailableCh chan struct{}
+	postDeploymentCommand string
 }
 
 func (d Deployment) IsTesting() bool {
@@ -114,13 +115,14 @@ func (s State) Show(padding string) {
 	showDeployment(padding, *s.Deployment)
 }
 
-func New(deployFunc DeployFunc, previousDeployment *Deployment) *Deployer {
+func New(deployFunc DeployFunc, previousDeployment *Deployment, postDeploymentCommand string) *Deployer {
 	return &Deployer{
 		DeploymentDoneCh:      make(chan Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
 		previousDeployment:    previousDeployment,
 		Deployment:            previousDeployment,
+		postDeploymentCommand: postDeploymentCommand,
 	}
 }
 
@@ -176,6 +178,7 @@ func (d *Deployer) Run() {
 				g.OutPath,
 				operation,
 			)
+
 			d.mu.Lock()
 			d.IsDeploying = false
 			d.Deployment.EndedAt = time.Now().UTC()
@@ -190,6 +193,14 @@ func (d *Deployer) Run() {
 			d.Deployment.ProfilePath = profilePath
 			d.DeploymentDoneCh <- *d.Deployment
 			d.mu.Unlock()
+
+			cmd := d.postDeploymentCommand
+			if cmd != "" {
+				_, err = runPostDeploymentCommand(cmd, d.Deployment)
+				if err != nil {
+					logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", g.UUID, cmd, err)
+				}
+			}
 		}
 	}()
 }
