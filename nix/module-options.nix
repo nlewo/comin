@@ -174,6 +174,18 @@
         type = listOf str;
         default = [];
       };
+      postDeploymentCommand = mkOption {
+        description = "A path to a script executed after each
+        deployment. comin provides to the script the following
+        environment variables: `COMIN_GIT_SHA`, `COMIN_GIT_REF`,
+        `COMIN_GIT_MSG`, `COMIN_HOSTNAME`, `COMIN_FLAKE_URL`,
+        `COMIN_GENERATION`, `COMIN_STATUS` and `COMIN_ERROR_MSG`.";
+        type = nullOr path;
+        default = null;
+        example = lib.literalExpression ''
+          pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
+        '';
+      };
     };
   };
 }
