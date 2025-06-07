@@ -205,6 +205,37 @@ null or string
 
 
 
+## services\.comin\.postDeploymentCommand
+
+
+
+A path to a script executed after each
+deployment\. comin provides to the script the following
+environment variables: ` COMIN_GIT_SHA `, ` COMIN_GIT_REF `,
+` COMIN_GIT_MSG `, ` COMIN_HOSTNAME `, ` COMIN_FLAKE_URL `,
+` COMIN_GENERATION `, ` COMIN_STATUS ` and ` COMIN_ERROR_MSG `\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+
+```
+pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
+
+```
+
+
+
 ## services\.comin\.remotes
 
 
