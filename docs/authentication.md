@@ -36,7 +36,7 @@ services.comin = {
 
 ## SSH
 
-you need to create a [SSH deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) with access to the flake repository and any private inputs.
+You need to create a [SSH deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) with access to the flake repository and any private inputs.
 store this key into a file (`/filepath/to/your/deploy/key` in example 2).
 Note: user access keys are also supported.
 
