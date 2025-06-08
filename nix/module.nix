@@ -12,7 +12,10 @@ let
       port = cfg.services.comin.exporter.port;
     };
     gpg_public_key_paths = cfg.services.comin.gpgPublicKeyPaths;
-  };
+  } // (
+    lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null)
+      { post_deployment_command = cfg.services.comin.postDeploymentCommand; }
+  );
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 
   inherit (pkgs.stdenv.hostPlatform) system;
