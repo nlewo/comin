@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/store"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -11,7 +12,7 @@ func TestBasic(t *testing.T) {
 
 	startedAt := time.Now()
 	endedAt := startedAt.Add(10 * time.Second)
-	deployment := Deployment{
+	deployment := store.Deployment{
 		UUID: "uuid",
 		// Generation builder.Generation
 		StartedAt:    startedAt,
@@ -20,7 +21,7 @@ func TestBasic(t *testing.T) {
 		ErrorMsg:     "",
 		RestartComin: false,
 		ProfilePath:  "",
-		Status:       Done,
+		Status:       store.Done,
 		Operation:    "",
 	}
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 )
 
@@ -15,6 +16,7 @@ type EvalFunc func(ctx context.Context, flakeUrl string, hostname string) (drvPa
 type BuildFunc func(ctx context.Context, drvPath string) error
 
 type Builder struct {
+	store          *store.Store
 	hostname       string
 	repositoryPath string
 	repositoryDir  string
@@ -27,12 +29,15 @@ type Builder struct {
 	IsEvaluating bool
 	IsBuilding   bool
 
-	generation *Generation
+	// GenerationUUID is the generation UUID currently managed by
+	// the builder. This generation can be evaluating, evaluated,
+	// building or built.
+	GenerationUUID *uuid.UUID
 
 	// EvaluationDone is used to be notified a evaluation is finished. Be careful since only a single goroutine can listen it.
-	EvaluationDone chan Generation
+	EvaluationDone chan uuid.UUID
 	// BuildDone is used to be notified a build is finished. Be careful since only a single goroutine can listen it.
-	BuildDone chan Generation
+	BuildDone chan uuid.UUID
 
 	evaluator   Exec
 	evaluatorWg *sync.WaitGroup
@@ -41,10 +46,11 @@ type Builder struct {
 	buildatorWg *sync.WaitGroup
 }
 
-func New(repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, evalFunc EvalFunc, buildTimeout time.Duration, buildFunc BuildFunc) *Builder {
+func New(store *store.Store, repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, evalFunc EvalFunc, buildTimeout time.Duration, buildFunc BuildFunc) *Builder {
 	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, hostname=%s, evalTimeout=%fs, buildTimeout=%fs, )",
 		repositoryPath, repositoryDir, hostname, evalTimeout.Seconds(), buildTimeout.Seconds())
 	return &Builder{
+		store:          store,
 		repositoryPath: repositoryPath,
 		repositoryDir:  repositoryDir,
 		hostname:       hostname,
@@ -52,34 +58,42 @@ func New(repositoryPath, repositoryDir, hostname string, evalTimeout time.Durati
 		evalTimeout:    evalTimeout,
 		buildFunc:      buildFunc,
 		buildTimeout:   buildTimeout,
-		EvaluationDone: make(chan Generation, 1),
-		BuildDone:      make(chan Generation, 1),
+		EvaluationDone: make(chan uuid.UUID, 1),
+		BuildDone:      make(chan uuid.UUID, 1),
 		evaluatorWg:    &sync.WaitGroup{},
 		buildatorWg:    &sync.WaitGroup{},
 	}
 }
 
-func (b *Builder) GetGeneration() Generation {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return *b.generation
-}
-
 type State struct {
-	Hostname     string      `json:"is_hostname"`
-	IsBuilding   bool        `json:"is_building"`
-	IsEvaluating bool        `json:"is_evaluating"`
-	Generation   *Generation `json:"generation"`
+	Hostname       string            `json:"hostname"`
+	IsBuilding     bool              `json:"is_building"`
+	IsEvaluating   bool              `json:"is_evaluating"`
+	Generation     *store.Generation `json:"generation"`
+	GenerationUUID string            `json:"generation_uuid"`
 }
 
 func (b *Builder) State() State {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	var generation *store.Generation
+	var generationUUID string
+
+	if b.GenerationUUID != nil {
+		generationUUID = b.GenerationUUID.String()
+		if g, err := b.store.GenerationGet(*b.GenerationUUID); err == nil {
+			generation = &g
+		} else {
+			logrus.Error("builder: generation %s not found in the store: %s", generationUUID, err)
+		}
+	}
+
 	return State{
-		Hostname:     b.hostname,
-		IsBuilding:   b.IsBuilding,
-		IsEvaluating: b.IsEvaluating,
-		Generation:   b.generation,
+		Hostname:       b.hostname,
+		IsBuilding:     b.IsBuilding,
+		IsEvaluating:   b.IsEvaluating,
+		Generation:     generation,
+		GenerationUUID: generationUUID,
 	}
 }
 
@@ -124,7 +138,7 @@ func (r *Buildator) Run(ctx context.Context) (err error) {
 
 // Eval evaluates a generation. It cancels current any generation
 // evaluation or build.
-func (b *Builder) Eval(rs repository.RepositoryStatus) {
+func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 	ctx := context.TODO()
 	// This is to prempt the builder since we don't need to allow
 	// several evaluation in parallel
@@ -132,25 +146,15 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.IsEvaluating = true
-	g := Generation{
-		UUID:                    uuid.NewString(),
-		FlakeUrl:                fmt.Sprintf("git+file://%s?dir=%s&rev=%s", b.repositoryPath, b.repositoryDir, rs.SelectedCommitId),
-		Hostname:                b.hostname,
-		SelectedRemoteName:      rs.SelectedRemoteName,
-		SelectedBranchName:      rs.SelectedBranchName,
-		SelectedCommitId:        rs.SelectedCommitId,
-		SelectedCommitMsg:       rs.SelectedCommitMsg,
-		SelectedBranchIsTesting: rs.SelectedBranchIsTesting,
-		MainRemoteName:          rs.MainBranchName,
-		MainBranchName:          rs.MainBranchName,
-		MainCommitId:            rs.MainCommitId,
-		EvalStartedAt:           time.Now().UTC(),
-		EvalStatus:              Evaluating,
+
+	g := b.store.NewGeneration(b.hostname, b.repositoryPath, b.repositoryDir, rs)
+	if err := b.store.GenerationEvalStarted(g.UUID); err != nil {
+		return err
 	}
-	b.generation = &g
+	b.GenerationUUID = &g.UUID
 
 	evaluator := &Evaluator{
-		hostname: g.Hostname,
+		hostname: b.hostname,
 		flakeUrl: g.FlakeUrl,
 		evalFunc: b.evalFunc,
 	}
@@ -165,47 +169,54 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) {
 		b.evaluator.Wait()
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		b.generation.EvalErr = b.evaluator.err
-		if b.evaluator.err != nil {
-			b.generation.EvalErrStr = b.evaluator.err.Error()
-			b.generation.EvalStatus = EvalFailed
-		} else {
-			b.generation.EvalStatus = Evaluated
+		if err := b.store.GenerationEvalFinished(
+			g.UUID,
+			evaluator.drvPath,
+			evaluator.outPath,
+			evaluator.machineId,
+			b.evaluator.err,
+		); err != nil {
+			logrus.Errorf("builder: %s", err)
 		}
-		b.generation.EvalErr = b.evaluator.err
-		b.generation.DrvPath = evaluator.drvPath
-		b.generation.OutPath = evaluator.outPath
-		b.generation.MachineId = evaluator.machineId
-		b.generation.EvalEndedAt = time.Now().UTC()
+
 		b.IsEvaluating = false
 		select {
-		case b.EvaluationDone <- *b.generation:
+		case b.EvaluationDone <- g.UUID:
 		default:
 		}
 	}()
+	return nil
 }
 
 // Build builds a generation which has been previously evaluated.
-func (b *Builder) Build() error {
+func (b *Builder) Build(generationUUID uuid.UUID) error {
 	ctx := context.TODO()
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if b.GenerationUUID != nil && generationUUID != *b.GenerationUUID {
+		return fmt.Errorf("another generation is evaluating or evaluated")
+	}
 
-	if b.generation == nil || b.generation.EvalStatus != Evaluated {
+	generation, err := b.store.GenerationGet(generationUUID)
+	if err != nil {
+		return err
+	}
+	if generation.EvalStatus != store.Evaluated {
 		return fmt.Errorf("the generation is not evaluated")
 	}
 	if b.IsBuilding {
 		return fmt.Errorf("the builder is already building")
 	}
-	if b.generation.BuildStatus == Built {
+	if generation.BuildStatus == store.Built {
 		return fmt.Errorf("the generation is already built")
 	}
-	b.generation.BuildStartedAt = time.Now().UTC()
-	b.generation.BuildStatus = Building
-	b.IsBuilding = true
 
+	if err := b.store.GenerationBuildStart(generationUUID); err != nil {
+		return err
+	}
+	b.IsBuilding = true
 	buildator := &Buildator{
-		drvPath:   b.generation.DrvPath,
+		drvPath:   generation.DrvPath,
 		buildFunc: b.buildFunc,
 	}
 	b.buildator = NewExec(buildator, b.buildTimeout)
@@ -219,17 +230,13 @@ func (b *Builder) Build() error {
 		b.buildator.Wait()
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		b.generation.BuildEndedAt = time.Now().UTC()
-		b.generation.BuildErr = b.buildator.err
-		if b.buildator.err == nil {
-			b.generation.BuildStatus = Built
-		} else {
-			b.generation.BuildStatus = BuildFailed
-			b.generation.BuildErrStr = b.buildator.err.Error()
+		err := b.store.GenerationBuildFinished(generationUUID, b.buildator.err)
+		if err != nil {
+			logrus.Error(err)
 		}
 		b.IsBuilding = false
 		select {
-		case b.BuildDone <- *b.generation:
+		case b.BuildDone <- generationUUID:
 		default:
 		}
 	}()

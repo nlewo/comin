@@ -15,7 +15,7 @@ import (
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/scheduler"
-	store "github.com/nlewo/comin/internal/store"
+	storePkg "github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -42,7 +42,12 @@ var runCmd = &cobra.Command{
 
 		metrics := prometheus.New()
 		storeFilename := path.Join(cfg.StateDir, "store.json")
-		store := store.New(storeFilename, 10, 10)
+		gcRootsDir := path.Join(cfg.StateDir, "gcroots")
+		store, err := storePkg.New(storeFilename, gcRootsDir, 10, 10)
+		if err != nil {
+			logrus.Error(err)
+			os.Exit(1)
+		}
 		if err := store.Load(); err != nil {
 			logrus.Errorf("Ignoring the state file %s because of the loading error: %s", storeFilename, err)
 		}
@@ -51,7 +56,7 @@ var runCmd = &cobra.Command{
 		// We get the last mainCommitId to avoid useless
 		// redeployment as well as non fast forward checkouts
 		var mainCommitId string
-		var lastDeployment *deployer.Deployment
+		var lastDeployment *storePkg.Deployment
 		if ok, ld := store.LastDeployment(); ok {
 			mainCommitId = ld.Generation.MainCommitId
 			lastDeployment = &ld
@@ -73,7 +78,7 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		builder := builder.New(gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, executor.Eval, 30*time.Minute, executor.Build)
+		builder := builder.New(store, gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, executor.Eval, 30*time.Minute, executor.Build)
 		deployer := deployer.New(executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
 
 		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId)
