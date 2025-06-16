@@ -10,17 +10,22 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/sirupsen/logrus"
 )
 
-// GetExpectedMachineId evals
-// nixosConfigurations.MACHINE.config.services.comin.machineId and
+// GetExpectedMachineId evals nixosConfigurations or darwinConfigurations based on platform
 // returns (machine-id, nil) is comin.machineId is set, ("", nil) otherwise.
 func getExpectedMachineId(path, hostname string) (machineId string, err error) {
-	expr := fmt.Sprintf("%s#nixosConfigurations.%s.config.services.comin.machineId", path, hostname)
+	var expr string
+	if runtime.GOOS == "darwin" {
+		expr = fmt.Sprintf("%s#darwinConfigurations.%s.config.services.comin.machineId", path, hostname)
+	} else {
+		expr = fmt.Sprintf("%s#nixosConfigurations.%s.config.services.comin.machineId", path, hostname)
+	}
 	args := []string{
 		"eval",
 		expr,
@@ -62,7 +67,12 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 }
 
 func showDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
-	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
+	var installable string
+	if runtime.GOOS == "darwin" {
+		installable = fmt.Sprintf("%s#darwinConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
+	} else {
+		installable = fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
+	}
 	args := []string{
 		"derivation",
 		"show",
@@ -106,6 +116,13 @@ func build(ctx context.Context, drvPath string) (err error) {
 }
 
 func cominUnitFileHash() string {
+	if runtime.GOOS == "darwin" {
+		return cominUnitFileHashDarwin()
+	}
+	return cominUnitFileHashLinux()
+}
+
+func cominUnitFileHashLinux() string {
 	logrus.Infof("nix: generating the comin.service unit file sha256: 'systemctl cat comin.service | sha256sum'")
 	cmd := exec.Command("systemctl", "cat", "comin.service")
 	var stdout bytes.Buffer
@@ -121,20 +138,72 @@ func cominUnitFileHash() string {
 	return hash
 }
 
+func cominUnitFileHashDarwin() string {
+	logrus.Infof("nix: generating the comin service plist file sha256: 'launchctl print system/com.github.nlewo.comin'")
+	cmd := exec.Command("/bin/launchctl", "print", "system/com.github.nlewo.comin")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		logrus.Infof("nix: command 'launchctl print system/com.github.nlewo.comin' fails with '%s'", err)
+		return ""
+	}
+	sum := sha256.Sum256(stdout.Bytes())
+	hash := fmt.Sprintf("%x", sum)
+	logrus.Infof("nix: the comin service plist sha256 is '%s'", hash)
+	return hash
+}
+
 func switchToConfiguration(operation string, outPath string, dryRun bool) error {
+	if runtime.GOOS == "darwin" {
+		return switchToConfigurationDarwin(operation, outPath, dryRun)
+	}
+	return switchToConfigurationLinux(operation, outPath, dryRun)
+}
+
+func switchToConfigurationLinux(operation string, outPath string, dryRun bool) error {
 	switchToConfigurationExe := filepath.Join(outPath, "bin", "switch-to-configuration")
 	logrus.Infof("nix: running '%s %s'", switchToConfigurationExe, operation)
 	cmd := exec.Command(switchToConfigurationExe, operation)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if dryRun {
-		logrus.Infof("nix: dry-run enabled: '%s switch' has not been executed", switchToConfigurationExe)
+		logrus.Infof("nix: dry-run enabled: '%s %s' has not been executed", switchToConfigurationExe, operation)
 	} else {
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("command %s switch fails with %s", switchToConfigurationExe, err)
+			return fmt.Errorf("command %s %s fails with %s", switchToConfigurationExe, operation, err)
 		}
 		logrus.Infof("nix: switch successfully terminated")
 	}
+	return nil
+}
+
+func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) error {
+	activateUserExe := filepath.Join(outPath, "activate-user")
+	activateExe := filepath.Join(outPath, "activate")
+	
+	if dryRun {
+		logrus.Infof("nix: dry-run enabled: Darwin activation has not been executed")
+		return nil
+	}
+	
+	logrus.Infof("nix: activating user environment: '%s'", activateUserExe)
+	userCmd := exec.Command(activateUserExe)
+	userCmd.Stdout = os.Stdout
+	userCmd.Stderr = os.Stderr
+	if err := userCmd.Run(); err != nil {
+		return fmt.Errorf("user activation command %s fails with %s", activateUserExe, err)
+	}
+	
+	logrus.Infof("nix: activating system environment: '%s'", activateExe)
+	cmd := exec.Command(activateExe)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("system activation command %s fails with %s", activateExe, err)
+	}
+	
+	logrus.Infof("nix: Darwin activation successfully terminated")
 	return nil
 }
 

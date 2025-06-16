@@ -1,0 +1,60 @@
+{ self }: { config, pkgs, lib, ... }:
+let
+  cfg = config;
+  yaml = pkgs.formats.yaml { };
+  cominConfig = {
+    hostname = cfg.services.comin.hostname;
+    state_dir = "/var/lib/comin";
+    flake_subdirectory = cfg.services.comin.flakeSubdirectory;
+    remotes = cfg.services.comin.remotes;
+    exporter = {
+      listen_address = cfg.services.comin.exporter.listen_address;
+      port = cfg.services.comin.exporter.port;
+    };
+    gpg_public_key_paths = cfg.services.comin.gpgPublicKeyPaths;
+  } // (
+    lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null)
+      { post_deployment_command = cfg.services.comin.postDeploymentCommand; }
+  );
+  cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
+
+  inherit (pkgs.stdenv.hostPlatform) system;
+  inherit (cfg.services.comin) package;
+in {
+  imports = [ ./module-options.nix ];
+  config = lib.mkIf cfg.services.comin.enable {
+    assertions = [
+      { assertion = package != null; message = "`services.comin.package` cannot be null."; }
+      { assertion = package == null -> lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake."; }
+      { assertion = cfg.services.comin.hostname != null; message = "`services.comin.hostname` must be set explicitly on Darwin, or set `networking.hostName` in your configuration."; }
+    ];
+
+    environment.systemPackages = [ package ];
+    services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
+    launchd.daemons.comin = {
+      serviceConfig = {
+        ProgramArguments = [
+          (lib.getExe package)
+        ] ++ (lib.optionals cfg.services.comin.debug [ "--debug" ]) ++ [
+          "run"
+          "--config"
+          "${cominConfigYaml}"
+        ];
+        Label = "com.github.nlewo.comin";
+        KeepAlive = true;
+        RunAtLoad = true;
+        StandardErrorPath = "/var/log/comin.log";
+        StandardOutPath = "/var/log/comin.log";
+        EnvironmentVariables = {
+          PATH = lib.makeBinPath [ config.nix.package pkgs.git ];
+        };
+      };
+    };
+    
+    system.activationScripts.comin.text = ''
+      mkdir -p /var/lib/comin
+      chown root:wheel /var/lib/comin
+      chmod 755 /var/lib/comin
+    '';
+  };
+}

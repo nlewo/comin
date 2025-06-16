@@ -1,22 +1,32 @@
 package profile
 
-import "os"
-import "fmt"
-import "github.com/sirupsen/logrus"
-import "os/exec"
-import "path"
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path"
+	"runtime"
 
-var systemProfilesDir string = "/nix/var/nix/profiles/system-profiles"
-var cominProfileDir string = systemProfilesDir + "/comin"
+	"github.com/sirupsen/logrus"
+)
 
-// setSystemProfile creates a link into the directory
-// /nix/var/nix/profiles/system-profiles/comin to the built system
-// store path. This is used by the switch-to-configuration script to
-// install all entries into the bootloader.
-// Note also comin uses these links as gcroots
-// See https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/pkgs/os-specific/linux/nixos-rebuild/nixos-rebuild.sh#L711
-// and https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/nixos/modules/system/boot/loader/systemd-boot/systemd-boot-builder.py#L247
+func getSystemProfilesDir() string {
+	if runtime.GOOS == "darwin" {
+		return "/nix/var/nix/profiles/system-profiles"
+	}
+	return "/nix/var/nix/profiles/system-profiles"
+}
+
+func getCominProfileDir() string {
+	return getSystemProfilesDir() + "/comin"
+}
+
+// setSystemProfile creates a link for the built system store path.
+// Used by switch-to-configuration and as GC roots.
 func SetSystemProfile(operation string, outPath string, dryRun bool) (profilePath string, err error) {
+	systemProfilesDir := getSystemProfilesDir()
+	cominProfileDir := getCominProfileDir()
+	
 	if operation == "switch" || operation == "boot" {
 		err := os.MkdirAll(systemProfilesDir, os.ModeDir)
 		if err != nil && !os.IsExist(err) {
