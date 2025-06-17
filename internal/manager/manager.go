@@ -7,6 +7,7 @@ package manager
 
 import (
 	"os"
+	"runtime"
 
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
@@ -151,9 +152,26 @@ func (m *Manager) Run() {
 			m.prometheus.SetHostInfo(m.needToReboot)
 			if dpl.RestartComin {
 				// TODO: stop contexts
+<<<<<<< HEAD
 				logrus.Infof("manager: comin needs to be restarted")
 				logrus.Infof("manager: exiting comin to let the serice manager restarting it")
 				os.Exit(0)
+=======
+				if err := m.cominServiceRestartFunc(); err != nil {
+					logrus.Fatal(err)
+					return
+				}
+				
+				// On Darwin, check if we should exit after restart signal
+				if runtime.GOOS == "darwin" {
+					restartFlagPath := "/var/lib/comin/restart-required"
+					if _, err := os.Stat(restartFlagPath); err == nil {
+						logrus.Infof("Restart flag detected - exiting to allow launchd restart")
+						os.Remove(restartFlagPath)
+						os.Exit(0)
+					}
+				}
+>>>>>>> ec70f5c (fix: implement robust Darwin service restart mechanism)
 			}
 		}
 	}

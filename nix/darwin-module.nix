@@ -56,5 +56,15 @@ in {
       chown root:wheel /var/lib/comin
       chmod 755 /var/lib/comin
     '';
+
+    # Override launchd reload behavior for comin service to prevent hanging
+    # Comin manages its own restart through the deployment process
+    system.activationScripts.extraActivation.text = lib.mkAfter ''
+      # Skip automatic reload of comin service - it manages its own lifecycle
+      if [ -f /Library/LaunchDaemons/com.github.nlewo.comin.plist ]; then
+        # Ensure service is loaded but don't restart during activation
+        /bin/launchctl load -w /Library/LaunchDaemons/com.github.nlewo.comin.plist 2>/dev/null || true
+      fi
+    '';
   };
 }
