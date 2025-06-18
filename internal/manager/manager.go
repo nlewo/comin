@@ -1,3 +1,8 @@
+// The manager is in charge of managing relationship between
+// components. Basically, it receives new commits from the fetcher,
+// call the builder to evaluate and build them. Finally, it submits
+// these builds to the deployer.
+
 package manager
 
 import (
@@ -17,6 +22,7 @@ type State struct {
 	Fetcher      fetcher.State  `json:"fetcher"`
 	Builder      builder.State  `json:"builder"`
 	Deployer     deployer.State `json:"deployer"`
+	Store        store.State    `json:"store"`
 }
 
 type Manager struct {
@@ -32,14 +38,14 @@ type Manager struct {
 	cominServiceRestartFunc func() error
 
 	prometheus prometheus.Prometheus
-	storage    store.Store
+	storage    *store.Store
 	scheduler  scheduler.Scheduler
 	Fetcher    *fetcher.Fetcher
 	builder    *builder.Builder
 	deployer   *deployer.Deployer
 }
 
-func New(s store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string) *Manager {
+func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string) *Manager {
 	m := &Manager{
 		machineId:               machineId,
 		stateRequestCh:          make(chan struct{}),
@@ -66,7 +72,13 @@ func (m *Manager) toState() State {
 		Fetcher:      m.Fetcher.GetState(),
 		Builder:      m.builder.State(),
 		Deployer:     m.deployer.State(),
+		Store:        m.storage.GetState(),
 	}
+}
+
+func (m *Manager) Pause() {
+}
+func (m *Manager) Unpause() {
 }
 
 // FetchAndBuild fetches new commits. If a new commit is available, it
@@ -79,11 +91,19 @@ func (m *Manager) FetchAndBuild() {
 			case rs := <-m.Fetcher.RepositoryStatusCh:
 				if !rs.SelectedCommitShouldBeSigned || rs.SelectedCommitSigned {
 					logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-					m.builder.Eval(rs)
+					err := m.builder.Eval(rs)
+					if err != nil {
+						logrus.Error(err)
+					}
 				} else {
 					logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
 				}
-			case generation := <-m.builder.EvaluationDone:
+			case generationUUID := <-m.builder.EvaluationDone:
+				generation, err := m.storage.GenerationGet(generationUUID)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
 				if generation.EvalErr != nil {
 					continue
 				}
@@ -91,9 +111,14 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
 					logrus.Infof("manager: a generation is building for commit %s", generation.SelectedCommitId)
-					_ = m.builder.Build()
+					_ = m.builder.Build(generationUUID)
 				}
-			case generation := <-m.builder.BuildDone:
+			case generationUUID := <-m.builder.BuildDone:
+				generation, err := m.storage.GenerationGet(generationUUID)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
 				if generation.BuildErr == nil {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
 					m.deployer.Submit(generation)
@@ -117,7 +142,7 @@ func (m *Manager) Run() {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
 		case dpl := <-m.deployer.DeploymentDoneCh:
-			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, deployer.StatusToString(dpl.Status))
+			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, store.StatusToString(dpl.Status))
 			getsEvicted, evicted := m.storage.DeploymentInsertAndCommit(dpl)
 			if getsEvicted && evicted.ProfilePath != "" {
 				_ = profile.RemoveProfilePath(evicted.ProfilePath)
