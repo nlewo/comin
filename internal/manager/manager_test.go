@@ -183,36 +183,6 @@ func TestDeploy(t *testing.T) {
 
 }
 
-func TestRestartComin(t *testing.T) {
-	evalOk := make(chan bool)
-	buildOk := make(chan bool)
-	logrus.SetLevel(logrus.DebugLevel)
-	r := utils.NewRepositoryMock()
-	f := fetcher.NewFetcher(r)
-	f.Start()
-	tmp := t.TempDir()
-	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
-	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
-	var deployFunc = func(context.Context, string, string) (bool, string, error) {
-		return true, "profile-path", nil
-	}
-	d := deployer.New(deployFunc, nil, "")
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "")
-	go m.Run()
-
-	isCominRestarted := false
-	cominServiceRestartMock := func() error {
-		isCominRestarted = true
-		return nil
-	}
-	m.cominServiceRestartFunc = cominServiceRestartMock
-
-	m.deployer.Submit(store.Generation{})
-	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, isCominRestarted)
-	}, 5*time.Second, 100*time.Millisecond, "comin has not been restarted yet")
-}
-
 func TestIncorrectMachineId(t *testing.T) {
 	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)

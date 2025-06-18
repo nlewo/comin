@@ -6,6 +6,8 @@
 package manager
 
 import (
+	"os"
+
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/fetcher"
@@ -34,8 +36,7 @@ type Manager struct {
 	stateRequestCh chan struct{}
 	stateResultCh  chan State
 
-	needToReboot            bool
-	cominServiceRestartFunc func() error
+	needToReboot bool
 
 	prometheus prometheus.Prometheus
 	storage    *store.Store
@@ -47,16 +48,15 @@ type Manager struct {
 
 func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string) *Manager {
 	m := &Manager{
-		machineId:               machineId,
-		stateRequestCh:          make(chan struct{}),
-		stateResultCh:           make(chan State),
-		cominServiceRestartFunc: utils.CominServiceRestart,
-		prometheus:              p,
-		storage:                 s,
-		scheduler:               sched,
-		Fetcher:                 fetcher,
-		builder:                 builder,
-		deployer:                deployer,
+		machineId:      machineId,
+		stateRequestCh: make(chan struct{}),
+		stateResultCh:  make(chan State),
+		prometheus:     p,
+		storage:        s,
+		scheduler:      sched,
+		Fetcher:        fetcher,
+		builder:        builder,
+		deployer:       deployer,
 	}
 	return m
 }
@@ -151,10 +151,9 @@ func (m *Manager) Run() {
 			m.prometheus.SetHostInfo(m.needToReboot)
 			if dpl.RestartComin {
 				// TODO: stop contexts
-				if err := m.cominServiceRestartFunc(); err != nil {
-					logrus.Fatal(err)
-					return
-				}
+				logrus.Infof("manager: comin needs to be restarted")
+				logrus.Infof("manager: exiting comin to let the serice manager restarting it")
+				os.Exit(0)
 			}
 		}
 	}
