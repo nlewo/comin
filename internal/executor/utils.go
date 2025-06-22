@@ -64,7 +64,8 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 func showDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
 	args := []string{
-		"show-derivation",
+		"derivation",
+		"show",
 		installable,
 		"-L",
 		"--show-trace",
