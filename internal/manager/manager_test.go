@@ -68,8 +68,8 @@ func TestBuild(t *testing.T) {
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "nixosConfigurations")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
-	assert.False(t, m.builder.State().IsEvaluating)
-	assert.False(t, m.builder.State().IsBuilding)
+	assert.False(t, m.Builder.State().IsEvaluating)
+	assert.False(t, m.Builder.State().IsBuilding)
 
 	commitId := "id-1"
 	f.TriggerFetch([]string{"remote"})
@@ -77,16 +77,16 @@ func TestBuild(t *testing.T) {
 		SelectedCommitId: commitId,
 	}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, m.builder.State().IsEvaluating)
-		assert.False(c, m.builder.State().IsBuilding)
+		assert.True(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsBuilding)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the failure of an evaluation
 	evalOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.builder.State().IsEvaluating)
-		assert.False(c, m.builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsBuilding)
+		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.NotNil(c, g.EvalErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
@@ -99,9 +99,9 @@ func TestBuild(t *testing.T) {
 	// This simulates the success of an evaluation
 	evalOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.builder.State().IsEvaluating)
-		assert.True(c, m.builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.True(c, m.Builder.State().IsBuilding)
+		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.Nil(c, g.EvalErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
@@ -109,9 +109,9 @@ func TestBuild(t *testing.T) {
 	// This simulates the failure of a build
 	buildOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.builder.State().IsEvaluating)
-		assert.False(c, m.builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsBuilding)
+		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.NotNil(c, g.BuildErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
@@ -124,9 +124,9 @@ func TestBuild(t *testing.T) {
 	evalOk <- true
 	buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.builder.State().IsEvaluating)
-		assert.False(c, m.builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsBuilding)
+		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.Nil(c, g.BuildErr)
 	}, 5*time.Second, 100*time.Millisecond)
 
@@ -139,9 +139,9 @@ func TestBuild(t *testing.T) {
 	evalOk <- true
 	buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.builder.State().IsEvaluating)
-		assert.False(c, m.builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.builder.GenerationUUID)
+		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsBuilding)
+		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.Nil(c, g.BuildErr)
 	}, 5*time.Second, 100*time.Millisecond)
 
@@ -152,7 +152,7 @@ func TestBuild(t *testing.T) {
 	}
 	evalOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, m.builder.State().IsBuilding)
+		assert.True(c, m.Builder.State().IsBuilding)
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
@@ -173,8 +173,8 @@ func TestDeploy(t *testing.T) {
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "nixosConfigurations")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
-	assert.False(t, m.builder.State().IsEvaluating)
-	assert.False(t, m.builder.State().IsBuilding)
+	assert.False(t, m.Builder.State().IsEvaluating)
+	assert.False(t, m.Builder.State().IsBuilding)
 
 	m.deployer.Submit(store.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {

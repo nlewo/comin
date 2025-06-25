@@ -45,7 +45,7 @@ type Manager struct {
 	storage    *store.Store
 	scheduler  scheduler.Scheduler
 	Fetcher    *fetcher.Fetcher
-	builder    *builder.Builder
+	Builder    *builder.Builder
 	deployer   *deployer.Deployer
 }
 
@@ -59,7 +59,7 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 		storage:           s,
 		scheduler:         sched,
 		Fetcher:           fetcher,
-		builder:           builder,
+		Builder:           builder,
 		deployer:          deployer,
 	}
 	return m
@@ -74,7 +74,7 @@ func (m *Manager) toState() State {
 	return State{
 		NeedToReboot: m.needToReboot,
 		Fetcher:      m.Fetcher.GetState(),
-		Builder:      m.builder.State(),
+		Builder:      m.Builder.State(),
 		Deployer:     m.deployer.State(),
 		Store:        m.storage.GetState(),
 	}
@@ -95,14 +95,14 @@ func (m *Manager) FetchAndBuild() {
 			case rs := <-m.Fetcher.RepositoryStatusCh:
 				if !rs.SelectedCommitShouldBeSigned || rs.SelectedCommitSigned {
 					logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-					err := m.builder.Eval(rs)
+					err := m.Builder.Eval(rs)
 					if err != nil {
 						logrus.Error(err)
 					}
 				} else {
 					logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
 				}
-			case generationUUID := <-m.builder.EvaluationDone:
+			case generationUUID := <-m.Builder.EvaluationDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
 					logrus.Error(err)
@@ -114,10 +114,10 @@ func (m *Manager) FetchAndBuild() {
 				if generation.MachineId != "" && m.machineId != generation.MachineId {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
-					logrus.Infof("manager: a generation is building for commit %s", generation.SelectedCommitId)
-					_ = m.builder.Build(generationUUID)
+					logrus.Infof("manager: the build of the generation %s is submitted", generation.UUID.String())
+					m.Builder.SubmitBuild(generationUUID)
 				}
-			case generationUUID := <-m.builder.BuildDone:
+			case generationUUID := <-m.Builder.BuildDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
 					logrus.Error(err)
