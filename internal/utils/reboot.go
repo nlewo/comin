@@ -2,9 +2,6 @@ package utils
 
 import (
 	"os"
-	"os/exec"
-	"strconv"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -15,7 +12,12 @@ import (
 // https://discourse.nixos.org/t/nixos-needsreboot-determine-if-you-need-to-reboot-your-nixos-machine/40790
 func NeedToReboot(configurationAttr string) (reboot bool) {
 	if configurationAttr == "darwinConfigurations" {
-		return needToRebootDarwin()
+		// TODO: Implement proper reboot detection for Darwin
+		// Unlike NixOS which has /run/current-system vs /run/booted-system paths,
+		// Darwin/macOS doesn't have equivalent mechanisms for detecting when
+		// a reboot is needed after nix-darwin configuration changes.
+		// For now, conservatively assume no reboot is needed.
+		return false
 	}
 	return needToRebootLinux()
 }
@@ -37,35 +39,3 @@ func needToRebootLinux() (reboot bool) {
 	return
 }
 
-func needToRebootDarwin() (reboot bool) {
-	cmd := exec.Command("/usr/bin/uname", "-r")
-	output, err := cmd.Output()
-	if err != nil {
-		logrus.Errorf("Failed to get kernel version via uname: %s", err)
-		return false
-	}
-	runningKernel := strings.TrimSpace(string(output))
-	
-	cmd = exec.Command("/usr/sbin/sysctl", "-n", "kern.boottime")
-	output, err = cmd.Output()
-	if err != nil {
-		logrus.Errorf("Failed to get boot time: %s", err)
-		return false
-	}
-	
-	bootTimeStr := strings.TrimSpace(string(output))
-	if strings.Contains(bootTimeStr, "sec = ") {
-		parts := strings.Split(bootTimeStr, "sec = ")
-		if len(parts) > 1 {
-			secPart := strings.Split(parts[1], ",")[0]
-			bootTime, err := strconv.ParseInt(secPart, 10, 64)
-			if err == nil {
-				logrus.Debugf("Darwin boot time: %d, running kernel: %s", bootTime, runningKernel)
-				return false
-			}
-		}
-	}
-	
-	logrus.Debugf("Darwin reboot check completed, no reboot needed")
-	return false
-}
