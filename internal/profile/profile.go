@@ -5,15 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"runtime"
 
 	"github.com/sirupsen/logrus"
 )
 
 func getSystemProfilesDir() string {
-	if runtime.GOOS == "darwin" {
-		return "/nix/var/nix/profiles/system-profiles"
-	}
 	return "/nix/var/nix/profiles/system-profiles"
 }
 

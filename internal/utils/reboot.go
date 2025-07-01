@@ -3,7 +3,6 @@ package utils
 import (
 	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -14,8 +13,8 @@ import (
 // the booted kernel. Note we should implement something smarter such
 // as described in
 // https://discourse.nixos.org/t/nixos-needsreboot-determine-if-you-need-to-reboot-your-nixos-machine/40790
-func NeedToReboot() (reboot bool) {
-	if runtime.GOOS == "darwin" {
+func NeedToReboot(configurationAttr string) (reboot bool) {
+	if configurationAttr == "darwinConfigurations" {
 		return needToRebootDarwin()
 	}
 	return needToRebootLinux()

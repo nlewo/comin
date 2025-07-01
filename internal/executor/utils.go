@@ -10,22 +10,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/sirupsen/logrus"
 )
 
-// GetExpectedMachineId evals nixosConfigurations or darwinConfigurations based on platform
+// GetExpectedMachineId evals nixosConfigurations or darwinConfigurations based on configurationAttr
 // returns (machine-id, nil) is comin.machineId is set, ("", nil) otherwise.
-func getExpectedMachineId(path, hostname string) (machineId string, err error) {
-	var expr string
-	if runtime.GOOS == "darwin" {
-		expr = fmt.Sprintf("%s#darwinConfigurations.%s.config.services.comin.machineId", path, hostname)
-	} else {
-		expr = fmt.Sprintf("%s#nixosConfigurations.%s.config.services.comin.machineId", path, hostname)
-	}
+func getExpectedMachineId(path, hostname, configurationAttr string) (machineId string, err error) {
+	expr := fmt.Sprintf("%s#%s.%s.config.services.comin.machineId", path, configurationAttr, hostname)
 	args := []string{
 		"eval",
 		expr,
@@ -66,13 +60,8 @@ func runNixCommand(args []string, stdout, stderr io.Writer) (err error) {
 	return nil
 }
 
-func showDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
-	var installable string
-	if runtime.GOOS == "darwin" {
-		installable = fmt.Sprintf("%s#darwinConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
-	} else {
-		installable = fmt.Sprintf("%s#nixosConfigurations.%s.config.system.build.toplevel", flakeUrl, hostname)
-	}
+func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr string) (drvPath string, outPath string, err error) {
+	installable := fmt.Sprintf("%s#%s.%s.config.system.build.toplevel", flakeUrl, configurationAttr, hostname)
 	args := []string{
 		"derivation",
 		"show",
@@ -115,8 +104,8 @@ func build(ctx context.Context, drvPath string) (err error) {
 	return
 }
 
-func cominUnitFileHash() string {
-	if runtime.GOOS == "darwin" {
+func cominUnitFileHash(configurationAttr string) string {
+	if configurationAttr == "darwinConfigurations" {
 		return cominUnitFileHashDarwin()
 	}
 	return cominUnitFileHashLinux()
@@ -154,8 +143,8 @@ func cominUnitFileHashDarwin() string {
 	return hash
 }
 
-func switchToConfiguration(operation string, outPath string, dryRun bool) error {
-	if runtime.GOOS == "darwin" {
+func switchToConfiguration(operation string, outPath string, dryRun bool, configurationAttr string) error {
+	if configurationAttr == "darwinConfigurations" {
 		return switchToConfigurationDarwin(operation, outPath, dryRun)
 	}
 	return switchToConfigurationLinux(operation, outPath, dryRun)
@@ -207,10 +196,17 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) 
 	return nil
 }
 
-func deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func deploy(ctx context.Context, outPath, operation, configurationAttr string) (needToRestartComin bool, profilePath string, err error) {
+	if configurationAttr == "darwinConfigurations" {
+		return deployDarwin(ctx, outPath, operation)
+	}
+	return deployLinux(ctx, outPath, operation)
+}
+
+func deployLinux(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
 	// FIXME: this check doesn't have to be here. It should be
 	// done by the manager.
-	beforeCominUnitFileHash := cominUnitFileHash()
+	beforeCominUnitFileHash := cominUnitFileHashLinux()
 
 	// This is required to write boot entries
 	// Only do this is operation is switch or boot
@@ -218,11 +214,37 @@ func deploy(ctx context.Context, outPath, operation string) (needToRestartComin 
 		return
 	}
 
-	if err = switchToConfiguration(operation, outPath, false); err != nil {
+	if err = switchToConfigurationLinux(operation, outPath, false); err != nil {
 		return
 	}
 
-	afterCominUnitFileHash := cominUnitFileHash()
+	afterCominUnitFileHash := cominUnitFileHashLinux()
+
+	if beforeCominUnitFileHash != afterCominUnitFileHash {
+		needToRestartComin = true
+	}
+
+	logrus.Infof("nix: deployment ended")
+
+	return
+}
+
+func deployDarwin(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+	// FIXME: this check doesn't have to be here. It should be
+	// done by the manager.
+	beforeCominUnitFileHash := cominUnitFileHashDarwin()
+
+	// This is required to write boot entries
+	// Only do this is operation is switch or boot
+	if profilePath, err = profile.SetSystemProfile(operation, outPath, false); err != nil {
+		return
+	}
+
+	if err = switchToConfigurationDarwin(operation, outPath, false); err != nil {
+		return
+	}
+
+	afterCominUnitFileHash := cominUnitFileHashDarwin()
 
 	if beforeCominUnitFileHash != afterCominUnitFileHash {
 		needToRestartComin = true

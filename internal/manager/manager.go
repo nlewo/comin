@@ -7,7 +7,6 @@ package manager
 
 import (
 	"os"
-	"runtime"
 
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
@@ -34,6 +33,9 @@ type Manager struct {
 	// corresponds to the machine-id of this host.
 	machineId string
 
+	// Configuration attribute (nixosConfigurations or darwinConfigurations)
+	configurationAttr string
+
 	stateRequestCh chan struct{}
 	stateResultCh  chan State
 
@@ -47,17 +49,18 @@ type Manager struct {
 	deployer   *deployer.Deployer
 }
 
-func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string) *Manager {
+func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, configurationAttr string) *Manager {
 	m := &Manager{
-		machineId:      machineId,
-		stateRequestCh: make(chan struct{}),
-		stateResultCh:  make(chan State),
-		prometheus:     p,
-		storage:        s,
-		scheduler:      sched,
-		Fetcher:        fetcher,
-		builder:        builder,
-		deployer:       deployer,
+		machineId:         machineId,
+		configurationAttr: configurationAttr,
+		stateRequestCh:    make(chan struct{}),
+		stateResultCh:     make(chan State),
+		prometheus:        p,
+		storage:           s,
+		scheduler:         sched,
+		Fetcher:           fetcher,
+		builder:           builder,
+		deployer:          deployer,
 	}
 	return m
 }
@@ -132,7 +135,7 @@ func (m *Manager) FetchAndBuild() {
 
 func (m *Manager) Run() {
 	logrus.Infof("manager: starting with machineId=%s", m.machineId)
-	m.needToReboot = utils.NeedToReboot()
+	m.needToReboot = utils.NeedToReboot(m.configurationAttr)
 	m.prometheus.SetHostInfo(m.needToReboot)
 
 	m.FetchAndBuild()
@@ -148,30 +151,13 @@ func (m *Manager) Run() {
 			if getsEvicted && evicted.ProfilePath != "" {
 				_ = profile.RemoveProfilePath(evicted.ProfilePath)
 			}
-			m.needToReboot = utils.NeedToReboot()
+			m.needToReboot = utils.NeedToReboot(m.configurationAttr)
 			m.prometheus.SetHostInfo(m.needToReboot)
 			if dpl.RestartComin {
 				// TODO: stop contexts
-<<<<<<< HEAD
 				logrus.Infof("manager: comin needs to be restarted")
-				logrus.Infof("manager: exiting comin to let the serice manager restarting it")
+				logrus.Infof("manager: exiting comin to let the service manager restart it")
 				os.Exit(0)
-=======
-				if err := m.cominServiceRestartFunc(); err != nil {
-					logrus.Fatal(err)
-					return
-				}
-				
-				// On Darwin, check if we should exit after restart signal
-				if runtime.GOOS == "darwin" {
-					restartFlagPath := "/var/lib/comin/restart-required"
-					if _, err := os.Stat(restartFlagPath); err == nil {
-						logrus.Infof("Restart flag detected - exiting to allow launchd restart")
-						os.Remove(restartFlagPath)
-						os.Exit(0)
-					}
-				}
->>>>>>> ec70f5c (fix: implement robust Darwin service restart mechanism)
 			}
 		}
 	}

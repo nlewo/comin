@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 func FormatCommitMsg(msg string) string {
@@ -23,8 +22,8 @@ func FormatCommitMsg(msg string) string {
 	return formatted
 }
 
-func ReadMachineId() (machineId string, err error) {
-	if runtime.GOOS == "darwin" {
+func ReadMachineId(configurationAttr string) (machineId string, err error) {
+	if configurationAttr == "darwinConfigurations" {
 		return readMachineIdDarwin()
 	}
 	return readMachineIdLinux()

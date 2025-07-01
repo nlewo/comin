@@ -26,7 +26,7 @@ in {
     assertions = [
       { assertion = package != null; message = "`services.comin.package` cannot be null."; }
       { assertion = package == null -> lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake."; }
-      { assertion = cfg.services.comin.hostname != null; message = "`services.comin.hostname` must be set explicitly on Darwin, or set `networking.hostName` in your configuration."; }
+      { assertion = cfg.services.comin.hostname != null && cfg.services.comin.hostname != ""; message = "You must set `networking.hostName` or `services.comin.hostname` explicitly in your nix-darwin configuration. Comin requires an explicit hostname to determine which darwinConfiguration to deploy."; }
     ];
 
     environment.systemPackages = [ package ];

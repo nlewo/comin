@@ -15,10 +15,11 @@
         type = str;
         default = config.networking.hostName;
         description = ''
-          The name of the NixOS configuration to evaluate and
-          deploy. This value is used by comin to evaluate the
-          flake output
-          nixosConfigurations."<hostname>".config.system.build.toplevel
+          The name of the configuration to evaluate and deploy. 
+          This value is used by comin to evaluate the flake output
+          nixosConfigurations."<hostname>" or darwinConfigurations."<hostname>".
+          Defaults to networking.hostName - you MUST set either this option
+          or networking.hostName in your configuration.
         '';
       };
       flakeSubdirectory = mkOption {
