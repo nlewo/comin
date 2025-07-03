@@ -35,7 +35,7 @@ func TestGetExpectedMachineId(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// We can't actually run nix eval in tests, but we can test that
 			// the function constructs the right expression and doesn't panic
-			_, err := getExpectedMachineId(tt.path, tt.hostname, tt.configurationAttr)
+			_, err := getExpectedMachineId(context.TODO(), tt.path, tt.hostname, tt.configurationAttr)
 
 			// This will likely error because nix eval will fail in test environment,
 			// but that's expected and fine - we're testing the code path
