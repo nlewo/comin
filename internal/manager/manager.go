@@ -6,6 +6,7 @@
 package manager
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/nlewo/comin/internal/builder"
@@ -21,6 +22,7 @@ import (
 
 type State struct {
 	NeedToReboot bool           `json:"need_to_reboot"`
+	Suspended    bool           `json:"suspended"`
 	Fetcher      fetcher.State  `json:"fetcher"`
 	Builder      builder.State  `json:"builder"`
 	Deployer     deployer.State `json:"deployer"`
@@ -47,6 +49,8 @@ type Manager struct {
 	Fetcher    *fetcher.Fetcher
 	Builder    *builder.Builder
 	deployer   *deployer.Deployer
+
+	suspended bool
 }
 
 func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, configurationAttr string) *Manager {
@@ -80,9 +84,28 @@ func (m *Manager) toState() State {
 	}
 }
 
-func (m *Manager) Pause() {
+func (m *Manager) Suspend() error {
+	if m.suspended {
+		return fmt.Errorf("the manager is already suspended")
+	}
+	if err := m.Builder.Suspend(); err != nil {
+		return err
+	}
+	m.deployer.Suspend()
+	m.suspended = true
+	return nil
 }
-func (m *Manager) Unpause() {
+
+func (m *Manager) Resume() error {
+	if !m.suspended {
+		return fmt.Errorf("the manager is not suspended")
+	}
+	if err := m.Builder.Resume(); err != nil {
+		return err
+	}
+	m.deployer.Resume()
+	m.suspended = false
+	return nil
 }
 
 // FetchAndBuild fetches new commits. If a new commit is available, it

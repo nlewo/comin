@@ -75,6 +75,32 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
+	handlerManagerSuspendFn := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			if err := m.Suspend(); err != nil {
+				w.WriteHeader(http.StatusConflict)
+				_, _ = io.Writer.Write(w, []byte(err.Error()))
+			} else {
+				w.WriteHeader(http.StatusOK)
+			}
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
+	handlerManagerResumeFn := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			if err := m.Resume(); err != nil {
+				w.WriteHeader(http.StatusConflict)
+				_, _ = io.Writer.Write(w, []byte(err.Error()))
+			} else {
+				w.WriteHeader(http.StatusOK)
+			}
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
 
 	muxApi := http.NewServeMux()
 	muxApi.HandleFunc("/api/status", handlerStatusFn)
@@ -82,6 +108,9 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 	muxApi.HandleFunc("/api/fetcher/fetch", handlerFetcherFetchFn)
 	muxApi.HandleFunc("/api/builder/suspend", handlerBuilderSuspendFn)
 	muxApi.HandleFunc("/api/builder/resume", handlerBuilderResumeFn)
+	muxApi.HandleFunc("/api/manager/suspend", handlerManagerSuspendFn)
+	muxApi.HandleFunc("/api/manager/resume", handlerManagerResumeFn)
+
 	muxMetrics := http.NewServeMux()
 	muxMetrics.Handle("/metrics", p.Handler())
 
