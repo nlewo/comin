@@ -40,6 +40,7 @@ type State struct {
 	GenerationToDeploy *store.Generation `json:"generation_to_deploy"`
 	Deployment         *store.Deployment `json:"deployment"`
 	PreviousDeployment *store.Deployment `json:"previous_deployment"`
+	IsSuspended        bool              `json:"is_suspended"`
 }
 
 func (d *Deployer) State() State {
@@ -48,6 +49,7 @@ func (d *Deployer) State() State {
 		GenerationToDeploy: d.GenerationToDeploy,
 		Deployment:         d.Deployment,
 		PreviousDeployment: d.previousDeployment,
+		IsSuspended:        d.isSuspended,
 	}
 }
 

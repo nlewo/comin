@@ -22,7 +22,7 @@ import (
 
 type State struct {
 	NeedToReboot bool           `json:"need_to_reboot"`
-	Suspended    bool           `json:"suspended"`
+	IsSuspended  bool           `json:"suspended"`
 	Fetcher      fetcher.State  `json:"fetcher"`
 	Builder      builder.State  `json:"builder"`
 	Deployer     deployer.State `json:"deployer"`
@@ -50,7 +50,7 @@ type Manager struct {
 	Builder    *builder.Builder
 	deployer   *deployer.Deployer
 
-	suspended bool
+	isSuspended bool
 }
 
 func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, configurationAttr string) *Manager {
@@ -77,6 +77,7 @@ func (m *Manager) GetState() State {
 func (m *Manager) toState() State {
 	return State{
 		NeedToReboot: m.needToReboot,
+		IsSuspended:  m.isSuspended,
 		Fetcher:      m.Fetcher.GetState(),
 		Builder:      m.Builder.State(),
 		Deployer:     m.deployer.State(),
@@ -85,26 +86,26 @@ func (m *Manager) toState() State {
 }
 
 func (m *Manager) Suspend() error {
-	if m.suspended {
+	if m.isSuspended {
 		return fmt.Errorf("the manager is already suspended")
 	}
 	if err := m.Builder.Suspend(); err != nil {
 		return err
 	}
 	m.deployer.Suspend()
-	m.suspended = true
+	m.isSuspended = true
 	return nil
 }
 
 func (m *Manager) Resume() error {
-	if !m.suspended {
+	if !m.isSuspended {
 		return fmt.Errorf("the manager is not suspended")
 	}
 	if err := m.Builder.Resume(); err != nil {
 		return err
 	}
 	m.deployer.Resume()
-	m.suspended = false
+	m.isSuspended = false
 	return nil
 }
 
