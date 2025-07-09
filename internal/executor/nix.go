@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-type NixLocal struct{
+type NixLocal struct {
 	configurationAttr string
 }
 
@@ -49,7 +49,7 @@ type Derivation struct {
 }
 
 type Show struct {
-	NixosConfigurations map[string]struct{} `json:"nixosConfigurations"`
+	NixosConfigurations  map[string]struct{} `json:"nixosConfigurations"`
 	DarwinConfigurations map[string]struct{} `json:"darwinConfigurations"`
 }
 
@@ -71,14 +71,14 @@ func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
 	if err != nil {
 		return
 	}
-	
+
 	var configurations map[string]struct{}
 	if n.configurationAttr == "darwinConfigurations" {
 		configurations = output.DarwinConfigurations
 	} else {
 		configurations = output.NixosConfigurations
 	}
-	
+
 	hosts = make([]string, 0, len(configurations))
 	for key := range configurations {
 		hosts = append(hosts, key)

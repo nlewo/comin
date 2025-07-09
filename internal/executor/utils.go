@@ -170,12 +170,12 @@ func switchToConfigurationLinux(operation string, outPath string, dryRun bool) e
 func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) error {
 	activateUserExe := filepath.Join(outPath, "activate-user")
 	activateExe := filepath.Join(outPath, "activate")
-	
+
 	if dryRun {
 		logrus.Infof("nix: dry-run enabled: Darwin activation has not been executed")
 		return nil
 	}
-	
+
 	logrus.Infof("nix: activating user environment: '%s'", activateUserExe)
 	userCmd := exec.Command(activateUserExe)
 	userCmd.Stdout = os.Stdout
@@ -183,7 +183,7 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) 
 	if err := userCmd.Run(); err != nil {
 		return fmt.Errorf("user activation command %s fails with %s", activateUserExe, err)
 	}
-	
+
 	logrus.Infof("nix: activating system environment: '%s'", activateExe)
 	cmd := exec.Command(activateExe)
 	cmd.Stdout = os.Stdout
@@ -191,7 +191,7 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("system activation command %s fails with %s", activateExe, err)
 	}
-	
+
 	logrus.Infof("nix: Darwin activation successfully terminated")
 	return nil
 }

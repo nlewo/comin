@@ -14,12 +14,12 @@ var listCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		var configurationAttr string
-	if runtime.GOOS == "darwin" {
-		configurationAttr = "darwinConfigurations"
-	} else {
-		configurationAttr = "nixosConfigurations"
-	}
-	executor, _ := executor.NewNixExecutor(configurationAttr)
+		if runtime.GOOS == "darwin" {
+			configurationAttr = "darwinConfigurations"
+		} else {
+			configurationAttr = "nixosConfigurations"
+		}
+		executor, _ := executor.NewNixExecutor(configurationAttr)
 		hosts, _ := executor.List(flakeUrl)
 		for _, host := range hosts {
 			fmt.Println(host)

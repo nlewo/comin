@@ -38,4 +38,3 @@ func needToRebootLinux() (reboot bool) {
 	}
 	return
 }
-

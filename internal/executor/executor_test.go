@@ -16,7 +16,7 @@ func TestNixExecutorWithDarwinConfiguration(t *testing.T) {
 }
 
 func TestNixExecutorWithNixOSConfiguration(t *testing.T) {
-	// Test creating a NixExecutor with NixOS configuration  
+	// Test creating a NixExecutor with NixOS configuration
 	executor, err := NewNixExecutor("nixosConfigurations")
 	assert.NoError(t, err)
 	assert.NotNil(t, executor)
@@ -38,7 +38,7 @@ func TestNixExecutorEval(t *testing.T) {
 		},
 		{
 			name:              "Eval with Darwin configuration",
-			configurationAttr: "darwinConfigurations", 
+			configurationAttr: "darwinConfigurations",
 			flakeUrl:          "github:example/darwin-config",
 			hostname:          "test-host",
 		},
@@ -50,7 +50,7 @@ func TestNixExecutorEval(t *testing.T) {
 			assert.NoError(t, err)
 
 			ctx := context.Background()
-			
+
 			// Test that Eval doesn't panic and handles parameters correctly
 			// This will error in test environment since nix commands will fail,
 			// but we're testing the code path and parameter handling
@@ -76,7 +76,7 @@ func TestNixExecutorShowDerivation(t *testing.T) {
 		{
 			name:              "ShowDerivation with Darwin configuration",
 			configurationAttr: "darwinConfigurations",
-			flakeUrl:          "github:example/darwin-config", 
+			flakeUrl:          "github:example/darwin-config",
 			hostname:          "test-host",
 		},
 	}
@@ -87,7 +87,7 @@ func TestNixExecutorShowDerivation(t *testing.T) {
 			assert.NoError(t, err)
 
 			ctx := context.Background()
-			
+
 			// Test that ShowDerivation doesn't panic and handles parameters correctly
 			_, _, err = executor.ShowDerivation(ctx, tt.flakeUrl, tt.hostname)
 			t.Logf("ShowDerivation with %s returned error: %v (expected in test environment)", tt.configurationAttr, err)
@@ -117,7 +117,7 @@ func TestNixExecutorList(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			executor, err := NewNixExecutor(tt.configurationAttr)
 			assert.NoError(t, err)
-			
+
 			// Test that List doesn't panic and handles configuration attribute correctly
 			_, err = executor.List(tt.flakeUrl)
 			t.Logf("List with %s returned error: %v (expected in test environment)", tt.configurationAttr, err)
@@ -152,7 +152,7 @@ func TestNixExecutorDeploy(t *testing.T) {
 			assert.NoError(t, err)
 
 			ctx := context.Background()
-			
+
 			// Test that Deploy doesn't panic and delegates to the correct platform-specific function
 			_, _, err = executor.Deploy(ctx, tt.outPath, tt.operation)
 			t.Logf("Deploy with %s returned error: %v (expected in test environment)", tt.configurationAttr, err)

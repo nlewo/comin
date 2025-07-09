@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 )
+
 func FormatCommitMsg(msg string) string {
 	split := strings.Split(msg, "\n")
 	formatted := ""
@@ -44,7 +45,7 @@ func readMachineIdDarwin() (machineId string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get hardware UUID on macOS: %s", err)
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		if strings.Contains(line, "Hardware UUID:") {

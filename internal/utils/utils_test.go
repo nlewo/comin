@@ -36,7 +36,7 @@ func TestReadMachineId(t *testing.T) {
 			expectedBehavior:  "should call readMachineIdLinux",
 		},
 		{
-			name:              "Darwin configuration", 
+			name:              "Darwin configuration",
 			configurationAttr: "darwinConfigurations",
 			expectedBehavior:  "should call readMachineIdDarwin",
 		},
@@ -62,13 +62,13 @@ func TestNeedToReboot(t *testing.T) {
 	}{
 		{
 			name:              "Linux reboot check",
-			configurationAttr: "nixosConfigurations", 
+			configurationAttr: "nixosConfigurations",
 			expectedBehavior:  "should call needToRebootLinux",
 		},
 		{
 			name:              "Darwin reboot check",
 			configurationAttr: "darwinConfigurations",
-			expectedBehavior:  "should call needToRebootDarwin", 
+			expectedBehavior:  "should call needToRebootDarwin",
 		},
 	}
 

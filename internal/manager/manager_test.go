@@ -248,14 +248,14 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	
+
 	// Test with Darwin configuration
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", "darwinConfigurations")
-	
+
 	// Verify the manager was created with the correct configuration attribute
 	assert.Equal(t, "darwinConfigurations", m.configurationAttr)
 	assert.Equal(t, "darwin-machine-id", m.machineId)
-	
+
 	// Verify the Darwin manager functions correctly without errors
 	state := m.toState()
 	assert.NotNil(t, state)

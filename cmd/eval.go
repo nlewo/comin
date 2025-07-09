@@ -17,12 +17,12 @@ var evalCmd = &cobra.Command{
 		hosts := make([]string, 1)
 		ctx := context.TODO()
 		var configurationAttr string
-	if runtime.GOOS == "darwin" {
-		configurationAttr = "darwinConfigurations"
-	} else {
-		configurationAttr = "nixosConfigurations"
-	}
-	executor, _ := executor.NewNixExecutor(configurationAttr)
+		if runtime.GOOS == "darwin" {
+			configurationAttr = "darwinConfigurations"
+		} else {
+			configurationAttr = "nixosConfigurations"
+		}
+		executor, _ := executor.NewNixExecutor(configurationAttr)
 		if hostname != "" {
 			hosts[0] = hostname
 		} else {
