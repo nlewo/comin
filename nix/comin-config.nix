@@ -2,7 +2,7 @@
 let
   cfg = config;
   yaml = pkgs.formats.yaml { };
-in {
+in rec {
   cominConfig = {
     hostname = cfg.services.comin.hostname;
     state_dir = "/var/lib/comin";
