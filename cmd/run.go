@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path"
+	"runtime"
 	"time"
 
 	"github.com/nlewo/comin/internal/builder"
@@ -32,9 +33,16 @@ var runCmd = &cobra.Command{
 			logrus.Error(err)
 			os.Exit(1)
 		}
+		var configurationAttr string
+		if runtime.GOOS == "darwin" {
+			configurationAttr = "darwinConfigurations"
+		} else {
+			configurationAttr = "nixosConfigurations"
+		}
+
 		gitConfig := config.MkGitConfig(cfg)
 
-		machineId, err := utils.ReadMachineId()
+		machineId, err := utils.ReadMachineId(configurationAttr)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
@@ -72,7 +80,7 @@ var runCmd = &cobra.Command{
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
-		executor, err := executor.New()
+		executor, err := executor.New(configurationAttr)
 		if err != nil {
 			logrus.Error("Failed to create executor")
 			return
@@ -81,7 +89,7 @@ var runCmd = &cobra.Command{
 		builder := builder.New(store, gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, executor.Eval, 30*time.Minute, executor.Build)
 		deployer := deployer.New(executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
 
-		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId)
+		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, configurationAttr)
 
 		http.Serve(manager,
 			metrics,

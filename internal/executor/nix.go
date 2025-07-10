@@ -7,22 +7,24 @@ import (
 	"os"
 )
 
-type NixLocal struct{}
+type NixLocal struct {
+	configurationAttr string
+}
 
-func NewNixExecutor() (*NixLocal, error) {
-	return &NixLocal{}, nil
+func NewNixExecutor(configurationAttr string) (*NixLocal, error) {
+	return &NixLocal{configurationAttr: configurationAttr}, nil
 }
 
 func (n *NixLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
-	return showDerivation(ctx, flakeUrl, hostname)
+	return showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
 }
 
 func (n *NixLocal) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
-	drvPath, outPath, err = showDerivation(ctx, flakeUrl, hostname)
+	drvPath, outPath, err = showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
 	if err != nil {
 		return
 	}
-	machineId, err = getExpectedMachineId(flakeUrl, hostname)
+	machineId, err = getExpectedMachineId(flakeUrl, hostname, n.configurationAttr)
 	return
 }
 
@@ -31,7 +33,7 @@ func (n *NixLocal) Build(ctx context.Context, drvPath string) (err error) {
 }
 
 func (n *NixLocal) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation)
+	return deploy(ctx, outPath, operation, n.configurationAttr)
 }
 
 type Path struct {
@@ -47,7 +49,8 @@ type Derivation struct {
 }
 
 type Show struct {
-	NixosConfigurations map[string]struct{} `json:"nixosConfigurations"`
+	NixosConfigurations  map[string]struct{} `json:"nixosConfigurations"`
+	DarwinConfigurations map[string]struct{} `json:"darwinConfigurations"`
 }
 
 func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
@@ -68,8 +71,16 @@ func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
 	if err != nil {
 		return
 	}
-	hosts = make([]string, 0, len(output.NixosConfigurations))
-	for key := range output.NixosConfigurations {
+
+	var configurations map[string]struct{}
+	if n.configurationAttr == "darwinConfigurations" {
+		configurations = output.DarwinConfigurations
+	} else {
+		configurations = output.NixosConfigurations
+	}
+
+	hosts = make([]string, 0, len(configurations))
+	for key := range configurations {
 		hosts = append(hosts, key)
 	}
 	return

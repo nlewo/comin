@@ -5,7 +5,7 @@
 
   outputs = { self, nixpkgs }:
   let
-    systems = [ "aarch64-linux" "x86_64-linux" ];
+    systems = [ "aarch64-linux" "x86_64-linux" "aarch64-darwin" "x86_64-darwin" ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
     nixpkgsFor = forAllSystems (system: nixpkgs.legacyPackages.${system});
     optionsDocFor = forAllSystems (system:
@@ -28,6 +28,7 @@
     });
 
     nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
+    darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
     devShells.x86_64-linux.default = let
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
     in pkgs.mkShell {

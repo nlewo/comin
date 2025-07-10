@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -22,11 +23,38 @@ func FormatCommitMsg(msg string) string {
 	return formatted
 }
 
-func ReadMachineId() (machineId string, err error) {
+func ReadMachineId(configurationAttr string) (machineId string, err error) {
+	if configurationAttr == "darwinConfigurations" {
+		return readMachineIdDarwin()
+	}
+	return readMachineIdLinux()
+}
+
+func readMachineIdLinux() (machineId string, err error) {
 	machineIdBytes, err := os.ReadFile("/etc/machine-id")
 	machineId = strings.TrimSuffix(string(machineIdBytes), "\n")
 	if err != nil {
 		return "", fmt.Errorf("can not read file '/etc/machine-id': %s", err)
 	}
 	return
+}
+
+func readMachineIdDarwin() (machineId string, err error) {
+	cmd := exec.Command("/usr/sbin/system_profiler", "SPHardwareDataType")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get hardware UUID on macOS: %s", err)
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "Hardware UUID:") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				machineId = strings.TrimSpace(parts[1])
+				return machineId, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("could not find Hardware UUID in system_profiler output")
 }

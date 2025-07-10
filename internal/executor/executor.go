@@ -10,7 +10,7 @@ type Executor interface {
 	Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error)
 }
 
-func New() (e Executor, err error) {
-	e, err = NewNixExecutor()
+func New(configurationAttr string) (e Executor, err error) {
+	e, err = NewNixExecutor(configurationAttr)
 	return
 }

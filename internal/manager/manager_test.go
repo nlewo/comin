@@ -65,7 +65,7 @@ func TestBuild(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil, "")
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "nixosConfigurations")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
@@ -170,7 +170,7 @@ func TestDeploy(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil, "")
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "nixosConfigurations")
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.builder.State().IsEvaluating)
@@ -196,7 +196,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", "nixosConfigurations")
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
@@ -222,7 +222,7 @@ func TestCorrectMachineId(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id")
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", "nixosConfigurations")
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
@@ -233,4 +233,31 @@ func TestCorrectMachineId(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(t, m.GetState().Builder.IsBuilding)
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func TestManagerWithDarwinConfiguration(t *testing.T) {
+	r := utils.NewRepositoryMock()
+	f := fetcher.NewFetcher(r)
+	buildOk := make(chan bool, 1)
+	buildOk <- true
+	nixEval := func(ctx context.Context, path, hostname string) (drvPath, outPath, machineId string, err error) {
+		assert.Equal(t, "my-machine", hostname)
+		return "/nix/store/derivation", "/nix/store/outPath", "", nil
+	}
+	tmp := t.TempDir()
+	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	d := mkDeployerMock()
+
+	// Test with Darwin configuration
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", "darwinConfigurations")
+
+	// Verify the manager was created with the correct configuration attribute
+	assert.Equal(t, "darwinConfigurations", m.configurationAttr)
+	assert.Equal(t, "darwin-machine-id", m.machineId)
+
+	// Verify the Darwin manager functions correctly without errors
+	state := m.toState()
+	assert.NotNil(t, state)
+	assert.Equal(t, "darwin-machine-id", m.machineId)
 }
