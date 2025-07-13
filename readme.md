@@ -6,7 +6,7 @@ NixOS configuration associated to the machine.
 
 ## Features
 
-- :snowflake: Git push to deploy NixOS configurations
+- :snowflake: Git push to deploy NixOS configurations (or [nix-darwin](./docs/howtos.md#how-to-deploy-a-nix-darwin-configuration))
 - :construction: Support testing branches to [try changes](./docs/howtos.md#how-to-test-a-nixos-configuration-change)
 - :rocket: Poll [multiple Git remotes](./docs/generated-module-options.md#servicescominremotes) to avoid SPOF
 - :postbox: Support [machines migrations](./docs/howtos.md#how-to-migrate-a-configuration-from-a-machine-to-another-one)
