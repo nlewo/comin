@@ -238,13 +238,13 @@ func (b *Builder) Resume() error {
 	if !b.isSuspended {
 		return fmt.Errorf("the builder is not suspended")
 	} else {
+		b.isSuspended = false
 		generation, err := b.store.GenerationGet(*b.GenerationUUID)
 		if err != nil {
 			return err
 		}
 		if store.GenerationHasToBeBuilt(generation) {
 			logrus.Infof("builder: builder is resumed and generation %s has to be built", b.GenerationUUID)
-			b.isSuspended = false
 			// TODO: expose the error in the builder state
 			if err := b.build(*b.GenerationUUID); err != nil {
 				logrus.Error(err)
