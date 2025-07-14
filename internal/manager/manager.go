@@ -6,6 +6,7 @@
 package manager
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/nlewo/comin/internal/builder"
@@ -21,6 +22,7 @@ import (
 
 type State struct {
 	NeedToReboot bool           `json:"need_to_reboot"`
+	IsSuspended  bool           `json:"suspended"`
 	Fetcher      fetcher.State  `json:"fetcher"`
 	Builder      builder.State  `json:"builder"`
 	Deployer     deployer.State `json:"deployer"`
@@ -45,8 +47,10 @@ type Manager struct {
 	storage    *store.Store
 	scheduler  scheduler.Scheduler
 	Fetcher    *fetcher.Fetcher
-	builder    *builder.Builder
+	Builder    *builder.Builder
 	deployer   *deployer.Deployer
+
+	isSuspended bool
 }
 
 func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, configurationAttr string) *Manager {
@@ -59,7 +63,7 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 		storage:           s,
 		scheduler:         sched,
 		Fetcher:           fetcher,
-		builder:           builder,
+		Builder:           builder,
 		deployer:          deployer,
 	}
 	return m
@@ -73,16 +77,36 @@ func (m *Manager) GetState() State {
 func (m *Manager) toState() State {
 	return State{
 		NeedToReboot: m.needToReboot,
+		IsSuspended:  m.isSuspended,
 		Fetcher:      m.Fetcher.GetState(),
-		Builder:      m.builder.State(),
+		Builder:      m.Builder.State(),
 		Deployer:     m.deployer.State(),
 		Store:        m.storage.GetState(),
 	}
 }
 
-func (m *Manager) Pause() {
+func (m *Manager) Suspend() error {
+	if m.isSuspended {
+		return fmt.Errorf("the manager is already suspended")
+	}
+	if err := m.Builder.Suspend(); err != nil {
+		return err
+	}
+	m.deployer.Suspend()
+	m.isSuspended = true
+	return nil
 }
-func (m *Manager) Unpause() {
+
+func (m *Manager) Resume() error {
+	if !m.isSuspended {
+		return fmt.Errorf("the manager is not suspended")
+	}
+	if err := m.Builder.Resume(); err != nil {
+		return err
+	}
+	m.deployer.Resume()
+	m.isSuspended = false
+	return nil
 }
 
 // FetchAndBuild fetches new commits. If a new commit is available, it
@@ -95,14 +119,14 @@ func (m *Manager) FetchAndBuild() {
 			case rs := <-m.Fetcher.RepositoryStatusCh:
 				if !rs.SelectedCommitShouldBeSigned || rs.SelectedCommitSigned {
 					logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-					err := m.builder.Eval(rs)
+					err := m.Builder.Eval(rs)
 					if err != nil {
 						logrus.Error(err)
 					}
 				} else {
 					logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
 				}
-			case generationUUID := <-m.builder.EvaluationDone:
+			case generationUUID := <-m.Builder.EvaluationDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
 					logrus.Error(err)
@@ -114,10 +138,10 @@ func (m *Manager) FetchAndBuild() {
 				if generation.MachineId != "" && m.machineId != generation.MachineId {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
-					logrus.Infof("manager: a generation is building for commit %s", generation.SelectedCommitId)
-					_ = m.builder.Build(generationUUID)
+					logrus.Infof("manager: the build of the generation %s is submitted", generation.UUID.String())
+					m.Builder.SubmitBuild(generationUUID)
 				}
-			case generationUUID := <-m.builder.BuildDone:
+			case generationUUID := <-m.Builder.BuildDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
 					logrus.Error(err)

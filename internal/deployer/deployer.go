@@ -27,6 +27,12 @@ type Deployer struct {
 	GenerationToDeploy    *store.Generation
 	generationAvailableCh chan struct{}
 	postDeploymentCommand string
+
+	isSuspended bool
+	resumeCh    chan struct{}
+	// This is true when the runner is actually suspended. This is
+	// mainly used for testing purpose.
+	runnerIsSuspended bool
 }
 
 type State struct {
@@ -34,6 +40,7 @@ type State struct {
 	GenerationToDeploy *store.Generation `json:"generation_to_deploy"`
 	Deployment         *store.Deployment `json:"deployment"`
 	PreviousDeployment *store.Deployment `json:"previous_deployment"`
+	IsSuspended        bool              `json:"is_suspended"`
 }
 
 func (d *Deployer) State() State {
@@ -42,6 +49,7 @@ func (d *Deployer) State() State {
 		GenerationToDeploy: d.GenerationToDeploy,
 		Deployment:         d.Deployment,
 		PreviousDeployment: d.previousDeployment,
+		IsSuspended:        d.isSuspended,
 	}
 }
 
@@ -86,6 +94,24 @@ func New(deployFunc DeployFunc, previousDeployment *store.Deployment, postDeploy
 		previousDeployment:    previousDeployment,
 		Deployment:            previousDeployment,
 		postDeploymentCommand: postDeploymentCommand,
+
+		resumeCh: make(chan struct{}, 1),
+	}
+}
+
+func (d *Deployer) Suspend() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.isSuspended = true
+}
+
+func (d *Deployer) Resume() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.isSuspended = false
+	select {
+	case d.resumeCh <- struct{}{}:
+	default:
 	}
 }
 
@@ -112,6 +138,13 @@ func (d *Deployer) Run() {
 	go func() {
 		for {
 			<-d.generationAvailableCh
+
+			if d.isSuspended {
+				d.runnerIsSuspended = true
+				<-d.resumeCh
+				d.runnerIsSuspended = false
+			}
+
 			d.mu.Lock()
 			g := d.GenerationToDeploy
 			d.GenerationToDeploy = nil

@@ -75,3 +75,30 @@ func TestDeployerSubmit(t *testing.T) {
 		assert.Equal(c, "commit-1", dpl.Generation.SelectedCommitId)
 	}, 5*time.Second, 100*time.Millisecond)
 }
+
+func TestDeployerSuspend(t *testing.T) {
+	deployDone := make(chan struct{})
+	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+		<-deployDone
+		return false, "profile-path", nil
+	}
+
+	d := New(deployFunc, nil, "")
+	d.Run()
+	assert.False(t, d.isSuspended)
+	d.Suspend()
+	assert.True(t, d.isSuspended)
+	assert.False(t, d.IsDeploying)
+	assert.False(t, d.runnerIsSuspended)
+
+	d.Submit(store.Generation{SelectedCommitId: "commit-1"})
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(t, d.runnerIsSuspended)
+	}, 3*time.Second, 100*time.Millisecond)
+
+	d.Resume()
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(t, d.runnerIsSuspended)
+		assert.True(t, d.IsDeploying)
+	}, 3*time.Second, 100*time.Millisecond)
+}

@@ -1,3 +1,12 @@
+// This package is used to evaluate and build the Nix expression
+// describing a system to be deployed.
+//
+// It works asyncronously but evaluation and build are
+// sequentials. When an evaluation is started, it cancels a running
+// evaluation or running build.
+
+// The Builder can only manage a single generation. This generation
+// first needs to be evaluated and then built.
 package builder
 
 import (
@@ -44,6 +53,8 @@ type Builder struct {
 
 	buildator   Exec
 	buildatorWg *sync.WaitGroup
+
+	isSuspended bool
 }
 
 func New(store *store.Store, repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, evalFunc EvalFunc, buildTimeout time.Duration, buildFunc BuildFunc) *Builder {
@@ -71,6 +82,7 @@ type State struct {
 	IsEvaluating   bool              `json:"is_evaluating"`
 	Generation     *store.Generation `json:"generation"`
 	GenerationUUID string            `json:"generation_uuid"`
+	IsSuspended    bool              `json:"is_suspended"`
 }
 
 func (b *Builder) State() State {
@@ -87,28 +99,47 @@ func (b *Builder) State() State {
 			logrus.Errorf("builder: generation %s not found in the store: %s", generationUUID, err)
 		}
 	}
-
 	return State{
 		Hostname:       b.hostname,
 		IsBuilding:     b.IsBuilding,
 		IsEvaluating:   b.IsEvaluating,
 		Generation:     generation,
 		GenerationUUID: generationUUID,
+		IsSuspended:    b.isSuspended,
 	}
+}
+
+func (b *Builder) stopEval() {
+	b.evaluator.Stop()
+	b.evaluatorWg.Wait()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.IsEvaluating = false
+}
+
+// stopBuild stops the build. If a build is actually running, it
+// returns the building generationUUID, otherwise, it returns nil.
+// Because the builder is not locked during the whole stop process, it
+// is possible to return a generationUUID while the build of this
+// generation is finished. This is however not a important issue since
+// the builder will just rebuild the generation.
+func (b *Builder) stopBuild() {
+	b.buildator.Stop()
+	b.buildatorWg.Wait()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.IsBuilding = false
 }
 
 // Stop stops the evaluator and the builder is required and wait until
 // they have been actually stopped.
 func (b *Builder) Stop() {
-	b.evaluator.Stop()
-	b.buildator.Stop()
+	b.stopEval()
+	b.stopBuild()
 
-	b.evaluatorWg.Wait()
-	b.buildatorWg.Wait()
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.IsEvaluating = false
-	b.IsBuilding = false
 }
 
 type Evaluator struct {
@@ -188,11 +219,64 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 	return nil
 }
 
-// Build builds a generation which has been previously evaluated.
-func (b *Builder) Build(generationUUID uuid.UUID) error {
-	ctx := context.TODO()
+func (b *Builder) Suspend() error {
+	if b.isSuspended {
+		return fmt.Errorf("the builder is already suspended")
+	}
+	b.stopBuild()
+	logrus.Infof("builder: builder is suspended")
+
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.isSuspended = true
+	return nil
+}
+
+func (b *Builder) Resume() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.isSuspended {
+		return fmt.Errorf("the builder is not suspended")
+	} else {
+		generation, err := b.store.GenerationGet(*b.GenerationUUID)
+		if err != nil {
+			return err
+		}
+		if store.GenerationHasToBeBuilt(generation) {
+			logrus.Infof("builder: builder is resumed and generation %s has to be built", b.GenerationUUID)
+			b.isSuspended = false
+			// TODO: expose the error in the builder state
+			if err := b.build(*b.GenerationUUID); err != nil {
+				logrus.Error(err)
+			}
+		} else {
+			logrus.Infof("builder: builder is resumed while no generation has to be built")
+		}
+	}
+	return nil
+}
+
+// SubmitBuild submits a generation for building. If the builder is
+// suspended, the generation is only built once resumed, otherwise, it
+// is built immediately.
+func (b *Builder) SubmitBuild(generationUUID uuid.UUID) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.isSuspended {
+		logrus.Infof("builder: build submitted for generation %s while the builder is suspended", generationUUID.String())
+	} else {
+		// TODO: expose the error in the builder state
+		if err := b.build(generationUUID); err != nil {
+			logrus.Error(err)
+		}
+	}
+}
+
+// build builds a generation which has been previously evaluated. This is not thread safe.
+func (b *Builder) build(generationUUID uuid.UUID) error {
+	logrus.Infof("builder: build of generation %s is starting", generationUUID.String())
+	ctx := context.TODO()
 	if b.GenerationUUID != nil && generationUUID != *b.GenerationUUID {
 		return fmt.Errorf("another generation is evaluating or evaluated")
 	}

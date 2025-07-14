@@ -49,6 +49,9 @@ func longStatus(status manager.State) {
 	if status.NeedToReboot {
 		fmt.Printf("  Need to reboot: yes\n")
 	}
+	if status.IsSuspended {
+		fmt.Printf("  Is suspended: yes\n")
+	}
 	fmt.Printf("  Fetcher\n")
 	if status.Fetcher.RepositoryStatus.SelectedCommitShouldBeSigned {
 		if status.Fetcher.RepositoryStatus.SelectedCommitSigned {
@@ -73,6 +76,9 @@ func longStatus(status manager.State) {
 }
 
 func onelineStatus(status manager.State) {
+	if status.IsSuspended {
+		fmt.Printf(" ⏸️ ")
+	}
 	if status.Builder.Generation != nil && status.Builder.IsEvaluating {
 		fmt.Printf(" eval   %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalStartedAt))

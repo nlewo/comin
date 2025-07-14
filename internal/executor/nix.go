@@ -24,7 +24,7 @@ func (n *NixLocal) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath
 	if err != nil {
 		return
 	}
-	machineId, err = getExpectedMachineId(flakeUrl, hostname, n.configurationAttr)
+	machineId, err = getExpectedMachineId(ctx, flakeUrl, hostname, n.configurationAttr)
 	return
 }
 
@@ -61,7 +61,7 @@ func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
 		flakeUrl,
 	}
 	var stdout bytes.Buffer
-	err = runNixCommand(args, &stdout, os.Stderr)
+	err = runNixCommand(context.Background(), args, &stdout, os.Stderr)
 	if err != nil {
 		return
 	}

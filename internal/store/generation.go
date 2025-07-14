@@ -106,6 +106,8 @@ func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs
 		MainRemoteName:          rs.MainBranchName,
 		MainBranchName:          rs.MainBranchName,
 		MainCommitId:            rs.MainCommitId,
+		EvalStatus:              EvalInit,
+		BuildStatus:             BuildInit,
 	}
 	s.Generations = append(s.Generations, &g)
 	return
@@ -274,4 +276,8 @@ func (s *Store) generationGet(uuid uuid.UUID) (g *Generation, err error) {
 		}
 	}
 	return &Generation{}, fmt.Errorf("store: no generation with uuid %s has been found", uuid)
+}
+
+func GenerationHasToBeBuilt(g Generation) bool {
+	return g.EvalStatus == Evaluated && g.BuildStatus != Built
 }

@@ -54,7 +54,7 @@ func TestBuilderBuild(t *testing.T) {
 	// Run the evaluator
 	_ = b.Eval(repository.RepositoryStatus{})
 	gUUID := <-b.EvaluationDone // The evaluation timeouts
-	assert.ErrorContains(t, b.Build(gUUID), "the generation is not evaluated")
+	assert.ErrorContains(t, b.build(gUUID), "the generation is not evaluated")
 
 	_ = b.Eval(repository.RepositoryStatus{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -66,12 +66,12 @@ func TestBuilderBuild(t *testing.T) {
 	}, 2*time.Second, 100*time.Millisecond)
 	gUUID = <-b.EvaluationDone
 
-	err = b.Build(gUUID)
+	err = b.build(gUUID)
 	assert.Nil(t, err)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, b.IsBuilding)
 	}, 2*time.Second, 100*time.Millisecond)
-	err = b.Build(gUUID)
+	err = b.build(gUUID)
 	assert.ErrorContains(t, err, "the builder is already building")
 
 	// Stop the evaluator and builder
@@ -84,7 +84,7 @@ func TestBuilderBuild(t *testing.T) {
 	}, 2*time.Second, 100*time.Millisecond)
 
 	// The builder timeouts
-	err = b.Build(gUUID)
+	err = b.build(gUUID)
 	assert.Nil(t, err)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g, _ := b.store.GenerationGet(gUUID)
@@ -92,7 +92,7 @@ func TestBuilderBuild(t *testing.T) {
 	}, 3*time.Second, 100*time.Millisecond)
 
 	// The builder succeeds
-	err = b.Build(gUUID)
+	err = b.build(gUUID)
 	assert.Nil(t, err)
 	buildDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -100,7 +100,7 @@ func TestBuilderBuild(t *testing.T) {
 	}, 3*time.Second, 100*time.Millisecond)
 
 	// The generation is already built
-	err = b.Build(gUUID)
+	err = b.build(gUUID)
 	assert.ErrorContains(t, err, "the generation is already built")
 }
 
@@ -173,4 +173,32 @@ func TestBuilderTimeout(t *testing.T) {
 		g, _ := b.store.GenerationGet(*b.GenerationUUID)
 		assert.ErrorContains(c, g.EvalErr, "context deadline exceeded")
 	}, 3*time.Second, 100*time.Millisecond, "builder timeout didn't work")
+}
+
+func TestBuilderSuspend(t *testing.T) {
+	evalDone := make(chan struct{})
+	buildDone := make(chan struct{})
+	tmp := t.TempDir()
+	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	assert.Nil(t, err)
+	b := New(s, "", "", "", 1*time.Second, mkNixEvalMock(evalDone), 5*time.Second, mkNixBuildMock(buildDone))
+	_ = b.Suspend()
+	assert.True(t, b.isSuspended)
+	_ = b.Eval(repository.RepositoryStatus{})
+	assert.True(t, b.IsEvaluating)
+
+	evalDone <- struct{}{}
+	gUUID := <-b.EvaluationDone
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(c, b.IsEvaluating)
+	}, 3*time.Second, 100*time.Millisecond)
+
+	g, _ := b.store.GenerationGet(gUUID)
+	assert.Equal(t, store.Evaluated, g.EvalStatus)
+	assert.Equal(t, store.BuildInit, g.BuildStatus)
+	err = b.Resume()
+	assert.Nil(t, err)
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(c, b.IsBuilding)
+	}, 3*time.Second, 100*time.Millisecond)
 }
