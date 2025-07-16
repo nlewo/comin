@@ -23,14 +23,7 @@ func FormatCommitMsg(msg string) string {
 	return formatted
 }
 
-func ReadMachineId(configurationAttr string) (machineId string, err error) {
-	if configurationAttr == "darwinConfigurations" {
-		return readMachineIdDarwin()
-	}
-	return readMachineIdLinux()
-}
-
-func readMachineIdLinux() (machineId string, err error) {
+func ReadMachineIdLinux() (machineId string, err error) {
 	machineIdBytes, err := os.ReadFile("/etc/machine-id")
 	machineId = strings.TrimSuffix(string(machineIdBytes), "\n")
 	if err != nil {
@@ -39,7 +32,7 @@ func readMachineIdLinux() (machineId string, err error) {
 	return
 }
 
-func readMachineIdDarwin() (machineId string, err error) {
+func ReadMachineIdDarwin() (machineId string, err error) {
 	cmd := exec.Command("/usr/sbin/system_profiler", "SPHardwareDataType")
 	output, err := cmd.Output()
 	if err != nil {

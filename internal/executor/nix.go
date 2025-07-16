@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+
+	"github.com/nlewo/comin/internal/utils"
 )
 
 type NixLocal struct {
@@ -13,6 +15,25 @@ type NixLocal struct {
 
 func NewNixExecutor(configurationAttr string) (*NixLocal, error) {
 	return &NixLocal{configurationAttr: configurationAttr}, nil
+}
+
+func (n *NixLocal) ReadMachineId() (string, error) {
+	if n.configurationAttr == "darwinConfigurations" {
+		return utils.ReadMachineIdDarwin()
+	}
+	return utils.ReadMachineIdLinux()
+}
+
+func (n *NixLocal) NeedToReboot() bool {
+	if n.configurationAttr == "darwinConfigurations" {
+		// TODO: Implement proper reboot detection for Darwin
+		// Unlike NixOS which has /run/current-system vs /run/booted-system paths,
+		// Darwin/macOS doesn't have equivalent mechanisms for detecting when
+		// a reboot is needed after nix-darwin configuration changes.
+		// For now, conservatively assume no reboot is needed.
+		return false
+	}
+	return utils.NeedToRebootLinux()
 }
 
 func (n *NixLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {

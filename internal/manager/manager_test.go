@@ -8,6 +8,7 @@ import (
 
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
+	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/repository"
@@ -65,7 +66,8 @@ func TestBuild(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil, "")
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "nixosConfigurations")
+	e, _ := executor.NewNixOS()
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.Builder.State().IsEvaluating)
@@ -170,7 +172,8 @@ func TestDeploy(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(deployFunc, nil, "")
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "nixosConfigurations")
+	e, _ := executor.NewNixOS()
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.Builder.State().IsEvaluating)
@@ -196,7 +199,8 @@ func TestIncorrectMachineId(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", "nixosConfigurations")
+	e, _ := executor.NewNixOS()
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
@@ -222,7 +226,8 @@ func TestCorrectMachineId(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
 	d := mkDeployerMock()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", "nixosConfigurations")
+	e, _ := executor.NewNixOS()
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
@@ -250,10 +255,10 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	d := mkDeployerMock()
 
 	// Test with Darwin configuration
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", "darwinConfigurations")
+	e, _ := executor.NewNixDarwin()
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", e)
 
 	// Verify the manager was created with the correct configuration attribute
-	assert.Equal(t, "darwinConfigurations", m.configurationAttr)
 	assert.Equal(t, "darwin-machine-id", m.machineId)
 
 	// Verify the Darwin manager functions correctly without errors

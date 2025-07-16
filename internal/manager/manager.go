@@ -11,12 +11,12 @@ import (
 
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
+	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
-	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,9 +35,6 @@ type Manager struct {
 	// corresponds to the machine-id of this host.
 	machineId string
 
-	// Configuration attribute (nixosConfigurations or darwinConfigurations)
-	configurationAttr string
-
 	stateRequestCh chan struct{}
 	stateResultCh  chan State
 
@@ -49,22 +46,23 @@ type Manager struct {
 	Fetcher    *fetcher.Fetcher
 	Builder    *builder.Builder
 	deployer   *deployer.Deployer
+	executor   executor.Executor
 
 	isSuspended bool
 }
 
-func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, configurationAttr string) *Manager {
+func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, executor executor.Executor) *Manager {
 	m := &Manager{
-		machineId:         machineId,
-		configurationAttr: configurationAttr,
-		stateRequestCh:    make(chan struct{}),
-		stateResultCh:     make(chan State),
-		prometheus:        p,
-		storage:           s,
-		scheduler:         sched,
-		Fetcher:           fetcher,
-		Builder:           builder,
-		deployer:          deployer,
+		machineId:      machineId,
+		stateRequestCh: make(chan struct{}),
+		stateResultCh:  make(chan State),
+		prometheus:     p,
+		storage:        s,
+		scheduler:      sched,
+		Fetcher:        fetcher,
+		Builder:        builder,
+		deployer:       deployer,
+		executor:       executor,
 	}
 	return m
 }
@@ -159,7 +157,7 @@ func (m *Manager) FetchAndBuild() {
 
 func (m *Manager) Run() {
 	logrus.Infof("manager: starting with machineId=%s", m.machineId)
-	m.needToReboot = utils.NeedToReboot(m.configurationAttr)
+	m.needToReboot = m.executor.NeedToReboot()
 	m.prometheus.SetHostInfo(m.needToReboot)
 
 	m.FetchAndBuild()
@@ -175,7 +173,7 @@ func (m *Manager) Run() {
 			if getsEvicted && evicted.ProfilePath != "" {
 				_ = profile.RemoveProfilePath(evicted.ProfilePath)
 			}
-			m.needToReboot = utils.NeedToReboot(m.configurationAttr)
+			m.needToReboot = m.executor.NeedToReboot()
 			m.prometheus.SetHostInfo(m.needToReboot)
 			if dpl.RestartComin {
 				// TODO: stop contexts
