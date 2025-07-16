@@ -4,6 +4,11 @@ import (
 	"context"
 )
 
+// Executor contains the function used by comin to actually do actions
+// on the host. This allows us to abstract the way Nix expression are
+// evaluated, built and deployed. This could be for instance used by a
+// Garnix implementation (such as proposed in
+// https://github.com/nlewo/comin/pull/74)
 type Executor interface {
 	Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error)
 	Build(ctx context.Context, drvPath string) (err error)
