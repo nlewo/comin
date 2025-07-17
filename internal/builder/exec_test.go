@@ -54,7 +54,6 @@ func TestExecStop(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	e.Stop()
 	e.Wait()
-	assert.True(t, e.Stopped)
 	assert.Equal(t, context.Canceled, e.err)
 }
 

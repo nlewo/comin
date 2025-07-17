@@ -9,7 +9,7 @@ import (
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/config"
 	"github.com/nlewo/comin/internal/deployer"
-	"github.com/nlewo/comin/internal/executor"
+	executorPkg "github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/http"
 	"github.com/nlewo/comin/internal/manager"
@@ -17,7 +17,6 @@ import (
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/scheduler"
 	storePkg "github.com/nlewo/comin/internal/store"
-	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -33,16 +32,19 @@ var runCmd = &cobra.Command{
 			logrus.Error(err)
 			os.Exit(1)
 		}
-		var configurationAttr string
-		if runtime.GOOS == "darwin" {
-			configurationAttr = "darwinConfigurations"
-		} else {
-			configurationAttr = "nixosConfigurations"
-		}
 
 		gitConfig := config.MkGitConfig(cfg)
 
-		machineId, err := utils.ReadMachineId(configurationAttr)
+		executor, err := executorPkg.NewNixOS()
+		if runtime.GOOS == "darwin" {
+			executor, err = executorPkg.NewNixDarwin()
+		}
+		if err != nil {
+			logrus.Errorf("Failed to create the executor: %s", err)
+			return
+		}
+
+		machineId, err := executor.ReadMachineId()
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
@@ -80,16 +82,10 @@ var runCmd = &cobra.Command{
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
-		executor, err := executor.New(configurationAttr)
-		if err != nil {
-			logrus.Error("Failed to create executor")
-			return
-		}
-
 		builder := builder.New(store, gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, executor.Eval, 30*time.Minute, executor.Build)
 		deployer := deployer.New(executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
 
-		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, configurationAttr)
+		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor)
 
 		http.Serve(manager,
 			metrics,

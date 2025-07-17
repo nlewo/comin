@@ -10,14 +10,15 @@ type Runnable interface {
 	Run(c context.Context) error
 }
 
+// Exec runs a runnable object asyncronously while recording start time, finish time and
 type Exec struct {
-	timeout    time.Duration
-	runnable   Runnable
-	Started    bool
-	Finished   bool
-	Stopped    bool
-	Timeouted  bool
-	done       chan struct{}
+	timeout  time.Duration
+	runnable Runnable
+	Started  bool
+	Finished bool
+	done     chan struct{}
+	// err is used to know if the context has been cancelled,
+	// timeouted or if the runnable ends with an error
 	err        error
 	cancelFunc context.CancelFunc
 	mu         sync.Mutex
@@ -69,7 +70,6 @@ func (e *Exec) Stop() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.Started {
-		e.Stopped = true
 		e.cancelFunc()
 	}
 }
