@@ -16,23 +16,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 )
 
-type EvalFunc func(ctx context.Context, flakeUrl string, hostname string) (drvPath string, outPath string, machineId string, err error)
-type BuildFunc func(ctx context.Context, drvPath string) error
-
 type Builder struct {
 	store          *store.Store
+	executor       executor.Executor
 	hostname       string
 	repositoryPath string
 	repositoryDir  string
 	evalTimeout    time.Duration
 	buildTimeout   time.Duration
-	evalFunc       EvalFunc
-	buildFunc      BuildFunc
 
 	mu           sync.Mutex
 	IsEvaluating bool
@@ -57,17 +54,16 @@ type Builder struct {
 	isSuspended bool
 }
 
-func New(store *store.Store, repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, evalFunc EvalFunc, buildTimeout time.Duration, buildFunc BuildFunc) *Builder {
+func New(store *store.Store, executor executor.Executor, repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, buildTimeout time.Duration) *Builder {
 	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, hostname=%s, evalTimeout=%fs, buildTimeout=%fs, )",
 		repositoryPath, repositoryDir, hostname, evalTimeout.Seconds(), buildTimeout.Seconds())
 	return &Builder{
 		store:          store,
+		executor:       executor,
 		repositoryPath: repositoryPath,
 		repositoryDir:  repositoryDir,
 		hostname:       hostname,
-		evalFunc:       evalFunc,
 		evalTimeout:    evalTimeout,
-		buildFunc:      buildFunc,
 		buildTimeout:   buildTimeout,
 		EvaluationDone: make(chan uuid.UUID, 1),
 		BuildDone:      make(chan uuid.UUID, 1),
@@ -146,7 +142,7 @@ type Evaluator struct {
 	flakeUrl string
 	hostname string
 
-	evalFunc EvalFunc
+	evalFunc executor.EvalFunc
 
 	drvPath   string
 	outPath   string
@@ -160,7 +156,7 @@ func (r *Evaluator) Run(ctx context.Context) (err error) {
 
 type Buildator struct {
 	drvPath   string
-	buildFunc BuildFunc
+	buildFunc executor.BuildFunc
 }
 
 func (r *Buildator) Run(ctx context.Context) (err error) {
@@ -187,7 +183,7 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 	evaluator := &Evaluator{
 		hostname: b.hostname,
 		flakeUrl: g.FlakeUrl,
-		evalFunc: b.evalFunc,
+		evalFunc: b.executor.Eval,
 	}
 	b.evaluator = NewExec(evaluator, b.evalTimeout)
 
@@ -301,7 +297,7 @@ func (b *Builder) build(generationUUID uuid.UUID) error {
 	b.IsBuilding = true
 	buildator := &Buildator{
 		drvPath:   generation.DrvPath,
-		buildFunc: b.buildFunc,
+		buildFunc: b.executor.Build,
 	}
 	b.buildator = NewExec(buildator, b.buildTimeout)
 
