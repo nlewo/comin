@@ -38,6 +38,7 @@ type Builder struct {
 	// GenerationUUID is the generation UUID currently managed by
 	// the builder. This generation can be evaluating, evaluated,
 	// building or built.
+	// To access this generation, you need to query the store.
 	GenerationUUID *uuid.UUID
 
 	// EvaluationDone is used to be notified a evaluation is finished. Be careful since only a single goroutine can listen it.
@@ -165,6 +166,11 @@ func (r *Buildator) Run(ctx context.Context) (err error) {
 
 // Eval evaluates a generation. It cancels current any generation
 // evaluation or build.
+//
+// At the end of the evaluation, if the storepath is already in the
+// Nix store, it then consider the build is done. In this case, it
+// doesn't notify for the end of the evaluation but for the end of the
+// build.
 func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 	ctx := context.TODO()
 	// This is to prempt the builder since we don't need to allow
@@ -207,9 +213,23 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 		}
 
 		b.IsEvaluating = false
-		select {
-		case b.EvaluationDone <- g.UUID:
-		default:
+		if b.executor.IsStorePathExist(evaluator.outPath) {
+			if err := b.store.GenerationBuildStart(g.UUID); err != nil {
+				logrus.Errorf("builder: %s", err)
+			}
+			if err := b.store.GenerationBuildFinished(g.UUID, nil); err != nil {
+				logrus.Errorf("builder: %s", err)
+			}
+			select {
+			case b.BuildDone <- g.UUID:
+			default:
+			}
+
+		} else {
+			select {
+			case b.EvaluationDone <- g.UUID:
+			default:
+			}
 		}
 	}()
 	return nil

@@ -20,6 +20,9 @@ type Executor interface {
 	Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error)
 	NeedToReboot() bool
 	ReadMachineId() (string, error)
+	// IsStorePathExist returns true if a storepath exists. This
+	// is used to detect if a build will be required or not.
+	IsStorePathExist(string) bool
 }
 
 func NewNixOS() (e Executor, err error) {
