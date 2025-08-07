@@ -10,39 +10,39 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func envGitSha(d *store.Deployment) string {
+func envGitSha(d store.Deployment) string {
 	return d.Generation.SelectedCommitId
 }
 
-func envGitRef(d *store.Deployment) string {
+func envGitRef(d store.Deployment) string {
 	return fmt.Sprintf("%s/%s", d.Generation.SelectedRemoteName, d.Generation.SelectedBranchName)
 }
 
-func envGitMessage(d *store.Deployment) string {
+func envGitMessage(d store.Deployment) string {
 	return strings.Trim(d.Generation.SelectedCommitMsg, "\n")
 }
 
-func envCominGeneration(d *store.Deployment) string {
+func envCominGeneration(d store.Deployment) string {
 	return d.Generation.UUID.String()
 }
 
-func envCominHostname(d *store.Deployment) string {
+func envCominHostname(d store.Deployment) string {
 	return d.Generation.Hostname
 }
 
-func envCominStatus(d *store.Deployment) string {
+func envCominStatus(d store.Deployment) string {
 	return store.StatusToString(d.Status)
 }
 
-func envCominErrorMessage(d *store.Deployment) string {
+func envCominErrorMessage(d store.Deployment) string {
 	return d.ErrorMsg
 }
 
-func envCominFlakeUrl(d *store.Deployment) string {
+func envCominFlakeUrl(d store.Deployment) string {
 	return d.Generation.FlakeUrl
 }
 
-func runPostDeploymentCommand(command string, d *store.Deployment) (string, error) {
+func runPostDeploymentCommand(command string, d store.Deployment) (string, error) {
 
 	cmd := exec.Command(command)
 

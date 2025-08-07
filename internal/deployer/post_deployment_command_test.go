@@ -25,7 +25,7 @@ func TestBasic(t *testing.T) {
 		Operation:    "",
 	}
 
-	out, err := runPostDeploymentCommand("env", &deployment)
+	out, err := runPostDeploymentCommand("env", deployment)
 	assert.NoError(t, err)
 	assert.Contains(t, out, "COMIN_GIT_SHA=")
 }
