@@ -19,17 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var mkNixEvalMock = func(evalOk chan bool) builder.EvalFunc {
-	return func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
-		ok := <-evalOk
-		if ok {
-			return "drv-path", "out-path", "", nil
-		} else {
-			return "", "", "", fmt.Errorf("An error occured")
-		}
-	}
-}
-
 var mkDeployerMock = func() *deployer.Deployer {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "", nil
@@ -37,31 +26,60 @@ var mkDeployerMock = func() *deployer.Deployer {
 	return deployer.New(deployFunc, nil, "")
 }
 
-var mkNixBuildMock = func(buildOk chan bool) builder.BuildFunc {
-	return func(ctx context.Context, drvPath string) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case ok := <-buildOk:
-			if ok {
-				return nil
-			} else {
-				return fmt.Errorf("An error occured")
-			}
+type ExecutorMock struct {
+	evalOk    chan bool
+	buildOk   chan bool
+	machineId string
+}
+
+func (n ExecutorMock) ReadMachineId() (string, error) {
+	return "", nil
+}
+func (n ExecutorMock) NeedToReboot() bool {
+	return false
+}
+func (n ExecutorMock) IsStorePathExist(storePath string) bool {
+	return false
+}
+func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+	return false, "", nil
+}
+func (n ExecutorMock) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
+	ok := <-n.evalOk
+	if ok {
+		return "drv-path", "out-path", n.machineId, nil
+	} else {
+		return "", "", n.machineId, fmt.Errorf("An error occured")
+	}
+}
+func (n ExecutorMock) Build(ctx context.Context, drvPath string) (err error) {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case ok := <-n.buildOk:
+		if ok {
+			return nil
+		} else {
+			return fmt.Errorf("An error occured")
 		}
+	}
+}
+func NewExecutorMock(machineId string) ExecutorMock {
+	return ExecutorMock{
+		evalOk:  make(chan bool, 1),
+		buildOk: make(chan bool, 1),
 	}
 }
 
 func TestBuild(t *testing.T) {
-	evalOk := make(chan bool)
-	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
 	tmp := t.TempDir()
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	f.Start()
-	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	eMock := NewExecutorMock("")
+	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
@@ -84,7 +102,7 @@ func TestBuild(t *testing.T) {
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the failure of an evaluation
-	evalOk <- false
+	eMock.evalOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.Builder.State().IsEvaluating)
 		assert.False(c, m.Builder.State().IsBuilding)
@@ -99,7 +117,7 @@ func TestBuild(t *testing.T) {
 		SelectedCommitId: commitId,
 	}
 	// This simulates the success of an evaluation
-	evalOk <- true
+	eMock.evalOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.Builder.State().IsEvaluating)
 		assert.True(c, m.Builder.State().IsBuilding)
@@ -109,7 +127,7 @@ func TestBuild(t *testing.T) {
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the failure of a build
-	buildOk <- false
+	eMock.buildOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.Builder.State().IsEvaluating)
 		assert.False(c, m.Builder.State().IsBuilding)
@@ -123,8 +141,8 @@ func TestBuild(t *testing.T) {
 	r.RsCh <- repository.RepositoryStatus{
 		SelectedCommitId: "id-3",
 	}
-	evalOk <- true
-	buildOk <- true
+	eMock.evalOk <- true
+	eMock.buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.Builder.State().IsEvaluating)
 		assert.False(c, m.Builder.State().IsBuilding)
@@ -138,8 +156,8 @@ func TestBuild(t *testing.T) {
 	r.RsCh <- repository.RepositoryStatus{
 		SelectedCommitId: "id-4",
 	}
-	evalOk <- true
-	buildOk <- true
+	eMock.evalOk <- true
+	eMock.buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, m.Builder.State().IsEvaluating)
 		assert.False(c, m.Builder.State().IsBuilding)
@@ -152,22 +170,23 @@ func TestBuild(t *testing.T) {
 	r.RsCh <- repository.RepositoryStatus{
 		SelectedCommitId: "id-5",
 	}
-	evalOk <- true
+	eMock.evalOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, m.Builder.State().IsBuilding)
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func TestDeploy(t *testing.T) {
-	evalOk := make(chan bool)
-	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
 	f.Start()
 	tmp := t.TempDir()
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
-	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, mkNixEvalMock(evalOk), 2*time.Second, mkNixBuildMock(buildOk))
+	eMock := NewExecutorMock("")
+	eMock.evalOk <- true
+	eMock.buildOk <- true
+	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
@@ -178,7 +197,6 @@ func TestDeploy(t *testing.T) {
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.Builder.State().IsEvaluating)
 	assert.False(t, m.Builder.State().IsBuilding)
-
 	m.deployer.Submit(store.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "profile-path", m.deployer.State().Deployment.ProfilePath)
@@ -187,17 +205,14 @@ func TestDeploy(t *testing.T) {
 }
 
 func TestIncorrectMachineId(t *testing.T) {
-	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
 	f.Start()
-	nixEval := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
-		return "drv-path", "out-path", "invalid-machine-id", nil
-	}
 	tmp := t.TempDir()
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
-	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	eMock := NewExecutorMock("invalid-machine-id")
+	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock()
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
@@ -214,17 +229,15 @@ func TestIncorrectMachineId(t *testing.T) {
 }
 
 func TestCorrectMachineId(t *testing.T) {
-	buildOk := make(chan bool)
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
 	f.Start()
-	nixEval := func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
-		return "drv-path", "out-path", "the-test-machine-id", nil
-	}
 	tmp := t.TempDir()
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
-	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	eMock := NewExecutorMock("the-test-machine-id")
+	eMock.evalOk <- true
+	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock()
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
@@ -243,15 +256,11 @@ func TestCorrectMachineId(t *testing.T) {
 func TestManagerWithDarwinConfiguration(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
-	buildOk := make(chan bool, 1)
-	buildOk <- true
-	nixEval := func(ctx context.Context, path, hostname string) (drvPath, outPath, machineId string, err error) {
-		assert.Equal(t, "my-machine", hostname)
-		return "/nix/store/derivation", "/nix/store/outPath", "", nil
-	}
 	tmp := t.TempDir()
+	eMock := NewExecutorMock("")
+	eMock.buildOk <- true
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
-	b := builder.New(s, "repoPath", "", "my-machine", 2*time.Second, nixEval, 2*time.Second, mkNixBuildMock(buildOk))
+	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock()
 
 	// Test with Darwin configuration

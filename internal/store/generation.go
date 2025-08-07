@@ -246,7 +246,7 @@ func (s *Store) GenerationBuildFinished(uuid uuid.UUID, buildErr error) error {
 			}
 		}
 		if err := os.Symlink(g.OutPath, s.generationGcRoot); err != nil {
-			logrus.Error(err)
+			logrus.Errorf("Could not create the gcroot symlink for the generation %s: %s", g.UUID.String(), err)
 		}
 	} else {
 		g.BuildStatus = BuildFailed
