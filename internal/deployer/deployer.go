@@ -175,28 +175,32 @@ func (d *Deployer) Run() {
 				operation,
 			)
 
-			d.mu.Lock()
-			d.IsDeploying = false
-			d.Deployment.EndedAt = time.Now().UTC()
-			d.Deployment.Err = err
+			deployment := *(d.Deployment)
+			deployment.EndedAt = time.Now().UTC()
+			deployment.Err = err
 			if err != nil {
-				d.Deployment.ErrorMsg = err.Error()
-				d.Deployment.Status = store.Failed
+				deployment.ErrorMsg = err.Error()
+				deployment.Status = store.Failed
 			} else {
-				d.Deployment.Status = store.Done
+				deployment.Status = store.Done
 			}
-			d.Deployment.RestartComin = cominNeedRestart
-			d.Deployment.ProfilePath = profilePath
-			d.DeploymentDoneCh <- *d.Deployment
-			d.mu.Unlock()
+			deployment.RestartComin = cominNeedRestart
+			deployment.ProfilePath = profilePath
 
 			cmd := d.postDeploymentCommand
 			if cmd != "" {
-				_, err = runPostDeploymentCommand(cmd, d.Deployment)
+				_, err = runPostDeploymentCommand(cmd, deployment)
 				if err != nil {
 					logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", g.UUID, cmd, err)
 				}
 			}
+
+			d.mu.Lock()
+			d.IsDeploying = false
+			d.Deployment = &deployment
+			d.DeploymentDoneCh <- *d.Deployment
+			d.mu.Unlock()
+
 		}
 	}()
 }
