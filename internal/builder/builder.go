@@ -16,23 +16,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 )
 
-type EvalFunc func(ctx context.Context, flakeUrl string, hostname string) (drvPath string, outPath string, machineId string, err error)
-type BuildFunc func(ctx context.Context, drvPath string) error
-
 type Builder struct {
 	store          *store.Store
+	executor       executor.Executor
 	hostname       string
 	repositoryPath string
 	repositoryDir  string
 	evalTimeout    time.Duration
 	buildTimeout   time.Duration
-	evalFunc       EvalFunc
-	buildFunc      BuildFunc
 
 	mu           sync.Mutex
 	IsEvaluating bool
@@ -41,6 +38,7 @@ type Builder struct {
 	// GenerationUUID is the generation UUID currently managed by
 	// the builder. This generation can be evaluating, evaluated,
 	// building or built.
+	// To access this generation, you need to query the store.
 	GenerationUUID *uuid.UUID
 
 	// EvaluationDone is used to be notified a evaluation is finished. Be careful since only a single goroutine can listen it.
@@ -57,17 +55,16 @@ type Builder struct {
 	isSuspended bool
 }
 
-func New(store *store.Store, repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, evalFunc EvalFunc, buildTimeout time.Duration, buildFunc BuildFunc) *Builder {
+func New(store *store.Store, executor executor.Executor, repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, buildTimeout time.Duration) *Builder {
 	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, hostname=%s, evalTimeout=%fs, buildTimeout=%fs, )",
 		repositoryPath, repositoryDir, hostname, evalTimeout.Seconds(), buildTimeout.Seconds())
 	return &Builder{
 		store:          store,
+		executor:       executor,
 		repositoryPath: repositoryPath,
 		repositoryDir:  repositoryDir,
 		hostname:       hostname,
-		evalFunc:       evalFunc,
 		evalTimeout:    evalTimeout,
-		buildFunc:      buildFunc,
 		buildTimeout:   buildTimeout,
 		EvaluationDone: make(chan uuid.UUID, 1),
 		BuildDone:      make(chan uuid.UUID, 1),
@@ -146,7 +143,7 @@ type Evaluator struct {
 	flakeUrl string
 	hostname string
 
-	evalFunc EvalFunc
+	evalFunc executor.EvalFunc
 
 	drvPath   string
 	outPath   string
@@ -160,7 +157,7 @@ func (r *Evaluator) Run(ctx context.Context) (err error) {
 
 type Buildator struct {
 	drvPath   string
-	buildFunc BuildFunc
+	buildFunc executor.BuildFunc
 }
 
 func (r *Buildator) Run(ctx context.Context) (err error) {
@@ -169,6 +166,11 @@ func (r *Buildator) Run(ctx context.Context) (err error) {
 
 // Eval evaluates a generation. It cancels current any generation
 // evaluation or build.
+//
+// At the end of the evaluation, if the storepath is already in the
+// Nix store, it then consider the build is done. In this case, it
+// doesn't notify for the end of the evaluation but for the end of the
+// build.
 func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 	ctx := context.TODO()
 	// This is to prempt the builder since we don't need to allow
@@ -187,7 +189,7 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 	evaluator := &Evaluator{
 		hostname: b.hostname,
 		flakeUrl: g.FlakeUrl,
-		evalFunc: b.evalFunc,
+		evalFunc: b.executor.Eval,
 	}
 	b.evaluator = NewExec(evaluator, b.evalTimeout)
 
@@ -211,9 +213,23 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 		}
 
 		b.IsEvaluating = false
-		select {
-		case b.EvaluationDone <- g.UUID:
-		default:
+		if b.executor.IsStorePathExist(evaluator.outPath) {
+			if err := b.store.GenerationBuildStart(g.UUID); err != nil {
+				logrus.Errorf("builder: %s", err)
+			}
+			if err := b.store.GenerationBuildFinished(g.UUID, nil); err != nil {
+				logrus.Errorf("builder: %s", err)
+			}
+			select {
+			case b.BuildDone <- g.UUID:
+			default:
+			}
+
+		} else {
+			select {
+			case b.EvaluationDone <- g.UUID:
+			default:
+			}
 		}
 	}()
 	return nil
@@ -301,7 +317,7 @@ func (b *Builder) build(generationUUID uuid.UUID) error {
 	b.IsBuilding = true
 	buildator := &Buildator{
 		drvPath:   generation.DrvPath,
-		buildFunc: b.buildFunc,
+		buildFunc: b.executor.Build,
 	}
 	b.buildator = NewExec(buildator, b.buildTimeout)
 
