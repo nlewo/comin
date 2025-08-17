@@ -14,42 +14,56 @@ import (
 	_ "net/http/pprof"
 )
 
-var mkNixEvalMock = func(evalDone chan struct{}) EvalFunc {
-	return func(ctx context.Context, repositoryPath string, hostname string) (string, string, string, error) {
-		select {
-		case <-ctx.Done():
-			return "", "", "", ctx.Err()
-		case <-evalDone:
-			return "drv-path", "out-path", "", nil
-		}
-	}
+type ExecutorMock struct {
+	evalDone  chan struct{}
+	buildDone chan struct{}
 }
 
-var mkNixBuildMock = func(buildDone chan struct{}) BuildFunc {
-	return func(ctx context.Context, drvPath string) error {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-buildDone:
-			return nil
-		}
+func (n ExecutorMock) ReadMachineId() (string, error) {
+	return "", nil
+}
+func (n ExecutorMock) NeedToReboot() bool {
+	return false
+}
+func (n ExecutorMock) IsStorePathExist(storePath string) bool {
+	return false
+}
+func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+	return false, "", nil
+}
+func (n ExecutorMock) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
+	select {
+	case <-ctx.Done():
+		return "", "", "", ctx.Err()
+	case <-n.evalDone:
+		return "drv-path", "out-path", "", nil
 	}
 }
-
-var nixBuildMockNil = func(ctx context.Context, drvPath string) error { return nil }
+func (n ExecutorMock) Build(ctx context.Context, drvPath string) (err error) {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-n.buildDone:
+		return nil
+	}
+}
+func NewExecutorMock() ExecutorMock {
+	return ExecutorMock{
+		evalDone:  make(chan struct{}),
+		buildDone: make(chan struct{}),
+	}
+}
 
 func TestBuilderBuild(t *testing.T) {
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
 
-	evalDone := make(chan struct{})
-	buildDone := make(chan struct{})
-
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	b := New(s, "", "", "my-machine", 2*time.Second, mkNixEvalMock(evalDone), 2*time.Second, mkNixBuildMock(buildDone))
+	eMock := NewExecutorMock()
+	b := New(s, eMock, "", "", "my-machine", 2*time.Second, 2*time.Second)
 
 	// Run the evaluator
 	_ = b.Eval(repository.RepositoryStatus{})
@@ -60,7 +74,7 @@ func TestBuilderBuild(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, b.IsEvaluating)
 	}, 2*time.Second, 100*time.Millisecond)
-	evalDone <- struct{}{}
+	eMock.evalDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, b.IsEvaluating)
 	}, 2*time.Second, 100*time.Millisecond)
@@ -94,7 +108,7 @@ func TestBuilderBuild(t *testing.T) {
 	// The builder succeeds
 	err = b.build(gUUID)
 	assert.Nil(t, err)
-	buildDone <- struct{}{}
+	eMock.buildDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, b.IsBuilding)
 	}, 3*time.Second, 100*time.Millisecond)
@@ -105,15 +119,15 @@ func TestBuilderBuild(t *testing.T) {
 }
 
 func TestEval(t *testing.T) {
-	evalDone := make(chan struct{})
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	b := New(s, "", "", "", 5*time.Second, mkNixEvalMock(evalDone), 5*time.Second, nixBuildMockNil)
+	eMock := NewExecutorMock()
+	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{})
 	assert.True(t, b.IsEvaluating)
 
-	evalDone <- struct{}{}
+	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, b.IsEvaluating)
@@ -125,11 +139,11 @@ func TestEval(t *testing.T) {
 }
 
 func TestBuilderPreemption(t *testing.T) {
-	evalDone := make(chan struct{})
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	b := New(s, "", "", "", 5*time.Second, mkNixEvalMock(evalDone), 5*time.Second, nixBuildMockNil)
+	eMock := NewExecutorMock()
+	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{SelectedCommitId: "commit-1"})
 	assert.True(t, b.IsEvaluating)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -147,11 +161,11 @@ func TestBuilderPreemption(t *testing.T) {
 }
 
 func TestBuilderStop(t *testing.T) {
-	evalDone := make(chan struct{})
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	b := New(s, "", "", "", 5*time.Second, mkNixEvalMock(evalDone), 5*time.Second, nixBuildMockNil)
+	eMock := NewExecutorMock()
+	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{})
 	assert.True(t, b.IsEvaluating)
 	b.Stop()
@@ -162,11 +176,11 @@ func TestBuilderStop(t *testing.T) {
 }
 
 func TestBuilderTimeout(t *testing.T) {
-	evalDone := make(chan struct{})
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	b := New(s, "", "", "", 1*time.Second, mkNixEvalMock(evalDone), 5*time.Second, nixBuildMockNil)
+	eMock := NewExecutorMock()
+	b := New(s, eMock, "", "", "", 1*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{})
 	assert.True(t, b.IsEvaluating)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -176,18 +190,17 @@ func TestBuilderTimeout(t *testing.T) {
 }
 
 func TestBuilderSuspend(t *testing.T) {
-	evalDone := make(chan struct{})
-	buildDone := make(chan struct{})
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	b := New(s, "", "", "", 1*time.Second, mkNixEvalMock(evalDone), 5*time.Second, mkNixBuildMock(buildDone))
+	eMock := NewExecutorMock()
+	b := New(s, eMock, "", "", "", 1*time.Second, 5*time.Second)
 	_ = b.Suspend()
 	assert.True(t, b.isSuspended)
 	_ = b.Eval(repository.RepositoryStatus{})
 	assert.True(t, b.IsEvaluating)
 
-	evalDone <- struct{}{}
+	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, b.IsEvaluating)

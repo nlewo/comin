@@ -6,6 +6,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type EvalFunc func(ctx context.Context, flakeUrl string, hostname string) (drvPath string, outPath string, machineId string, err error)
+type BuildFunc func(ctx context.Context, drvPath string) error
+
 // Executor contains the function used by comin to actually do actions
 // on the host. This allows us to abstract the way Nix expression are
 // evaluated, built and deployed. This could be for instance used by a
