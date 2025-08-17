@@ -16,13 +16,12 @@ import (
 type DeployFunc func(context.Context, string, string) (bool, string, error)
 
 type Deployer struct {
-	GenerationCh       chan store.Generation
-	deployerFunc       DeployFunc
-	DeploymentDoneCh   chan store.Deployment
-	mu                 sync.Mutex
-	Deployment         *store.Deployment
-	previousDeployment *store.Deployment
-	IsDeploying        bool
+	GenerationCh     chan store.Generation
+	deployerFunc     DeployFunc
+	DeploymentDoneCh chan store.Deployment
+	mu               sync.Mutex
+	Deployment       *store.Deployment
+	IsDeploying      bool
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy    *store.Generation
 	generationAvailableCh chan struct{}
@@ -39,7 +38,6 @@ type State struct {
 	IsDeploying        bool              `json:"is_deploying"`
 	GenerationToDeploy *store.Generation `json:"generation_to_deploy"`
 	Deployment         *store.Deployment `json:"deployment"`
-	PreviousDeployment *store.Deployment `json:"previous_deployment"`
 	IsSuspended        bool              `json:"is_suspended"`
 }
 
@@ -48,7 +46,6 @@ func (d *Deployer) State() State {
 		IsDeploying:        d.IsDeploying,
 		GenerationToDeploy: d.GenerationToDeploy,
 		Deployment:         d.Deployment,
-		PreviousDeployment: d.previousDeployment,
 		IsSuspended:        d.isSuspended,
 	}
 }
@@ -76,23 +73,18 @@ func showDeployment(padding string, d store.Deployment) {
 func (s State) Show(padding string) {
 	fmt.Printf("  Deployer\n")
 	if s.Deployment == nil {
-		if s.PreviousDeployment == nil {
-			fmt.Printf("%sNo deployment yet\n", padding)
-			return
-		}
-		showDeployment(padding, *s.PreviousDeployment)
+		fmt.Printf("%sNo deployment yet\n", padding)
 		return
 	}
 	showDeployment(padding, *s.Deployment)
 }
 
-func New(deployFunc DeployFunc, previousDeployment *store.Deployment, postDeploymentCommand string) *Deployer {
+func New(deployFunc DeployFunc, deployment *store.Deployment, postDeploymentCommand string) *Deployer {
 	return &Deployer{
 		DeploymentDoneCh:      make(chan store.Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
-		previousDeployment:    previousDeployment,
-		Deployment:            previousDeployment,
+		Deployment:            deployment,
 		postDeploymentCommand: postDeploymentCommand,
 
 		resumeCh: make(chan struct{}, 1),
@@ -115,6 +107,12 @@ func (d *Deployer) Resume() {
 	}
 }
 
+// Retry reties the deployment of the last deployed generation, but
+// only when its deployment had failed.
+func (d *Deployer) Retry() {
+	d.Submit(d.Deployment.Generation)
+}
+
 // Submit submits a generation to be deployed. If a deployment is
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
@@ -122,7 +120,12 @@ func (d *Deployer) Resume() {
 func (d *Deployer) Submit(generation store.Generation) {
 	logrus.Infof("deployer: submiting generation %s", generation.UUID)
 	d.mu.Lock()
-	if d.previousDeployment == nil || generation.SelectedCommitId != d.previousDeployment.Generation.SelectedCommitId || generation.SelectedBranchIsTesting != d.previousDeployment.Generation.SelectedBranchIsTesting {
+	if d.Deployment == nil ||
+		generation.SelectedCommitId != d.Deployment.Generation.SelectedCommitId ||
+		generation.SelectedBranchIsTesting != d.Deployment.Generation.SelectedBranchIsTesting ||
+		// This is for the deployer.Retry case
+		d.Deployment.Status == store.Failed {
+
 		d.GenerationToDeploy = &generation
 		select {
 		case d.generationAvailableCh <- struct{}{}:
@@ -163,7 +166,6 @@ func (d *Deployer) Run() {
 				Status:     store.Running,
 			}
 			d.mu.Lock()
-			d.previousDeployment = d.Deployment
 			d.Deployment = &dpl
 			d.IsDeploying = true
 			d.mu.Unlock()

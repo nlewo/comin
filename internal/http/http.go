@@ -101,6 +101,15 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
+	handlerDeployerRetryFn := func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			m.Deployer.Retry()
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
 
 	muxApi := http.NewServeMux()
 	muxApi.HandleFunc("/api/status", handlerStatusFn)
@@ -110,6 +119,7 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 	muxApi.HandleFunc("/api/builder/resume", handlerBuilderResumeFn)
 	muxApi.HandleFunc("/api/manager/suspend", handlerManagerSuspendFn)
 	muxApi.HandleFunc("/api/manager/resume", handlerManagerResumeFn)
+	muxApi.HandleFunc("/api/deployer/retry", handlerDeployerRetryFn)
 
 	muxMetrics := http.NewServeMux()
 	muxMetrics.Handle("/metrics", p.Handler())

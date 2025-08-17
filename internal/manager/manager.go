@@ -45,7 +45,7 @@ type Manager struct {
 	scheduler  scheduler.Scheduler
 	Fetcher    *fetcher.Fetcher
 	Builder    *builder.Builder
-	deployer   *deployer.Deployer
+	Deployer   *deployer.Deployer
 	executor   executor.Executor
 
 	isSuspended bool
@@ -61,7 +61,7 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 		scheduler:      sched,
 		Fetcher:        fetcher,
 		Builder:        builder,
-		deployer:       deployer,
+		Deployer:       deployer,
 		executor:       executor,
 	}
 	return m
@@ -78,7 +78,7 @@ func (m *Manager) toState() State {
 		IsSuspended:  m.isSuspended,
 		Fetcher:      m.Fetcher.GetState(),
 		Builder:      m.Builder.State(),
-		Deployer:     m.deployer.State(),
+		Deployer:     m.Deployer.State(),
 		Store:        m.storage.GetState(),
 	}
 }
@@ -90,7 +90,7 @@ func (m *Manager) Suspend() error {
 	if err := m.Builder.Suspend(); err != nil {
 		return err
 	}
-	m.deployer.Suspend()
+	m.Deployer.Suspend()
 	m.isSuspended = true
 	return nil
 }
@@ -102,7 +102,7 @@ func (m *Manager) Resume() error {
 	if err := m.Builder.Resume(); err != nil {
 		return err
 	}
-	m.deployer.Resume()
+	m.Deployer.Resume()
 	m.isSuspended = false
 	return nil
 }
@@ -147,7 +147,7 @@ func (m *Manager) FetchAndBuild() {
 				}
 				if generation.BuildErr == nil {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					m.deployer.Submit(generation)
+					m.Deployer.Submit(generation)
 				}
 			}
 		}
@@ -161,13 +161,13 @@ func (m *Manager) Run() {
 	m.prometheus.SetHostInfo(m.needToReboot)
 
 	m.FetchAndBuild()
-	m.deployer.Run()
+	m.Deployer.Run()
 
 	for {
 		select {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
-		case dpl := <-m.deployer.DeploymentDoneCh:
+		case dpl := <-m.Deployer.DeploymentDoneCh:
 			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, store.StatusToString(dpl.Status))
 			getsEvicted, evicted := m.storage.DeploymentInsertAndCommit(dpl)
 			if getsEvicted && evicted.ProfilePath != "" {

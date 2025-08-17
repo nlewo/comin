@@ -108,7 +108,7 @@ func TestBuild(t *testing.T) {
 		assert.False(c, m.Builder.State().IsBuilding)
 		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.NotNil(c, g.EvalErr)
-		assert.Nil(c, m.deployer.GenerationToDeploy)
+		assert.Nil(c, m.Deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	commitId = "id-2"
@@ -123,7 +123,7 @@ func TestBuild(t *testing.T) {
 		assert.True(c, m.Builder.State().IsBuilding)
 		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.Nil(c, g.EvalErr)
-		assert.Nil(c, m.deployer.GenerationToDeploy)
+		assert.Nil(c, m.Deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the failure of a build
@@ -133,7 +133,7 @@ func TestBuild(t *testing.T) {
 		assert.False(c, m.Builder.State().IsBuilding)
 		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
 		assert.NotNil(c, g.BuildErr)
-		assert.Nil(c, m.deployer.GenerationToDeploy)
+		assert.Nil(c, m.Deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the success of a build
@@ -197,9 +197,9 @@ func TestDeploy(t *testing.T) {
 	assert.False(t, m.Fetcher.GetState().IsFetching)
 	assert.False(t, m.Builder.State().IsEvaluating)
 	assert.False(t, m.Builder.State().IsBuilding)
-	m.deployer.Submit(store.Generation{})
+	m.Deployer.Submit(store.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, "profile-path", m.deployer.State().Deployment.ProfilePath)
+		assert.Equal(c, "profile-path", m.Deployer.State().Deployment.ProfilePath)
 	}, 5*time.Second, 100*time.Millisecond)
 
 }
