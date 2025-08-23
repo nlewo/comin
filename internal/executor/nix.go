@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/nlewo/comin/internal/utils"
@@ -34,6 +35,13 @@ func (n *NixLocal) NeedToReboot() bool {
 		return false
 	}
 	return utils.NeedToRebootLinux()
+}
+
+func (n *NixLocal) IsStorePathExist(storePath string) bool {
+	if _, err := os.Stat(storePath); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	return true
 }
 
 func (n *NixLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
