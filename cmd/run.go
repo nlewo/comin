@@ -70,6 +70,7 @@ var runCmd = &cobra.Command{
 		if ok, ld := store.LastDeployment(); ok {
 			mainCommitId = ld.Generation.MainCommitId
 			lastDeployment = &ld
+			metrics.SetDeploymentInfo(ld.Generation.SelectedCommitId, storePkg.StatusToString(ld.Status))
 		}
 		repository, err := repository.New(gitConfig, mainCommitId, metrics)
 		if err != nil {
