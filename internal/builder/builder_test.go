@@ -74,18 +74,18 @@ func TestBuilderBuild(t *testing.T) {
 
 	_ = b.Eval(repository.RepositoryStatus{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, b.IsEvaluating)
+		assert.True(c, b.isEvaluating.Load())
 	}, 2*time.Second, 100*time.Millisecond)
 	eMock.evalDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, b.IsEvaluating)
+		assert.False(c, b.isEvaluating.Load())
 	}, 2*time.Second, 100*time.Millisecond)
 	gUUID = <-b.EvaluationDone
 
 	err = b.build(gUUID)
 	assert.Nil(t, err)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, b.IsBuilding)
+		assert.True(c, b.isBuilding.Load())
 	}, 2*time.Second, 100*time.Millisecond)
 	err = b.build(gUUID)
 	assert.ErrorContains(t, err, "the builder is already building")
@@ -94,7 +94,7 @@ func TestBuilderBuild(t *testing.T) {
 	b.Stop()
 	gUUID = <-b.BuildDone
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, b.IsBuilding)
+		assert.False(c, b.isBuilding.Load())
 		g, _ := b.store.GenerationGet(gUUID)
 		assert.ErrorContains(c, g.BuildErr, "context canceled")
 	}, 2*time.Second, 100*time.Millisecond)
@@ -112,7 +112,7 @@ func TestBuilderBuild(t *testing.T) {
 	assert.Nil(t, err)
 	eMock.buildDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, b.IsBuilding)
+		assert.False(c, b.isBuilding.Load())
 	}, 3*time.Second, 100*time.Millisecond)
 
 	// The generation is already built
@@ -127,12 +127,12 @@ func TestEval(t *testing.T) {
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{})
-	assert.True(t, b.IsEvaluating)
+	assert.True(t, b.isEvaluating.Load())
 
 	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, b.IsEvaluating)
+		assert.False(c, b.isEvaluating.Load())
 		g, _ := b.store.GenerationGet(gUUID)
 		assert.Equal(c, store.Evaluated, g.EvalStatus)
 		assert.Equal(c, "drv-path", g.DrvPath)
@@ -148,12 +148,12 @@ func TestEvalAlreadyBuilt(t *testing.T) {
 	eMock := NewExecutorMock(true)
 	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{})
-	assert.True(t, b.IsEvaluating)
+	assert.True(t, b.IsEvaluating())
 
 	eMock.evalDone <- struct{}{}
 	gUUID := <-b.BuildDone
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, b.IsEvaluating)
+		assert.False(c, b.IsEvaluating())
 		g, _ := b.store.GenerationGet(gUUID)
 		assert.Equal(c, store.Evaluated, g.EvalStatus)
 		assert.Equal(c, "drv-path", g.DrvPath)
@@ -169,14 +169,14 @@ func TestBuilderPreemption(t *testing.T) {
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{SelectedCommitId: "commit-1"})
-	assert.True(t, b.IsEvaluating)
+	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g, _ := b.store.GenerationGet(*b.GenerationUUID)
 		assert.Equal(c, "commit-1", g.SelectedCommitId)
 	}, 2*time.Second, 100*time.Millisecond)
 
 	_ = b.Eval(repository.RepositoryStatus{SelectedCommitId: "commit-2"})
-	assert.True(t, b.IsEvaluating)
+	assert.True(t, b.isEvaluating.Load())
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g, _ := b.store.GenerationGet(*b.GenerationUUID)
@@ -191,7 +191,7 @@ func TestBuilderStop(t *testing.T) {
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{})
-	assert.True(t, b.IsEvaluating)
+	assert.True(t, b.isEvaluating.Load())
 	b.Stop()
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g, _ := b.store.GenerationGet(*b.GenerationUUID)
@@ -206,7 +206,7 @@ func TestBuilderTimeout(t *testing.T) {
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", 1*time.Second, 5*time.Second)
 	_ = b.Eval(repository.RepositoryStatus{})
-	assert.True(t, b.IsEvaluating)
+	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g, _ := b.store.GenerationGet(*b.GenerationUUID)
 		assert.ErrorContains(c, g.EvalErr, "context deadline exceeded")
@@ -222,12 +222,12 @@ func TestBuilderSuspend(t *testing.T) {
 	_ = b.Suspend()
 	assert.True(t, b.isSuspended)
 	_ = b.Eval(repository.RepositoryStatus{})
-	assert.True(t, b.IsEvaluating)
+	assert.True(t, b.isEvaluating.Load())
 
 	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, b.IsEvaluating)
+		assert.False(c, b.isEvaluating.Load())
 	}, 3*time.Second, 100*time.Millisecond)
 
 	g, _ := b.store.GenerationGet(gUUID)
@@ -236,6 +236,6 @@ func TestBuilderSuspend(t *testing.T) {
 	err = b.Resume()
 	assert.Nil(t, err)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, b.IsBuilding)
+		assert.True(c, b.isBuilding.Load())
 	}, 3*time.Second, 100*time.Millisecond)
 }

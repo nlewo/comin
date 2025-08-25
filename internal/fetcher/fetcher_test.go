@@ -17,11 +17,11 @@ func TestFetcher(t *testing.T) {
 	var commitId string
 
 	for i := 0; i < 2; i++ {
-		assert.False(t, f.IsFetching)
+		assert.False(t, f.IsFetching())
 		f.TriggerFetch([]string{"remote"})
 
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
-			assert.True(c, f.IsFetching)
+			assert.True(c, f.IsFetching())
 		}, 5*time.Second, 100*time.Millisecond, "fetcher is not fetching")
 
 		// This is to simulate a git fetch
@@ -34,7 +34,7 @@ func TestFetcher(t *testing.T) {
 			assert.Equal(c, commitId, rs.SelectedCommitId)
 		}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
-		assert.False(t, f.IsFetching)
+		assert.False(t, f.IsFetching())
 	}
 
 	f.TriggerFetch([]string{"remote"})
