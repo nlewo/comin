@@ -2,6 +2,8 @@ package fetcher
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nlewo/comin/internal/repository"
@@ -9,7 +11,9 @@ import (
 )
 
 type Fetcher struct {
-	State
+	isFetching         atomic.Bool
+	repositoryStatus   repository.RepositoryStatus
+	mu                 sync.RWMutex
 	submitRemotes      chan []string
 	RepositoryStatusCh chan repository.RepositoryStatus
 	repo               repository.Repository
@@ -21,9 +25,13 @@ func NewFetcher(repo repository.Repository) *Fetcher {
 		submitRemotes:      make(chan []string),
 		RepositoryStatusCh: make(chan repository.RepositoryStatus),
 	}
-	f.RepositoryStatus = repo.GetRepositoryStatus()
+	f.repositoryStatus = repo.GetRepositoryStatus()
 	return f
 
+}
+
+func (f *Fetcher) IsFetching() bool {
+	return f.isFetching.Load()
 }
 
 func (f *Fetcher) TriggerFetch(remotes []string) {
@@ -34,16 +42,18 @@ type RemoteState struct {
 	Name      string    `json:"name"`
 	FetchedAt time.Time `json:"fetched_at"`
 }
+
 type State struct {
-	IsFetching       bool `jsona:"is_fetching"`
+	IsFetching       bool
 	RepositoryStatus repository.RepositoryStatus
 }
 
-// FIXME: make it thread safe
 func (f *Fetcher) GetState() State {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
 	return State{
-		IsFetching:       f.IsFetching,
-		RepositoryStatus: f.RepositoryStatus,
+		IsFetching:       f.isFetching.Load(),
+		RepositoryStatus: f.repositoryStatus,
 	}
 }
 
@@ -58,14 +68,16 @@ func (f *Fetcher) Start() {
 				logrus.Debugf("fetch: remotes submitted: %s", submittedRemotes)
 				remotes = union(remotes, submittedRemotes)
 			case rs := <-workerRepositoryStatusCh:
-				f.IsFetching = false
-				if rs.SelectedCommitId != f.RepositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting != f.RepositoryStatus.SelectedBranchIsTesting {
-					f.RepositoryStatus = rs
+				f.isFetching.Store(false)
+				f.mu.Lock()
+				if rs.SelectedCommitId != f.repositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting != f.repositoryStatus.SelectedBranchIsTesting {
+					f.repositoryStatus = rs
 					f.RepositoryStatusCh <- rs
 				}
+				f.mu.Unlock()
 			}
-			if !f.IsFetching && len(remotes) != 0 {
-				f.IsFetching = true
+			if !f.isFetching.Load() && len(remotes) != 0 {
+				f.isFetching.Store(true)
 				workerRepositoryStatusCh = f.repo.FetchAndUpdate(context.TODO(), remotes)
 				remotes = []string{}
 			}

@@ -28,8 +28,8 @@ func TestNewExec(t *testing.T) {
 	e.Start(context.TODO())
 	e.Wait()
 	assert.Equal(t, 1, r.result)
-	assert.True(t, e.Finished)
-	assert.Nil(t, e.err)
+	assert.True(t, e.finished.Load())
+	assert.Nil(t, e.getErr())
 }
 
 type RunnableContext struct{}
@@ -44,7 +44,7 @@ func TestExecTimeout(t *testing.T) {
 	e := NewExec(r, time.Second)
 	e.Start(context.TODO())
 	e.Wait()
-	assert.Equal(t, context.DeadlineExceeded, e.err)
+	assert.Equal(t, context.DeadlineExceeded, e.getErr())
 }
 
 func TestExecStop(t *testing.T) {
@@ -54,7 +54,7 @@ func TestExecStop(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	e.Stop()
 	e.Wait()
-	assert.Equal(t, context.Canceled, e.err)
+	assert.Equal(t, context.Canceled, e.getErr())
 }
 
 type RunnableError struct{}
@@ -67,6 +67,6 @@ func TestExecError(t *testing.T) {
 	e := NewExec(r, 5*time.Second)
 	e.Start(context.TODO())
 	e.Wait()
-	assert.True(t, e.Finished)
-	assert.ErrorContains(t, e.err, "An error occured")
+	assert.True(t, e.finished.Load())
+	assert.ErrorContains(t, e.getErr(), "An error occured")
 }

@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,8 +33,8 @@ type Builder struct {
 	buildTimeout   time.Duration
 
 	mu           sync.Mutex
-	IsEvaluating bool
-	IsBuilding   bool
+	isEvaluating atomic.Bool
+	isBuilding   atomic.Bool
 
 	// GenerationUUID is the generation UUID currently managed by
 	// the builder. This generation can be evaluating, evaluated,
@@ -98,20 +99,22 @@ func (b *Builder) State() State {
 	}
 	return State{
 		Hostname:       b.hostname,
-		IsBuilding:     b.IsBuilding,
-		IsEvaluating:   b.IsEvaluating,
+		IsBuilding:     b.isBuilding.Load(),
+		IsEvaluating:   b.isEvaluating.Load(),
 		Generation:     generation,
 		GenerationUUID: generationUUID,
 		IsSuspended:    b.isSuspended,
 	}
 }
 
+func (b *Builder) IsEvaluating() bool {
+	return b.isEvaluating.Load()
+}
+
 func (b *Builder) stopEval() {
 	b.evaluator.Stop()
 	b.evaluatorWg.Wait()
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.IsEvaluating = false
+	b.isEvaluating.Store(false)
 }
 
 // stopBuild stops the build. If a build is actually running, it
@@ -126,7 +129,7 @@ func (b *Builder) stopBuild() {
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.IsBuilding = false
+	b.isBuilding.Store(false)
 }
 
 // Stop stops the evaluator and the builder is required and wait until
@@ -178,7 +181,7 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 	b.Stop()
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.IsEvaluating = true
+	b.isEvaluating.Store(true)
 
 	g := b.store.NewGeneration(b.hostname, b.repositoryPath, b.repositoryDir, rs)
 	if err := b.store.GenerationEvalStarted(g.UUID); err != nil {
@@ -207,12 +210,12 @@ func (b *Builder) Eval(rs repository.RepositoryStatus) error {
 			evaluator.drvPath,
 			evaluator.outPath,
 			evaluator.machineId,
-			b.evaluator.err,
+			b.evaluator.getErr(),
 		); err != nil {
 			logrus.Errorf("builder: %s", err)
 		}
 
-		b.IsEvaluating = false
+		b.isEvaluating.Store(false)
 		if b.executor.IsStorePathExist(evaluator.outPath) {
 			if err := b.store.GenerationBuildStart(g.UUID); err != nil {
 				logrus.Errorf("builder: %s", err)
@@ -304,7 +307,7 @@ func (b *Builder) build(generationUUID uuid.UUID) error {
 	if generation.EvalStatus != store.Evaluated {
 		return fmt.Errorf("the generation is not evaluated")
 	}
-	if b.IsBuilding {
+	if b.isBuilding.Load() {
 		return fmt.Errorf("the builder is already building")
 	}
 	if generation.BuildStatus == store.Built {
@@ -314,7 +317,7 @@ func (b *Builder) build(generationUUID uuid.UUID) error {
 	if err := b.store.GenerationBuildStart(generationUUID); err != nil {
 		return err
 	}
-	b.IsBuilding = true
+	b.isBuilding.Store(true)
 	buildator := &Buildator{
 		drvPath:   generation.DrvPath,
 		buildFunc: b.executor.Build,
@@ -330,11 +333,11 @@ func (b *Builder) build(generationUUID uuid.UUID) error {
 		b.buildator.Wait()
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		err := b.store.GenerationBuildFinished(generationUUID, b.buildator.err)
+		err := b.store.GenerationBuildFinished(generationUUID, b.buildator.getErr())
 		if err != nil {
 			logrus.Error(err)
 		}
-		b.IsBuilding = false
+		b.isBuilding.Store(false)
 		select {
 		case b.BuildDone <- generationUUID:
 		default:

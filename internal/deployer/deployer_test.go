@@ -1,10 +1,11 @@
-package deployer
+package deployer_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/stretchr/testify/assert"
 )
@@ -16,20 +17,20 @@ func TestDeployerBasic(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := New(deployFunc, nil, "")
+	d := deployer.New(deployFunc, nil, "")
 	d.Run()
-	assert.False(t, d.IsDeploying)
+	assert.False(t, d.IsDeploying())
 
 	g := store.Generation{SelectedCommitId: "commit-1"}
 	d.Submit(g)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, d.IsDeploying)
+		assert.True(c, d.IsDeploying())
 	}, 5*time.Second, 100*time.Millisecond)
 
 	deployDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, d.IsDeploying)
-		assert.Equal(c, "profile-path", d.Deployment.ProfilePath)
+		assert.False(c, d.IsDeploying())
+		assert.Equal(c, "profile-path", d.Deployment().ProfilePath)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -46,13 +47,13 @@ func TestDeployerSubmit(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := New(deployFunc, nil, "")
+	d := deployer.New(deployFunc, nil, "")
 	d.Run()
-	assert.False(t, d.IsDeploying)
+	assert.False(t, d.IsDeploying())
 
 	d.Submit(store.Generation{SelectedCommitId: "commit-1"})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, d.IsDeploying)
+		assert.True(c, d.IsDeploying())
 		assert.Nil(c, d.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
@@ -64,8 +65,8 @@ func TestDeployerSubmit(t *testing.T) {
 	deployDone <- struct{}{}
 	deployDone <- struct{}{}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, d.IsDeploying)
-		assert.Equal(c, "profile-path", d.Deployment.ProfilePath)
+		assert.False(c, d.IsDeploying())
+		assert.Equal(c, "profile-path", d.Deployment().ProfilePath)
 		assert.Nil(t, d.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
@@ -83,22 +84,22 @@ func TestDeployerSuspend(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := New(deployFunc, nil, "")
+	d := deployer.New(deployFunc, nil, "")
 	d.Run()
-	assert.False(t, d.isSuspended)
+	assert.False(t, d.IsSuspended())
 	d.Suspend()
-	assert.True(t, d.isSuspended)
-	assert.False(t, d.IsDeploying)
-	assert.False(t, d.runnerIsSuspended)
+	assert.True(t, d.IsSuspended())
+	assert.False(t, d.IsDeploying())
+	assert.False(t, d.RunnerIsSuspended())
 
 	d.Submit(store.Generation{SelectedCommitId: "commit-1"})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(t, d.runnerIsSuspended)
+		assert.True(t, d.RunnerIsSuspended())
 	}, 3*time.Second, 100*time.Millisecond)
 
 	d.Resume()
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(t, d.runnerIsSuspended)
-		assert.True(t, d.IsDeploying)
+		assert.False(t, d.RunnerIsSuspended())
+		assert.True(t, d.IsDeploying())
 	}, 3*time.Second, 100*time.Millisecond)
 }

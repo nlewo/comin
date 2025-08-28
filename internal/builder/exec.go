@@ -3,6 +3,7 @@ package builder
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,8 +15,8 @@ type Runnable interface {
 type Exec struct {
 	timeout  time.Duration
 	runnable Runnable
-	Started  bool
-	Finished bool
+	started  atomic.Bool
+	finished atomic.Bool
 	done     chan struct{}
 	// err is used to know if the context has been cancelled,
 	// timeouted or if the runnable ends with an error
@@ -36,7 +37,7 @@ func NewExec(r Runnable, timeout time.Duration) Exec {
 func (e *Exec) Start(ctx context.Context) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.Started = true
+	e.started.Store(true)
 	ctx, e.cancelFunc = context.WithCancel(ctx)
 	ctx, cancel := context.WithTimeout(ctx, e.timeout)
 
@@ -51,8 +52,8 @@ func (e *Exec) Start(ctx context.Context) {
 		} else {
 			e.err = err
 		}
-		e.Started = false
-		e.Finished = true
+		e.started.Store(false)
+		e.finished.Store(true)
 		select {
 		case e.done <- struct{}{}:
 		default:
@@ -61,7 +62,7 @@ func (e *Exec) Start(ctx context.Context) {
 }
 
 func (e *Exec) Wait() {
-	if e.Started {
+	if e.started.Load() {
 		<-e.done
 	}
 }
@@ -69,7 +70,14 @@ func (e *Exec) Wait() {
 func (e *Exec) Stop() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.Started {
+	if e.started.Load() {
 		e.cancelFunc()
 	}
+}
+
+// getErr returns the execution error in a thread-safe way
+func (e *Exec) getErr() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.err
 }

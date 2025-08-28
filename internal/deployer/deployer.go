@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -20,19 +21,19 @@ type Deployer struct {
 	deployerFunc       DeployFunc
 	DeploymentDoneCh   chan store.Deployment
 	mu                 sync.Mutex
-	Deployment         *store.Deployment
-	previousDeployment *store.Deployment
-	IsDeploying        bool
+	deployment         atomic.Pointer[store.Deployment]
+	previousDeployment atomic.Pointer[store.Deployment]
+	isDeploying        atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy    *store.Generation
 	generationAvailableCh chan struct{}
 	postDeploymentCommand string
 
-	isSuspended bool
+	isSuspended atomic.Bool
 	resumeCh    chan struct{}
 	// This is true when the runner is actually suspended. This is
 	// mainly used for testing purpose.
-	runnerIsSuspended bool
+	runnerIsSuspended atomic.Bool
 }
 
 type State struct {
@@ -44,13 +45,31 @@ type State struct {
 }
 
 func (d *Deployer) State() State {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	return State{
-		IsDeploying:        d.IsDeploying,
+		IsDeploying:        d.isDeploying.Load(),
 		GenerationToDeploy: d.GenerationToDeploy,
-		Deployment:         d.Deployment,
-		PreviousDeployment: d.previousDeployment,
-		IsSuspended:        d.isSuspended,
+		Deployment:         d.deployment.Load(),
+		PreviousDeployment: d.previousDeployment.Load(),
+		IsSuspended:        d.isSuspended.Load(),
 	}
+}
+
+func (d *Deployer) Deployment() *store.Deployment {
+	return d.deployment.Load()
+}
+
+func (d *Deployer) IsDeploying() bool {
+	return d.isDeploying.Load()
+}
+
+func (d *Deployer) RunnerIsSuspended() bool {
+	return d.runnerIsSuspended.Load()
+}
+
+func (d *Deployer) IsSuspended() bool {
+	return d.isSuspended.Load()
 }
 
 func showDeployment(padding string, d store.Deployment) {
@@ -87,28 +106,29 @@ func (s State) Show(padding string) {
 }
 
 func New(deployFunc DeployFunc, previousDeployment *store.Deployment, postDeploymentCommand string) *Deployer {
-	return &Deployer{
+	deployer := &Deployer{
 		DeploymentDoneCh:      make(chan store.Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
-		previousDeployment:    previousDeployment,
-		Deployment:            previousDeployment,
 		postDeploymentCommand: postDeploymentCommand,
 
 		resumeCh: make(chan struct{}, 1),
 	}
+
+	deployer.previousDeployment.Store(previousDeployment)
+	deployer.deployment.Store(previousDeployment)
+
+	return deployer
 }
 
 func (d *Deployer) Suspend() {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.isSuspended = true
+	d.isSuspended.Store(true)
 }
 
 func (d *Deployer) Resume() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.isSuspended = false
+	d.isSuspended.Store(false)
 	select {
 	case d.resumeCh <- struct{}{}:
 	default:
@@ -122,7 +142,8 @@ func (d *Deployer) Resume() {
 func (d *Deployer) Submit(generation store.Generation) {
 	logrus.Infof("deployer: submiting generation %s", generation.UUID)
 	d.mu.Lock()
-	if d.previousDeployment == nil || generation.SelectedCommitId != d.previousDeployment.Generation.SelectedCommitId || generation.SelectedBranchIsTesting != d.previousDeployment.Generation.SelectedBranchIsTesting {
+	previous := d.previousDeployment.Load()
+	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting != previous.Generation.SelectedBranchIsTesting {
 		d.GenerationToDeploy = &generation
 		select {
 		case d.generationAvailableCh <- struct{}{}:
@@ -139,10 +160,10 @@ func (d *Deployer) Run() {
 		for {
 			<-d.generationAvailableCh
 
-			if d.isSuspended {
-				d.runnerIsSuspended = true
+			if d.isSuspended.Load() {
+				d.runnerIsSuspended.Store(true)
 				<-d.resumeCh
-				d.runnerIsSuspended = false
+				d.runnerIsSuspended.Store(false)
 			}
 
 			d.mu.Lock()
@@ -163,9 +184,9 @@ func (d *Deployer) Run() {
 				Status:     store.Running,
 			}
 			d.mu.Lock()
-			d.previousDeployment = d.Deployment
-			d.Deployment = &dpl
-			d.IsDeploying = true
+			d.previousDeployment.Swap(d.Deployment())
+			d.deployment.Store(&dpl)
+			d.isDeploying.Store(true)
 			d.mu.Unlock()
 
 			ctx := context.TODO()
@@ -175,7 +196,7 @@ func (d *Deployer) Run() {
 				operation,
 			)
 
-			deployment := *(d.Deployment)
+			deployment := *d.Deployment()
 			deployment.EndedAt = time.Now().UTC()
 			deployment.Err = err
 			if err != nil {
@@ -195,12 +216,9 @@ func (d *Deployer) Run() {
 				}
 			}
 
-			d.mu.Lock()
-			d.IsDeploying = false
-			d.Deployment = &deployment
-			d.DeploymentDoneCh <- *d.Deployment
-			d.mu.Unlock()
-
+			d.isDeploying.Store(false)
+			d.deployment.Store(&deployment)
+			d.DeploymentDoneCh <- *d.Deployment()
 		}
 	}()
 }
