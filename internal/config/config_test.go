@@ -43,6 +43,9 @@ func TestConfig(t *testing.T) {
 			ListenAddress: "0.0.0.0",
 			Port:          4243,
 		},
+		ExecutorConfig: types.ExecutorConfig{
+			Type: "nix",
+		},
 	}
 	config, err := Read(configPath)
 	assert.Nil(t, err)

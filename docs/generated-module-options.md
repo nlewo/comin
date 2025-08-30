@@ -50,6 +50,132 @@ boolean
 
 
 
+## services\.comin\.executor
+
+
+
+Select which executor will be used for evaluating and building the NixOS system configuration\. Specify settings used by that executor\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+` { } `
+
+
+
+## services\.comin\.executor\.garnix
+
+
+
+Configuration for Garnix executor
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+` { } `
+
+
+
+## services\.comin\.executor\.garnix\.baseUrl
+
+
+
+Base URL for Garnix executor
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "" `
+
+
+
+## services\.comin\.executor\.garnix\.cacheUrl
+
+
+
+Cache URL for Garnix executor
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "" `
+
+
+
+## services\.comin\.executor\.garnix\.cache_size
+
+
+
+Cache size for Garnix executor
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+` 0 `
+
+
+
+## services\.comin\.executor\.garnix\.retry_interval
+
+
+
+Retry interval for Garnix executor
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+` 0 `
+
+
+
+## services\.comin\.executor\.type
+
+
+
+Type of executor to use (nix or garnix)
+
+
+
+*Type:*
+one of “nix”, “garnix”
+
+
+
+*Default:*
+` "nix" `
+
+
+
 ## services\.comin\.exporter
 
 

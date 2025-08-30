@@ -254,3 +254,18 @@ func deployDarwin(ctx context.Context, outPath, operation string) (needToRestart
 
 	return
 }
+
+// fetchBuild fetches the build output from the Nix binary cache
+// instead of evaluating locally.
+func fetchBuild(ctx context.Context, outPath string) (err error) {
+	args := []string{
+		"build",
+		outPath,
+		"-L",
+		"--no-link"}
+	err = runNixCommand(ctx, args, os.Stdout, os.Stderr)
+	if err != nil {
+		return
+	}
+	return
+}
