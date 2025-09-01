@@ -16,6 +16,9 @@ in rec {
   } // (
     lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null)
       { post_deployment_command = cfg.services.comin.postDeploymentCommand; }
+  ) // (
+    lib.optionalAttrs (cfg.services.comin.impure)
+      { impure = cfg.services.comin.impure; }
   );
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 }

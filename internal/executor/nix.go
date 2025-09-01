@@ -78,9 +78,14 @@ func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
 	args := []string{
 		"flake",
 		"show",
+	}
+	if impure {
+		args = append(args, "--impure")
+	}
+	args = append(args,
 		"--json",
 		flakeUrl,
-	}
+	)
 	var stdout bytes.Buffer
 	err = runNixCommand(context.Background(), args, &stdout, os.Stderr)
 	if err != nil {

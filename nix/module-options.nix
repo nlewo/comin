@@ -29,6 +29,14 @@
           Subdirectory in the repository, containing flake.nix.
         '';
       };
+      impure = mkOption {
+        type = bool;
+        default = false;
+        description = ''
+          Whether to enable impure evaluation for Nix commands.
+          When enabled, Nix commands will be executed with the --impure flag.
+        '';
+      };
       exporter = mkOption {
         description = "Options for the Prometheus exporter.";
         default = {};

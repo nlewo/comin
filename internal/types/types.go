@@ -49,6 +49,7 @@ type Configuration struct {
 	StateDir              string     `yaml:"state_dir"`
 	StateFilepath         string     `yaml:"state_filepath"`
 	FlakeSubdirectory     string     `yaml:"flake_subdirectory"`
+	Impure                bool       `yaml:"impure"`
 	Remotes               []Remote   `yaml:"remotes"`
 	ApiServer             HttpServer `yaml:"api_server"`
 	Exporter              HttpServer `yaml:"exporter"`

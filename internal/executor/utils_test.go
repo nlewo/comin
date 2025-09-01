@@ -186,3 +186,31 @@ func TestDeployFunctions(t *testing.T) {
 		})
 	}
 }
+
+func TestSetImpure(t *testing.T) {
+	originalImpure := impure
+	defer func() {
+		impure = originalImpure
+	}()
+
+	tests := []struct {
+		name    string
+		enabled bool
+	}{
+		{
+			name:    "Impure disabled",
+			enabled: false,
+		},
+		{
+			name:    "Impure enabled",
+			enabled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetImpure(tt.enabled)
+			assert.Equal(t, tt.enabled, impure)
+		})
+	}
+}
