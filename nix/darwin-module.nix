@@ -50,6 +50,12 @@ in {
       if [ -f /Library/LaunchDaemons/com.github.nlewo.comin.plist ]; then
         # Ensure service is loaded but don't restart during activation
         /bin/launchctl load -w /Library/LaunchDaemons/com.github.nlewo.comin.plist 2>/dev/null || true
+        
+        # Check if the service is actually running, if not start it
+        if ! /bin/launchctl list | grep -q "com.github.nlewo.comin"; then
+          echo "Comin service not running, starting it..."
+          /bin/launchctl start com.github.nlewo.comin || true
+        fi
       fi
     '';
   };
