@@ -180,6 +180,25 @@ string
 
 
 
+## services\.comin\.impure
+
+
+
+Whether to enable impure evaluation for Nix commands\.
+When enabled, Nix commands will be executed with the --impure flag\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
 ## services\.comin\.machineId
 
 

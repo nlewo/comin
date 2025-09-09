@@ -35,6 +35,12 @@ var runCmd = &cobra.Command{
 
 		gitConfig := config.MkGitConfig(cfg)
 
+		// Set impure flag if enabled in configuration
+		if cfg.Impure {
+			logrus.Info("executor: enabling impure evaluation")
+			executorPkg.SetImpure(true)
+		}
+
 		executor, err := executorPkg.NewNixOS()
 		if runtime.GOOS == "darwin" {
 			executor, err = executorPkg.NewNixDarwin()

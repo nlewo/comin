@@ -23,8 +23,11 @@ func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr
 	args := []string{
 		"eval",
 		expr,
-		"--json",
 	}
+	if impure {
+		args = append(args, "--impure")
+	}
+	args = append(args, "--json")
 	var stdout bytes.Buffer
 	err = runNixCommand(ctx, args, &stdout, os.Stderr)
 	if err != nil {
@@ -43,6 +46,14 @@ func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr
 		machineId = ""
 	}
 	return
+}
+
+// Store impure flag from configuration
+var impure bool
+
+// SetImpure sets whether to enable impure evaluation for nix commands
+func SetImpure(enabled bool) {
+	impure = enabled
 }
 
 func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
@@ -65,10 +76,15 @@ func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr s
 	args := []string{
 		"derivation",
 		"show",
+	}
+	if impure {
+		args = append(args, "--impure")
+	}
+	args = append(args,
 		installable,
 		"-L",
 		"--show-trace",
-	}
+	)
 	var stdout bytes.Buffer
 	err = runNixCommand(ctx, args, &stdout, os.Stderr)
 	if err != nil {
@@ -94,9 +110,15 @@ func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr s
 func build(ctx context.Context, drvPath string) (err error) {
 	args := []string{
 		"build",
+	}
+	if impure {
+		args = append(args, "--impure")
+	}
+	args = append(args,
 		fmt.Sprintf("%s^*", drvPath),
 		"-L",
-		"--no-link"}
+		"--no-link",
+	)
 	err = runNixCommand(ctx, args, os.Stdout, os.Stderr)
 	if err != nil {
 		return
