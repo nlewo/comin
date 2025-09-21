@@ -30,9 +30,18 @@ The main comin components are
 - the builder: from a `RepositoryStatus`, it creates a `Generation` which is then evaluated and built.
 - the deployer: from a `Generation`, it creates a `Deployment` which
   is used to decide how to run the `switch-to-configuration` script.
-- the manager: it is in charge of managing all this components
+- the manager: it is in charge of managing all this components.
+- the store: hold `Deployments` and `Generations` data structures.
 
+### The store
 
+The store is in charge of managing all `Generations` and `Deployments`
+used by comin. This is a centralized store, which is used by all
+others components (the builder, deployer, ...) to get and update
+`Generation` and `Deployment` objects.
+
+The store is also in charge of the persisence: it writes all these
+data to a file in order to preserve them across comin restarts.
 
 ## Design choices
 

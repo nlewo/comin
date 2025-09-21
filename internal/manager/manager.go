@@ -73,6 +73,7 @@ func (m *Manager) toState() *pb.State {
 		Builder:      m.Builder.State(),
 		Deployer:     m.deployer.State(),
 		Fetcher:      m.Fetcher.GetState(),
+		Store:        m.storage.GetState(),
 	}
 }
 

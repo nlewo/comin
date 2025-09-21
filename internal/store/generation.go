@@ -107,7 +107,7 @@ func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs
 		EvalStatus:              EvalInit.String(),
 		BuildStatus:             BuildInit.String(),
 	}
-	s.Generations = append(s.Generations, &g)
+	s.data.Generations = append(s.data.Generations, &g)
 	return
 }
 
@@ -152,12 +152,12 @@ func GenerationShow(g *pb.Generation) {
 // generationsGC garbage collects unwanted generations. This is not thread safe.
 func (s *Store) generationsGC() {
 	alive := make([]*pb.Generation, 0)
-	for _, g := range s.Generations {
+	for _, g := range s.data.Generations {
 		if g == s.lastEvalStarted || g == s.lastEvalFinished || g == s.lastBuildStarted || g == s.lastBuildFinished {
 			alive = append(alive, g)
 		}
 	}
-	for _, g := range s.Generations {
+	for _, g := range s.data.Generations {
 		keep := false
 		for _, a := range alive {
 			if g == a {
@@ -169,7 +169,7 @@ func (s *Store) generationsGC() {
 			logrus.Infof("store: generation %s removed from the store", g.Uuid)
 		}
 	}
-	s.Generations = alive
+	s.data.Generations = alive
 }
 
 func (s *Store) GenerationEvalStarted(uuid string) error {
@@ -257,7 +257,7 @@ func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 func (s *Store) GenerationGet(uuid string) (pb.Generation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, g := range s.Generations {
+	for _, g := range s.data.Generations {
 		if g.Uuid == uuid {
 			return *(proto.CloneOf(g)), nil
 		}
@@ -266,7 +266,7 @@ func (s *Store) GenerationGet(uuid string) (pb.Generation, error) {
 }
 
 func (s *Store) generationGet(uuid string) (g *pb.Generation, err error) {
-	for _, g := range s.Generations {
+	for _, g := range s.data.Generations {
 		if g.Uuid == uuid {
 			return g, nil
 		}

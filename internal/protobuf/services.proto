@@ -73,7 +73,7 @@ message State {
   Builder builder = 3;
   Deployer deployer = 4;
   Fetcher fetcher = 5;
-  // TODO: add the store
+  Store store = 6;
 }
 
 message Deployer {
@@ -132,4 +132,9 @@ message RepositoryStatus {
   string main_branch_name = 11;
   repeated Remote remotes = 12;
   string error_msg = 13;
+}
+
+message Store {
+  repeated Deployment deployments = 1;
+  repeated Generation generations = 2; 
 }

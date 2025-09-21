@@ -17,7 +17,7 @@ func TestDeploymentCommitAndLoad(t *testing.T) {
 	s1, _ := New(filename, tmp+"/gcroots", 2, 2)
 	err = s1.Load()
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(s.Deployments))
+	assert.Equal(t, 0, len(s.data.Deployments))
 
 	s.DeploymentInsert(&protobuf.Deployment{Uuid: "1", Operation: "switch"})
 	_ = s.Commit()
@@ -26,7 +26,7 @@ func TestDeploymentCommitAndLoad(t *testing.T) {
 	s1, _ = New(filename, tmp+"/gcroots", 2, 2)
 	err = s1.Load()
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(s.Deployments))
+	assert.Equal(t, 1, len(s.data.Deployments))
 }
 
 func TestLastDeployment(t *testing.T) {
