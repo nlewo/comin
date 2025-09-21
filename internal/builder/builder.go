@@ -74,15 +74,6 @@ func New(store *store.Store, executor executor.Executor, repositoryPath, reposit
 	}
 }
 
-type State struct {
-	Hostname       string               `json:"hostname"`
-	IsBuilding     bool                 `json:"is_building"`
-	IsEvaluating   bool                 `json:"is_evaluating"`
-	Generation     *protobuf.Generation `json:"generation"`
-	GenerationUUID string               `json:"generation_uuid"`
-	IsSuspended    bool                 `json:"is_suspended"`
-}
-
 func (b *Builder) State() *protobuf.Builder {
 	b.mu.Lock()
 	defer b.mu.Unlock()

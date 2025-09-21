@@ -33,6 +33,13 @@ The main comin components are
 - the manager: it is in charge of managing all this components.
 - the store: hold `Deployments` and `Generations` data structures.
 
+### The builder
+
+The builder actually evaluates and builds fetched commits. The builder
+only runs a single task. It first evaluates a commit and then can
+build it. If a new commit is submitted for evaluation, a current
+running evaluation or build is stopped.
+
 ### The store
 
 The store is in charge of managing all `Generations` and `Deployments`

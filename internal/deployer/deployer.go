@@ -39,14 +39,6 @@ type Deployer struct {
 	runnerIsSuspended atomic.Bool
 }
 
-type State struct {
-	IsDeploying        bool                 `json:"is_deploying"`
-	GenerationToDeploy *protobuf.Generation `json:"generation_to_deploy"`
-	Deployment         *protobuf.Deployment `json:"deployment"`
-	PreviousDeployment *protobuf.Deployment `json:"previous_deployment"`
-	IsSuspended        bool                 `json:"is_suspended"`
-}
-
 func (d *Deployer) State() *protobuf.Deployer {
 	d.mu.Lock()
 	defer d.mu.Unlock()

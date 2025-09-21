@@ -66,7 +66,6 @@ func (m *Manager) GetState() *pb.State {
 }
 
 func (m *Manager) toState() *pb.State {
-
 	return &pb.State{
 		NeedToReboot: wrapperspb.Bool(m.needToReboot),
 		IsSuspended:  wrapperspb.Bool(m.isSuspended),
