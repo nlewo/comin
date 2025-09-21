@@ -87,8 +87,8 @@ func TestBuild(t *testing.T) {
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
-	assert.False(t, m.Fetcher.GetState().IsFetching)
-	assert.False(t, m.Builder.State().IsEvaluating)
+	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
+	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
 	assert.False(t, m.Builder.State().IsBuilding.GetValue())
 
 	commitId := "id-1"
@@ -97,14 +97,14 @@ func TestBuild(t *testing.T) {
 		SelectedCommitId: commitId,
 	}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, m.Builder.State().IsEvaluating)
+		assert.True(c, m.Builder.State().IsEvaluating.GetValue())
 		assert.False(c, m.Builder.State().IsBuilding.GetValue())
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the failure of an evaluation
 	eMock.evalOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
 		assert.False(c, m.Builder.State().IsBuilding.GetValue())
 		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
 		assert.NotNil(c, g.EvalErr)
@@ -119,7 +119,7 @@ func TestBuild(t *testing.T) {
 	// This simulates the success of an evaluation
 	eMock.evalOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
 		assert.True(c, m.Builder.State().IsBuilding.GetValue())
 		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
 		assert.Empty(c, g.EvalErr)
@@ -129,7 +129,7 @@ func TestBuild(t *testing.T) {
 	// This simulates the failure of a build
 	eMock.buildOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
 		assert.False(c, m.Builder.State().IsBuilding.GetValue())
 		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
 		assert.NotNil(c, g.BuildErr)
@@ -144,7 +144,7 @@ func TestBuild(t *testing.T) {
 	eMock.evalOk <- true
 	eMock.buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
 		assert.False(c, m.Builder.State().IsBuilding.GetValue())
 		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
 		assert.Empty(c, g.BuildErr)
@@ -159,7 +159,7 @@ func TestBuild(t *testing.T) {
 	eMock.evalOk <- true
 	eMock.buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
 		assert.False(c, m.Builder.State().IsBuilding.GetValue())
 		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
 		assert.Empty(c, g.BuildErr)
@@ -194,8 +194,8 @@ func TestDeploy(t *testing.T) {
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
-	assert.False(t, m.Fetcher.GetState().IsFetching)
-	assert.False(t, m.Builder.State().IsEvaluating)
+	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
+	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
 	assert.False(t, m.Builder.State().IsBuilding.GetValue())
 	m.deployer.Submit(&protobuf.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {

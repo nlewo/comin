@@ -100,10 +100,10 @@ func (b *Builder) State() *protobuf.Builder {
 	return &protobuf.Builder{
 		Hostname:       b.hostname,
 		IsBuilding:     wrapperspb.Bool(b.isBuilding.Load()),
-		IsEvaluating:   b.isEvaluating.Load(),
+		IsEvaluating:   wrapperspb.Bool(b.isEvaluating.Load()),
 		Generation:     generation,
 		GenerationUuid: generationUUID,
-		IsSuspended:    b.isSuspended,
+		IsSuspended:    wrapperspb.Bool(b.isSuspended),
 	}
 }
 

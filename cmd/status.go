@@ -50,15 +50,15 @@ func getStatus() (status *pb.State, err error) {
 
 func longStatus(status *pb.State) {
 	fmt.Printf("Status of the machine %s\n", status.Builder.Hostname)
-	if status.NeedToReboot {
+	if status.NeedToReboot.GetValue() {
 		fmt.Printf("  Need to reboot: yes\n")
 	}
 	if status.IsSuspended.GetValue() {
 		fmt.Printf("  Is suspended: yes\n")
 	}
 	fmt.Printf("  Fetcher\n")
-	if status.Fetcher.RepositoryStatus != nil && status.Fetcher.RepositoryStatus.SelectedCommitShouldBeSigned {
-		if status.Fetcher.RepositoryStatus.SelectedCommitSigned {
+	if status.Fetcher.RepositoryStatus != nil && status.Fetcher.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue() {
+		if status.Fetcher.RepositoryStatus.SelectedCommitSigned.GetValue() {
 			fmt.Printf("    Commit %s signed by %s\n", status.Fetcher.RepositoryStatus.SelectedCommitId, status.Fetcher.RepositoryStatus.SelectedCommitSignedBy)
 		} else {
 			fmt.Printf("    Commit %s is not signed while it should be\n", status.Fetcher.RepositoryStatus.SelectedCommitId)
@@ -102,7 +102,7 @@ func onelineStatus(status *pb.State) {
 	if status.IsSuspended.GetValue() {
 		fmt.Printf(" ⏸️ ")
 	}
-	if status.Builder.Generation != nil && status.Builder.IsEvaluating {
+	if status.Builder.Generation != nil && status.Builder.IsEvaluating.GetValue() {
 		fmt.Printf(" eval   %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalStartedAt.AsTime()))
 	} else if status.Builder.Generation != nil && status.Builder.IsBuilding.GetValue() {
@@ -127,7 +127,7 @@ func onelineStatus(status *pb.State) {
 				humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
 		}
 	}
-	if status.NeedToReboot {
+	if status.NeedToReboot.GetValue() {
 		fmt.Printf(" ")
 	}
 }

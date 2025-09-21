@@ -36,7 +36,7 @@ type Generation struct {
 	SelectedBranchName      string                 `protobuf:"bytes,6,opt,name=selected_branch_name,json=selectedBranchName" json:"selected_branch_name,omitempty"`
 	SelectedCommitId        string                 `protobuf:"bytes,7,opt,name=selected_commit_id,json=selectedCommitId" json:"selected_commit_id,omitempty"`
 	SelectedCommitMsg       string                 `protobuf:"bytes,8,opt,name=selected_commit_msg,json=selectedCommitMsg" json:"selected_commit_msg,omitempty"`
-	SelectedBranchIsTesting bool                   `protobuf:"varint,9,opt,name=selected_branch_is_testing,json=selectedBranchIsTesting" json:"selected_branch_is_testing,omitempty"`
+	SelectedBranchIsTesting *wrapperspb.BoolValue  `protobuf:"bytes,9,opt,name=selected_branch_is_testing,json=selectedBranchIsTesting" json:"selected_branch_is_testing,omitempty"`
 	MainCommitId            string                 `protobuf:"bytes,10,opt,name=main_commit_id,json=mainCommitId" json:"main_commit_id,omitempty"`
 	MainRemoteName          string                 `protobuf:"bytes,11,opt,name=main_remote_name,json=mainRemoteName" json:"main_remote_name,omitempty"`
 	MainBranchName          string                 `protobuf:"bytes,12,opt,name=main_branch_name,json=mainBranchName" json:"main_branch_name,omitempty"`
@@ -141,11 +141,11 @@ func (x *Generation) GetSelectedCommitMsg() string {
 	return ""
 }
 
-func (x *Generation) GetSelectedBranchIsTesting() bool {
+func (x *Generation) GetSelectedBranchIsTesting() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.SelectedBranchIsTesting
 	}
-	return false
+	return nil
 }
 
 func (x *Generation) GetMainCommitId() string {
@@ -253,7 +253,7 @@ type Deployment struct {
 	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt" json:"started_at,omitempty"`
 	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ended_at,json=endedAt" json:"ended_at,omitempty"`
 	ErrorMsg      string                 `protobuf:"bytes,5,opt,name=error_msg,json=errorMsg" json:"error_msg,omitempty"`
-	RestartComin  bool                   `protobuf:"varint,6,opt,name=restart_comin,json=restartComin" json:"restart_comin,omitempty"`
+	RestartComin  *wrapperspb.BoolValue  `protobuf:"bytes,6,opt,name=restart_comin,json=restartComin" json:"restart_comin,omitempty"`
 	ProfilePath   string                 `protobuf:"bytes,7,opt,name=profile_path,json=profilePath" json:"profile_path,omitempty"`
 	Status        string                 `protobuf:"bytes,8,opt,name=status" json:"status,omitempty"`
 	Operation     string                 `protobuf:"bytes,9,opt,name=operation" json:"operation,omitempty"`
@@ -326,11 +326,11 @@ func (x *Deployment) GetErrorMsg() string {
 	return ""
 }
 
-func (x *Deployment) GetRestartComin() bool {
+func (x *Deployment) GetRestartComin() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.RestartComin
 	}
-	return false
+	return nil
 }
 
 func (x *Deployment) GetProfilePath() string {
@@ -356,7 +356,7 @@ func (x *Deployment) GetOperation() string {
 
 type State struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	NeedToReboot  bool                   `protobuf:"varint,1,opt,name=need_to_reboot,json=needToReboot" json:"need_to_reboot,omitempty"`
+	NeedToReboot  *wrapperspb.BoolValue  `protobuf:"bytes,1,opt,name=need_to_reboot,json=needToReboot" json:"need_to_reboot,omitempty"`
 	IsSuspended   *wrapperspb.BoolValue  `protobuf:"bytes,2,opt,name=is_suspended,json=isSuspended" json:"is_suspended,omitempty"`
 	Builder       *Builder               `protobuf:"bytes,3,opt,name=builder" json:"builder,omitempty"`
 	Deployer      *Deployer              `protobuf:"bytes,4,opt,name=deployer" json:"deployer,omitempty"`
@@ -395,11 +395,11 @@ func (*State) Descriptor() ([]byte, []int) {
 	return file_internal_protobuf_services_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *State) GetNeedToReboot() bool {
+func (x *State) GetNeedToReboot() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.NeedToReboot
 	}
-	return false
+	return nil
 }
 
 func (x *State) GetIsSuspended() *wrapperspb.BoolValue {
@@ -432,11 +432,11 @@ func (x *State) GetFetcher() *Fetcher {
 
 type Deployer struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
-	IsDeploying        bool                   `protobuf:"varint,1,opt,name=is_deploying,json=isDeploying" json:"is_deploying,omitempty"`
+	IsDeploying        *wrapperspb.BoolValue  `protobuf:"bytes,1,opt,name=is_deploying,json=isDeploying" json:"is_deploying,omitempty"`
 	Deployment         *Deployment            `protobuf:"bytes,2,opt,name=deployment" json:"deployment,omitempty"`
 	GenerationToDeploy *Generation            `protobuf:"bytes,3,opt,name=generation_to_deploy,json=generationToDeploy" json:"generation_to_deploy,omitempty"`
 	PreviousDeployment *Deployment            `protobuf:"bytes,4,opt,name=previous_deployment,json=previousDeployment" json:"previous_deployment,omitempty"`
-	IsSuspended        bool                   `protobuf:"varint,5,opt,name=is_suspended,json=isSuspended" json:"is_suspended,omitempty"`
+	IsSuspended        *wrapperspb.BoolValue  `protobuf:"bytes,5,opt,name=is_suspended,json=isSuspended" json:"is_suspended,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -471,11 +471,11 @@ func (*Deployer) Descriptor() ([]byte, []int) {
 	return file_internal_protobuf_services_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *Deployer) GetIsDeploying() bool {
+func (x *Deployer) GetIsDeploying() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.IsDeploying
 	}
-	return false
+	return nil
 }
 
 func (x *Deployer) GetDeployment() *Deployment {
@@ -499,20 +499,20 @@ func (x *Deployer) GetPreviousDeployment() *Deployment {
 	return nil
 }
 
-func (x *Deployer) GetIsSuspended() bool {
+func (x *Deployer) GetIsSuspended() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.IsSuspended
 	}
-	return false
+	return nil
 }
 
 type Builder struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	IsEvaluating   bool                   `protobuf:"varint,1,opt,name=is_evaluating,json=isEvaluating" json:"is_evaluating,omitempty"`
+	IsEvaluating   *wrapperspb.BoolValue  `protobuf:"bytes,1,opt,name=is_evaluating,json=isEvaluating" json:"is_evaluating,omitempty"`
 	IsBuilding     *wrapperspb.BoolValue  `protobuf:"bytes,2,opt,name=is_building,json=isBuilding" json:"is_building,omitempty"`
 	Generation     *Generation            `protobuf:"bytes,3,opt,name=generation" json:"generation,omitempty"`
 	GenerationUuid string                 `protobuf:"bytes,4,opt,name=generation_uuid,json=generationUuid" json:"generation_uuid,omitempty"`
-	IsSuspended    bool                   `protobuf:"varint,5,opt,name=is_suspended,json=isSuspended" json:"is_suspended,omitempty"`
+	IsSuspended    *wrapperspb.BoolValue  `protobuf:"bytes,5,opt,name=is_suspended,json=isSuspended" json:"is_suspended,omitempty"`
 	Hostname       string                 `protobuf:"bytes,6,opt,name=hostname" json:"hostname,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -548,11 +548,11 @@ func (*Builder) Descriptor() ([]byte, []int) {
 	return file_internal_protobuf_services_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *Builder) GetIsEvaluating() bool {
+func (x *Builder) GetIsEvaluating() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.IsEvaluating
 	}
-	return false
+	return nil
 }
 
 func (x *Builder) GetIsBuilding() *wrapperspb.BoolValue {
@@ -576,11 +576,11 @@ func (x *Builder) GetGenerationUuid() string {
 	return ""
 }
 
-func (x *Builder) GetIsSuspended() bool {
+func (x *Builder) GetIsSuspended() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.IsSuspended
 	}
-	return false
+	return nil
 }
 
 func (x *Builder) GetHostname() string {
@@ -592,7 +592,7 @@ func (x *Builder) GetHostname() string {
 
 type Fetcher struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	IsFetching       bool                   `protobuf:"varint,1,opt,name=is_fetching,json=isFetching" json:"is_fetching,omitempty"`
+	IsFetching       *wrapperspb.BoolValue  `protobuf:"bytes,1,opt,name=is_fetching,json=isFetching" json:"is_fetching,omitempty"`
 	RepositoryStatus *RepositoryStatus      `protobuf:"bytes,2,opt,name=repository_status,json=repositoryStatus" json:"repository_status,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -628,11 +628,11 @@ func (*Fetcher) Descriptor() ([]byte, []int) {
 	return file_internal_protobuf_services_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Fetcher) GetIsFetching() bool {
+func (x *Fetcher) GetIsFetching() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.IsFetching
 	}
-	return false
+	return nil
 }
 
 func (x *Fetcher) GetRepositoryStatus() *RepositoryStatus {
@@ -726,7 +726,7 @@ type Remote struct {
 	Main          *Branch                `protobuf:"bytes,4,opt,name=main" json:"main,omitempty"`
 	Testing       *Branch                `protobuf:"bytes,5,opt,name=testing" json:"testing,omitempty"`
 	FetchedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=fetched_at,json=fetchedAt" json:"fetched_at,omitempty"`
-	Fetched       bool                   `protobuf:"varint,7,opt,name=fetched" json:"fetched,omitempty"`
+	Fetched       *wrapperspb.BoolValue  `protobuf:"bytes,7,opt,name=fetched" json:"fetched,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -803,30 +803,30 @@ func (x *Remote) GetFetchedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Remote) GetFetched() bool {
+func (x *Remote) GetFetched() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.Fetched
 	}
-	return false
+	return nil
 }
 
 type RepositoryStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// This is the deployed Main commit ID. It is used to ensure fast forward
-	SelectedCommitId        string `protobuf:"bytes,1,opt,name=selected_commit_id,json=selectedCommitId" json:"selected_commit_id,omitempty"`
-	SelectedCommitMsg       string `protobuf:"bytes,2,opt,name=selected_commit_msg,json=selectedCommitMsg" json:"selected_commit_msg,omitempty"`
-	SelectedRemoteName      string `protobuf:"bytes,3,opt,name=selected_remote_name,json=selectedRemoteName" json:"selected_remote_name,omitempty"`
-	SelectedBranchName      string `protobuf:"bytes,4,opt,name=selected_branch_name,json=selectedBranchName" json:"selected_branch_name,omitempty"`
-	SelectedBranchIsTesting bool   `protobuf:"varint,5,opt,name=selected_branch_is_testing,json=selectedBranchIsTesting" json:"selected_branch_is_testing,omitempty"`
-	SelectedCommitSigned    bool   `protobuf:"varint,6,opt,name=selected_commit_signed,json=selectedCommitSigned" json:"selected_commit_signed,omitempty"`
-	SelectedCommitSignedBy  string `protobuf:"bytes,7,opt,name=selected_commit_signed_by,json=selectedCommitSignedBy" json:"selected_commit_signed_by,omitempty"`
+	SelectedCommitId        string                `protobuf:"bytes,1,opt,name=selected_commit_id,json=selectedCommitId" json:"selected_commit_id,omitempty"`
+	SelectedCommitMsg       string                `protobuf:"bytes,2,opt,name=selected_commit_msg,json=selectedCommitMsg" json:"selected_commit_msg,omitempty"`
+	SelectedRemoteName      string                `protobuf:"bytes,3,opt,name=selected_remote_name,json=selectedRemoteName" json:"selected_remote_name,omitempty"`
+	SelectedBranchName      string                `protobuf:"bytes,4,opt,name=selected_branch_name,json=selectedBranchName" json:"selected_branch_name,omitempty"`
+	SelectedBranchIsTesting *wrapperspb.BoolValue `protobuf:"bytes,5,opt,name=selected_branch_is_testing,json=selectedBranchIsTesting" json:"selected_branch_is_testing,omitempty"`
+	SelectedCommitSigned    *wrapperspb.BoolValue `protobuf:"bytes,6,opt,name=selected_commit_signed,json=selectedCommitSigned" json:"selected_commit_signed,omitempty"`
+	SelectedCommitSignedBy  string                `protobuf:"bytes,7,opt,name=selected_commit_signed_by,json=selectedCommitSignedBy" json:"selected_commit_signed_by,omitempty"`
 	// True if public keys were available when the commit has been checked out
-	SelectedCommitShouldBeSigned bool      `protobuf:"varint,8,opt,name=selected_commit_should_be_signed,json=selectedCommitShouldBeSigned" json:"selected_commit_should_be_signed,omitempty"`
-	MainCommitId                 string    `protobuf:"bytes,9,opt,name=main_commit_id,json=mainCommitId" json:"main_commit_id,omitempty"`
-	MainRemoteName               string    `protobuf:"bytes,10,opt,name=main_remote_name,json=mainRemoteName" json:"main_remote_name,omitempty"`
-	MainBranchName               string    `protobuf:"bytes,11,opt,name=main_branch_name,json=mainBranchName" json:"main_branch_name,omitempty"`
-	Remotes                      []*Remote `protobuf:"bytes,12,rep,name=remotes" json:"remotes,omitempty"`
-	ErrorMsg                     string    `protobuf:"bytes,13,opt,name=error_msg,json=errorMsg" json:"error_msg,omitempty"`
+	SelectedCommitShouldBeSigned *wrapperspb.BoolValue `protobuf:"bytes,8,opt,name=selected_commit_should_be_signed,json=selectedCommitShouldBeSigned" json:"selected_commit_should_be_signed,omitempty"`
+	MainCommitId                 string                `protobuf:"bytes,9,opt,name=main_commit_id,json=mainCommitId" json:"main_commit_id,omitempty"`
+	MainRemoteName               string                `protobuf:"bytes,10,opt,name=main_remote_name,json=mainRemoteName" json:"main_remote_name,omitempty"`
+	MainBranchName               string                `protobuf:"bytes,11,opt,name=main_branch_name,json=mainBranchName" json:"main_branch_name,omitempty"`
+	Remotes                      []*Remote             `protobuf:"bytes,12,rep,name=remotes" json:"remotes,omitempty"`
+	ErrorMsg                     string                `protobuf:"bytes,13,opt,name=error_msg,json=errorMsg" json:"error_msg,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -889,18 +889,18 @@ func (x *RepositoryStatus) GetSelectedBranchName() string {
 	return ""
 }
 
-func (x *RepositoryStatus) GetSelectedBranchIsTesting() bool {
+func (x *RepositoryStatus) GetSelectedBranchIsTesting() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.SelectedBranchIsTesting
 	}
-	return false
+	return nil
 }
 
-func (x *RepositoryStatus) GetSelectedCommitSigned() bool {
+func (x *RepositoryStatus) GetSelectedCommitSigned() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.SelectedCommitSigned
 	}
-	return false
+	return nil
 }
 
 func (x *RepositoryStatus) GetSelectedCommitSignedBy() string {
@@ -910,11 +910,11 @@ func (x *RepositoryStatus) GetSelectedCommitSignedBy() string {
 	return ""
 }
 
-func (x *RepositoryStatus) GetSelectedCommitShouldBeSigned() bool {
+func (x *RepositoryStatus) GetSelectedCommitShouldBeSigned() *wrapperspb.BoolValue {
 	if x != nil {
 		return x.SelectedCommitShouldBeSigned
 	}
-	return false
+	return nil
 }
 
 func (x *RepositoryStatus) GetMainCommitId() string {
@@ -956,7 +956,7 @@ var File_internal_protobuf_services_proto protoreflect.FileDescriptor
 
 const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\n" +
-	" internal/protobuf/services.proto\x12\bprotobuf\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1egoogle/protobuf/wrappers.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\a\n" +
+	" internal/protobuf/services.proto\x12\bprotobuf\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\xfb\a\n" +
 	"\n" +
 	"Generation\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1b\n" +
@@ -966,8 +966,8 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\x14selected_remote_name\x18\x05 \x01(\tR\x12selectedRemoteName\x120\n" +
 	"\x14selected_branch_name\x18\x06 \x01(\tR\x12selectedBranchName\x12,\n" +
 	"\x12selected_commit_id\x18\a \x01(\tR\x10selectedCommitId\x12.\n" +
-	"\x13selected_commit_msg\x18\b \x01(\tR\x11selectedCommitMsg\x12;\n" +
-	"\x1aselected_branch_is_testing\x18\t \x01(\bR\x17selectedBranchIsTesting\x12$\n" +
+	"\x13selected_commit_msg\x18\b \x01(\tR\x11selectedCommitMsg\x12W\n" +
+	"\x1aselected_branch_is_testing\x18\t \x01(\v2\x1a.google.protobuf.BoolValueR\x17selectedBranchIsTesting\x12$\n" +
 	"\x0emain_commit_id\x18\n" +
 	" \x01(\tR\fmainCommitId\x12(\n" +
 	"\x10main_remote_name\x18\v \x01(\tR\x0emainRemoteName\x12(\n" +
@@ -984,7 +984,7 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\fbuild_status\x18\x14 \x01(\tR\vbuildStatus\x12D\n" +
 	"\x10build_started_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\x0ebuildStartedAt\x12@\n" +
 	"\x0ebuild_ended_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\fbuildEndedAt\x12\x1b\n" +
-	"\tbuild_err\x18\x17 \x01(\tR\bbuildErr\"\xe3\x02\n" +
+	"\tbuild_err\x18\x17 \x01(\tR\bbuildErr\"\xff\x02\n" +
 	"\n" +
 	"Deployment\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x124\n" +
@@ -994,37 +994,37 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x125\n" +
 	"\bended_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x12\x1b\n" +
-	"\terror_msg\x18\x05 \x01(\tR\berrorMsg\x12#\n" +
-	"\rrestart_comin\x18\x06 \x01(\bR\frestartComin\x12!\n" +
+	"\terror_msg\x18\x05 \x01(\tR\berrorMsg\x12?\n" +
+	"\rrestart_comin\x18\x06 \x01(\v2\x1a.google.protobuf.BoolValueR\frestartComin\x12!\n" +
 	"\fprofile_path\x18\a \x01(\tR\vprofilePath\x12\x16\n" +
 	"\x06status\x18\b \x01(\tR\x06status\x12\x1c\n" +
-	"\toperation\x18\t \x01(\tR\toperation\"\xf6\x01\n" +
-	"\x05State\x12$\n" +
-	"\x0eneed_to_reboot\x18\x01 \x01(\bR\fneedToReboot\x12=\n" +
+	"\toperation\x18\t \x01(\tR\toperation\"\x92\x02\n" +
+	"\x05State\x12@\n" +
+	"\x0eneed_to_reboot\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\fneedToReboot\x12=\n" +
 	"\fis_suspended\x18\x02 \x01(\v2\x1a.google.protobuf.BoolValueR\visSuspended\x12+\n" +
 	"\abuilder\x18\x03 \x01(\v2\x11.protobuf.BuilderR\abuilder\x12.\n" +
 	"\bdeployer\x18\x04 \x01(\v2\x12.protobuf.DeployerR\bdeployer\x12+\n" +
-	"\afetcher\x18\x05 \x01(\v2\x11.protobuf.FetcherR\afetcher\"\x95\x02\n" +
-	"\bDeployer\x12!\n" +
-	"\fis_deploying\x18\x01 \x01(\bR\visDeploying\x124\n" +
+	"\afetcher\x18\x05 \x01(\v2\x11.protobuf.FetcherR\afetcher\"\xcd\x02\n" +
+	"\bDeployer\x12=\n" +
+	"\fis_deploying\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\visDeploying\x124\n" +
 	"\n" +
 	"deployment\x18\x02 \x01(\v2\x14.protobuf.DeploymentR\n" +
 	"deployment\x12F\n" +
 	"\x14generation_to_deploy\x18\x03 \x01(\v2\x14.protobuf.GenerationR\x12generationToDeploy\x12E\n" +
-	"\x13previous_deployment\x18\x04 \x01(\v2\x14.protobuf.DeploymentR\x12previousDeployment\x12!\n" +
-	"\fis_suspended\x18\x05 \x01(\bR\visSuspended\"\x89\x02\n" +
-	"\aBuilder\x12#\n" +
-	"\ris_evaluating\x18\x01 \x01(\bR\fisEvaluating\x12;\n" +
+	"\x13previous_deployment\x18\x04 \x01(\v2\x14.protobuf.DeploymentR\x12previousDeployment\x12=\n" +
+	"\fis_suspended\x18\x05 \x01(\v2\x1a.google.protobuf.BoolValueR\visSuspended\"\xc1\x02\n" +
+	"\aBuilder\x12?\n" +
+	"\ris_evaluating\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\fisEvaluating\x12;\n" +
 	"\vis_building\x18\x02 \x01(\v2\x1a.google.protobuf.BoolValueR\n" +
 	"isBuilding\x124\n" +
 	"\n" +
 	"generation\x18\x03 \x01(\v2\x14.protobuf.GenerationR\n" +
 	"generation\x12'\n" +
-	"\x0fgeneration_uuid\x18\x04 \x01(\tR\x0egenerationUuid\x12!\n" +
-	"\fis_suspended\x18\x05 \x01(\bR\visSuspended\x12\x1a\n" +
-	"\bhostname\x18\x06 \x01(\tR\bhostname\"s\n" +
-	"\aFetcher\x12\x1f\n" +
-	"\vis_fetching\x18\x01 \x01(\bR\n" +
+	"\x0fgeneration_uuid\x18\x04 \x01(\tR\x0egenerationUuid\x12=\n" +
+	"\fis_suspended\x18\x05 \x01(\v2\x1a.google.protobuf.BoolValueR\visSuspended\x12\x1a\n" +
+	"\bhostname\x18\x06 \x01(\tR\bhostname\"\x8f\x01\n" +
+	"\aFetcher\x12;\n" +
+	"\vis_fetching\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\n" +
 	"isFetching\x12G\n" +
 	"\x11repository_status\x18\x02 \x01(\v2\x1a.protobuf.RepositoryStatusR\x10repositoryStatus\"\x91\x01\n" +
 	"\x06Branch\x12\x12\n" +
@@ -1033,7 +1033,7 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\n" +
 	"commit_msg\x18\x03 \x01(\tR\tcommitMsg\x12\x1b\n" +
 	"\terror_msg\x18\x04 \x01(\tR\berrorMsg\x12\x1a\n" +
-	"\ton_top_of\x18\x05 \x01(\tR\aonTopOf\"\xfd\x01\n" +
+	"\ton_top_of\x18\x05 \x01(\tR\aonTopOf\"\x99\x02\n" +
 	"\x06Remote\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12&\n" +
@@ -1041,25 +1041,26 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\x04main\x18\x04 \x01(\v2\x10.protobuf.BranchR\x04main\x12*\n" +
 	"\atesting\x18\x05 \x01(\v2\x10.protobuf.BranchR\atesting\x129\n" +
 	"\n" +
-	"fetched_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tfetchedAt\x12\x18\n" +
-	"\afetched\x18\a \x01(\bR\afetched\"\x8d\x05\n" +
+	"fetched_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tfetchedAt\x124\n" +
+	"\afetched\x18\a \x01(\v2\x1a.google.protobuf.BoolValueR\afetched\"\xe1\x05\n" +
 	"\x10RepositoryStatus\x12,\n" +
 	"\x12selected_commit_id\x18\x01 \x01(\tR\x10selectedCommitId\x12.\n" +
 	"\x13selected_commit_msg\x18\x02 \x01(\tR\x11selectedCommitMsg\x120\n" +
 	"\x14selected_remote_name\x18\x03 \x01(\tR\x12selectedRemoteName\x120\n" +
-	"\x14selected_branch_name\x18\x04 \x01(\tR\x12selectedBranchName\x12;\n" +
-	"\x1aselected_branch_is_testing\x18\x05 \x01(\bR\x17selectedBranchIsTesting\x124\n" +
-	"\x16selected_commit_signed\x18\x06 \x01(\bR\x14selectedCommitSigned\x129\n" +
-	"\x19selected_commit_signed_by\x18\a \x01(\tR\x16selectedCommitSignedBy\x12F\n" +
-	" selected_commit_should_be_signed\x18\b \x01(\bR\x1cselectedCommitShouldBeSigned\x12$\n" +
+	"\x14selected_branch_name\x18\x04 \x01(\tR\x12selectedBranchName\x12W\n" +
+	"\x1aselected_branch_is_testing\x18\x05 \x01(\v2\x1a.google.protobuf.BoolValueR\x17selectedBranchIsTesting\x12P\n" +
+	"\x16selected_commit_signed\x18\x06 \x01(\v2\x1a.google.protobuf.BoolValueR\x14selectedCommitSigned\x129\n" +
+	"\x19selected_commit_signed_by\x18\a \x01(\tR\x16selectedCommitSignedBy\x12b\n" +
+	" selected_commit_should_be_signed\x18\b \x01(\v2\x1a.google.protobuf.BoolValueR\x1cselectedCommitShouldBeSigned\x12$\n" +
 	"\x0emain_commit_id\x18\t \x01(\tR\fmainCommitId\x12(\n" +
 	"\x10main_remote_name\x18\n" +
 	" \x01(\tR\x0emainRemoteName\x12(\n" +
 	"\x10main_branch_name\x18\v \x01(\tR\x0emainBranchName\x12*\n" +
 	"\aremotes\x18\f \x03(\v2\x10.protobuf.RemoteR\aremotes\x12\x1b\n" +
-	"\terror_msg\x18\r \x01(\tR\berrorMsg2>\n" +
+	"\terror_msg\x18\r \x01(\tR\berrorMsg2y\n" +
 	"\x05Comin\x125\n" +
-	"\bGetState\x12\x16.google.protobuf.Empty\x1a\x0f.protobuf.State\"\x00B/Z(github.com/nlewo/comin/internal/protobuf\x92\x03\x02\b\x02b\beditionsp\xe8\a"
+	"\bGetState\x12\x16.google.protobuf.Empty\x1a\x0f.protobuf.State\"\x00\x129\n" +
+	"\x05Fetch\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00B/Z(github.com/nlewo/comin/internal/protobuf\x92\x03\x02\b\x02b\beditionsp\xe8\a"
 
 var (
 	file_internal_protobuf_services_proto_rawDescOnce sync.Once
@@ -1084,39 +1085,53 @@ var file_internal_protobuf_services_proto_goTypes = []any{
 	(*Branch)(nil),                // 6: protobuf.Branch
 	(*Remote)(nil),                // 7: protobuf.Remote
 	(*RepositoryStatus)(nil),      // 8: protobuf.RepositoryStatus
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
-	(*wrapperspb.BoolValue)(nil),  // 10: google.protobuf.BoolValue
+	(*wrapperspb.BoolValue)(nil),  // 9: google.protobuf.BoolValue
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 	(*emptypb.Empty)(nil),         // 11: google.protobuf.Empty
 }
 var file_internal_protobuf_services_proto_depIdxs = []int32{
-	9,  // 0: protobuf.Generation.eval_started_at:type_name -> google.protobuf.Timestamp
-	9,  // 1: protobuf.Generation.eval_ended_at:type_name -> google.protobuf.Timestamp
-	9,  // 2: protobuf.Generation.build_started_at:type_name -> google.protobuf.Timestamp
-	9,  // 3: protobuf.Generation.build_ended_at:type_name -> google.protobuf.Timestamp
-	0,  // 4: protobuf.Deployment.generation:type_name -> protobuf.Generation
-	9,  // 5: protobuf.Deployment.started_at:type_name -> google.protobuf.Timestamp
-	9,  // 6: protobuf.Deployment.ended_at:type_name -> google.protobuf.Timestamp
-	10, // 7: protobuf.State.is_suspended:type_name -> google.protobuf.BoolValue
-	4,  // 8: protobuf.State.builder:type_name -> protobuf.Builder
-	3,  // 9: protobuf.State.deployer:type_name -> protobuf.Deployer
-	5,  // 10: protobuf.State.fetcher:type_name -> protobuf.Fetcher
-	1,  // 11: protobuf.Deployer.deployment:type_name -> protobuf.Deployment
-	0,  // 12: protobuf.Deployer.generation_to_deploy:type_name -> protobuf.Generation
-	1,  // 13: protobuf.Deployer.previous_deployment:type_name -> protobuf.Deployment
-	10, // 14: protobuf.Builder.is_building:type_name -> google.protobuf.BoolValue
-	0,  // 15: protobuf.Builder.generation:type_name -> protobuf.Generation
-	8,  // 16: protobuf.Fetcher.repository_status:type_name -> protobuf.RepositoryStatus
-	6,  // 17: protobuf.Remote.main:type_name -> protobuf.Branch
-	6,  // 18: protobuf.Remote.testing:type_name -> protobuf.Branch
-	9,  // 19: protobuf.Remote.fetched_at:type_name -> google.protobuf.Timestamp
-	7,  // 20: protobuf.RepositoryStatus.remotes:type_name -> protobuf.Remote
-	11, // 21: protobuf.Comin.GetState:input_type -> google.protobuf.Empty
-	2,  // 22: protobuf.Comin.GetState:output_type -> protobuf.State
-	22, // [22:23] is the sub-list for method output_type
-	21, // [21:22] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	9,  // 0: protobuf.Generation.selected_branch_is_testing:type_name -> google.protobuf.BoolValue
+	10, // 1: protobuf.Generation.eval_started_at:type_name -> google.protobuf.Timestamp
+	10, // 2: protobuf.Generation.eval_ended_at:type_name -> google.protobuf.Timestamp
+	10, // 3: protobuf.Generation.build_started_at:type_name -> google.protobuf.Timestamp
+	10, // 4: protobuf.Generation.build_ended_at:type_name -> google.protobuf.Timestamp
+	0,  // 5: protobuf.Deployment.generation:type_name -> protobuf.Generation
+	10, // 6: protobuf.Deployment.started_at:type_name -> google.protobuf.Timestamp
+	10, // 7: protobuf.Deployment.ended_at:type_name -> google.protobuf.Timestamp
+	9,  // 8: protobuf.Deployment.restart_comin:type_name -> google.protobuf.BoolValue
+	9,  // 9: protobuf.State.need_to_reboot:type_name -> google.protobuf.BoolValue
+	9,  // 10: protobuf.State.is_suspended:type_name -> google.protobuf.BoolValue
+	4,  // 11: protobuf.State.builder:type_name -> protobuf.Builder
+	3,  // 12: protobuf.State.deployer:type_name -> protobuf.Deployer
+	5,  // 13: protobuf.State.fetcher:type_name -> protobuf.Fetcher
+	9,  // 14: protobuf.Deployer.is_deploying:type_name -> google.protobuf.BoolValue
+	1,  // 15: protobuf.Deployer.deployment:type_name -> protobuf.Deployment
+	0,  // 16: protobuf.Deployer.generation_to_deploy:type_name -> protobuf.Generation
+	1,  // 17: protobuf.Deployer.previous_deployment:type_name -> protobuf.Deployment
+	9,  // 18: protobuf.Deployer.is_suspended:type_name -> google.protobuf.BoolValue
+	9,  // 19: protobuf.Builder.is_evaluating:type_name -> google.protobuf.BoolValue
+	9,  // 20: protobuf.Builder.is_building:type_name -> google.protobuf.BoolValue
+	0,  // 21: protobuf.Builder.generation:type_name -> protobuf.Generation
+	9,  // 22: protobuf.Builder.is_suspended:type_name -> google.protobuf.BoolValue
+	9,  // 23: protobuf.Fetcher.is_fetching:type_name -> google.protobuf.BoolValue
+	8,  // 24: protobuf.Fetcher.repository_status:type_name -> protobuf.RepositoryStatus
+	6,  // 25: protobuf.Remote.main:type_name -> protobuf.Branch
+	6,  // 26: protobuf.Remote.testing:type_name -> protobuf.Branch
+	10, // 27: protobuf.Remote.fetched_at:type_name -> google.protobuf.Timestamp
+	9,  // 28: protobuf.Remote.fetched:type_name -> google.protobuf.BoolValue
+	9,  // 29: protobuf.RepositoryStatus.selected_branch_is_testing:type_name -> google.protobuf.BoolValue
+	9,  // 30: protobuf.RepositoryStatus.selected_commit_signed:type_name -> google.protobuf.BoolValue
+	9,  // 31: protobuf.RepositoryStatus.selected_commit_should_be_signed:type_name -> google.protobuf.BoolValue
+	7,  // 32: protobuf.RepositoryStatus.remotes:type_name -> protobuf.Remote
+	11, // 33: protobuf.Comin.GetState:input_type -> google.protobuf.Empty
+	11, // 34: protobuf.Comin.Fetch:input_type -> google.protobuf.Empty
+	2,  // 35: protobuf.Comin.GetState:output_type -> protobuf.State
+	11, // 36: protobuf.Comin.Fetch:output_type -> google.protobuf.Empty
+	35, // [35:37] is the sub-list for method output_type
+	33, // [33:35] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_internal_protobuf_services_proto_init() }

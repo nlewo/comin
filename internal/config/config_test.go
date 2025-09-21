@@ -43,6 +43,9 @@ func TestConfig(t *testing.T) {
 			ListenAddress: "0.0.0.0",
 			Port:          4243,
 		},
+		Grpc: types.Grpc{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
+		},
 	}
 	config, err := Read(configPath)
 	assert.Nil(t, err)

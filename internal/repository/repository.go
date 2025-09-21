@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type repository struct {
@@ -97,7 +98,7 @@ func (r *repository) Fetch(remoteNames []string) {
 			status = "failed"
 		} else {
 			repositoryStatusRemote.FetchErrorMsg = ""
-			repositoryStatusRemote.Fetched = true
+			repositoryStatusRemote.Fetched = wrapperspb.Bool(true)
 			status = "succeeded"
 		}
 		repositoryStatusRemote.FetchedAt = timestamppb.New(time.Now().UTC())
@@ -143,13 +144,13 @@ func (r *repository) Update() error {
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
-			r.RepositoryStatus.SelectedBranchIsTesting = false
+			r.RepositoryStatus.SelectedBranchIsTesting = wrapperspb.Bool(false)
 		}
 		if head.String() != r.RepositoryStatus.MainCommitId {
 			selectedCommitId = head.String()
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
-			r.RepositoryStatus.SelectedBranchIsTesting = false
+			r.RepositoryStatus.SelectedBranchIsTesting = wrapperspb.Bool(false)
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
 			r.RepositoryStatus.MainCommitId = head.String()
 			r.RepositoryStatus.MainBranchName = remote.Main.Name
@@ -192,7 +193,7 @@ func (r *repository) Update() error {
 			selectedCommitId = head.String()
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Testing.Name
-			r.RepositoryStatus.SelectedBranchIsTesting = true
+			r.RepositoryStatus.SelectedBranchIsTesting = wrapperspb.Bool(true)
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
 			break
 		}
@@ -208,20 +209,20 @@ func (r *repository) Update() error {
 	}
 
 	if len(r.gpgPubliKeys) > 0 {
-		r.RepositoryStatus.SelectedCommitShouldBeSigned = true
+		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(true)
 		signedBy, err := headSignedBy(r.Repository, r.gpgPubliKeys)
 		if err != nil {
 			r.RepositoryStatus.ErrorMsg = err.Error()
 		}
 		if signedBy == nil {
-			r.RepositoryStatus.SelectedCommitSigned = false
+			r.RepositoryStatus.SelectedCommitSigned = wrapperspb.Bool(false)
 			r.RepositoryStatus.SelectedCommitSignedBy = ""
 		} else {
-			r.RepositoryStatus.SelectedCommitSigned = true
+			r.RepositoryStatus.SelectedCommitSigned = wrapperspb.Bool(true)
 			r.RepositoryStatus.SelectedCommitSignedBy = signedBy.PrimaryIdentity().Name
 		}
 	} else {
-		r.RepositoryStatus.SelectedCommitShouldBeSigned = false
+		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(false)
 	}
 	return nil
 }

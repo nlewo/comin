@@ -68,7 +68,7 @@ func (m *Manager) GetState() *pb.State {
 func (m *Manager) toState() *pb.State {
 
 	return &pb.State{
-		NeedToReboot: m.needToReboot,
+		NeedToReboot: wrapperspb.Bool(m.needToReboot),
 		IsSuspended:  wrapperspb.Bool(m.isSuspended),
 		Builder:      m.Builder.State(),
 		Deployer:     m.deployer.State(),
@@ -108,7 +108,7 @@ func (m *Manager) FetchAndBuild() {
 		for {
 			select {
 			case rs := <-m.Fetcher.RepositoryStatusCh:
-				if !rs.SelectedCommitShouldBeSigned || rs.SelectedCommitSigned {
+				if !rs.SelectedCommitShouldBeSigned.GetValue() || rs.SelectedCommitSigned.GetValue() {
 					logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
 					err := m.Builder.Eval(rs)
 					if err != nil {
@@ -168,7 +168,7 @@ func (m *Manager) Run() {
 			}
 			m.needToReboot = m.executor.NeedToReboot()
 			m.prometheus.SetHostInfo(m.needToReboot)
-			if dpl.RestartComin {
+			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
 				logrus.Infof("manager: comin needs to be restarted")
 				logrus.Infof("manager: exiting comin to let the service manager restart it")

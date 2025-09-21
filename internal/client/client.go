@@ -38,3 +38,7 @@ func (c Client) Close() {
 func (c Client) GetManagerState() (state *pb.State, err error) {
 	return c.cominClient.GetState(context.Background(), &emptypb.Empty{})
 }
+
+func (c Client) Fetch() {
+	c.cominClient.Fetch(context.Background(), &emptypb.Empty{})
+}

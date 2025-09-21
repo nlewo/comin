@@ -14,6 +14,7 @@ import (
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type DeployFunc func(context.Context, string, string) (bool, string, error)
@@ -50,11 +51,11 @@ func (d *Deployer) State() *protobuf.Deployer {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return &protobuf.Deployer{
-		IsDeploying:        d.isDeploying.Load(),
+		IsDeploying:        wrapperspb.Bool(d.isDeploying.Load()),
 		GenerationToDeploy: d.GenerationToDeploy,
 		Deployment:         d.deployment.Load(),
 		PreviousDeployment: d.previousDeployment.Load(),
-		IsSuspended:        d.isSuspended.Load(),
+		IsSuspended:        wrapperspb.Bool(d.isSuspended.Load()),
 	}
 }
 
@@ -175,7 +176,7 @@ func (d *Deployer) Run() {
 			logrus.Infof("deployer: deploying generation %s", g.Uuid)
 
 			operation := "switch"
-			if g.SelectedBranchIsTesting {
+			if g.SelectedBranchIsTesting.GetValue() {
 				operation = "test"
 			}
 			dpl := protobuf.Deployment{
@@ -206,7 +207,7 @@ func (d *Deployer) Run() {
 			} else {
 				deployment.Status = store.StatusToString(store.Done)
 			}
-			deployment.RestartComin = cominNeedRestart
+			deployment.RestartComin = wrapperspb.Bool(cominNeedRestart)
 			deployment.ProfilePath = profilePath
 
 			cmd := d.postDeploymentCommand

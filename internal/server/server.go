@@ -24,6 +24,16 @@ func (s *cominServer) GetState(ctx context.Context, empty *emptypb.Empty) (*pb.S
 	return s.manager.GetState(), nil
 }
 
+func (s *cominServer) Fetch(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	fetcher := s.manager.GetState().Fetcher
+	remotes := make([]string, 0)
+	for _, r := range fetcher.RepositoryStatus.Remotes {
+		remotes = append(remotes, r.Name)
+	}
+	s.manager.Fetcher.TriggerFetch(remotes)
+	return nil, nil
+}
+
 func (c *cominServer) Start() {
 	go func() {
 		if err := os.RemoveAll(c.unixSocketPath); err != nil {

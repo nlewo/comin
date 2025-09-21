@@ -9,6 +9,7 @@ import (
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type Fetcher struct {
@@ -53,8 +54,8 @@ func (f *Fetcher) GetState() *protobuf.Fetcher {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return &protobuf.Fetcher{
-		IsFetching:       f.isFetching.Load(),
-		RepositoryStatus: f.repositoryStatus,
+		IsFetching:       wrapperspb.Bool(f.isFetching.Load()),
+		RepositoryStatus: f.repo.GetRepositoryStatus(),
 	}
 }
 
@@ -71,7 +72,7 @@ func (f *Fetcher) Start() {
 			case rs := <-workerRepositoryStatusCh:
 				f.isFetching.Store(false)
 				f.mu.Lock()
-				if rs.SelectedCommitId != f.repositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting != f.repositoryStatus.SelectedBranchIsTesting {
+				if rs.SelectedCommitId != f.repositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting.GetValue() != f.repositoryStatus.SelectedBranchIsTesting.GetValue() {
 					f.repositoryStatus = rs
 					f.RepositoryStatusCh <- rs
 				}

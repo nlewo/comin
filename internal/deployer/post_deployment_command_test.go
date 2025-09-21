@@ -8,6 +8,7 @@ import (
 	"github.com/nlewo/comin/internal/store"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestBasic(t *testing.T) {
@@ -20,7 +21,7 @@ func TestBasic(t *testing.T) {
 		StartedAt:    timestamppb.New(startedAt),
 		EndedAt:      timestamppb.New(endedAt),
 		ErrorMsg:     "",
-		RestartComin: false,
+		RestartComin: wrapperspb.Bool(false),
 		ProfilePath:  "",
 		Status:       store.StatusToString(store.Done),
 		Operation:    "",

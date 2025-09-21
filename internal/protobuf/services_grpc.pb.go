@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Comin_GetState_FullMethodName = "/protobuf.Comin/GetState"
+	Comin_Fetch_FullMethodName    = "/protobuf.Comin/Fetch"
 )
 
 // CominClient is the client API for Comin service.
@@ -28,6 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CominClient interface {
 	GetState(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*State, error)
+	Fetch(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type cominClient struct {
@@ -48,11 +50,22 @@ func (c *cominClient) GetState(ctx context.Context, in *emptypb.Empty, opts ...g
 	return out, nil
 }
 
+func (c *cominClient) Fetch(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, Comin_Fetch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CominServer is the server API for Comin service.
 // All implementations must embed UnimplementedCominServer
 // for forward compatibility.
 type CominServer interface {
 	GetState(context.Context, *emptypb.Empty) (*State, error)
+	Fetch(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCominServer()
 }
 
@@ -65,6 +78,9 @@ type UnimplementedCominServer struct{}
 
 func (UnimplementedCominServer) GetState(context.Context, *emptypb.Empty) (*State, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetState not implemented")
+}
+func (UnimplementedCominServer) Fetch(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Fetch not implemented")
 }
 func (UnimplementedCominServer) mustEmbedUnimplementedCominServer() {}
 func (UnimplementedCominServer) testEmbeddedByValue()               {}
@@ -105,6 +121,24 @@ func _Comin_GetState_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Comin_Fetch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CominServer).Fetch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Comin_Fetch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CominServer).Fetch(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Comin_ServiceDesc is the grpc.ServiceDesc for Comin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -115,6 +149,10 @@ var Comin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetState",
 			Handler:    _Comin_GetState_Handler,
+		},
+		{
+			MethodName: "Fetch",
+			Handler:    _Comin_Fetch_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
