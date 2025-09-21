@@ -94,7 +94,7 @@ var runCmd = &cobra.Command{
 			metrics,
 			cfg.ApiServer.ListenAddress, cfg.ApiServer.Port,
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
-		srv := server.New(manager)
+		srv := server.New(manager, cfg.Grpc.UnixSocketPath)
 		srv.Start()
 		manager.Run()
 	},

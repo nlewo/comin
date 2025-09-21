@@ -2,12 +2,13 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/nlewo/comin/internal/manager"
 	pb "github.com/nlewo/comin/internal/protobuf"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"google.golang.org/grpc"
@@ -15,19 +16,26 @@ import (
 
 type cominServer struct {
 	pb.CominServer
-	manager *manager.Manager
+	manager        *manager.Manager
+	unixSocketPath string
 }
 
 func (s *cominServer) GetState(ctx context.Context, empty *emptypb.Empty) (*pb.State, error) {
 	return s.manager.GetState(), nil
-
 }
 
 func (c *cominServer) Start() {
 	go func() {
-		lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", 14242))
+		if err := os.RemoveAll(c.unixSocketPath); err != nil {
+			log.Fatalf("Failed to remove existing socket file: %v", err)
+		}
+		logrus.Infof("server: GRPC server starts listening on the Unix socket %s", c.unixSocketPath)
+		lis, err := net.Listen("unix", c.unixSocketPath)
 		if err != nil {
-			log.Fatalf("failed to listen: %v", err)
+			log.Fatalf("Failed to listen on %s: %v", c.unixSocketPath, err)
+		}
+		if err := os.Chmod(c.unixSocketPath, 0777); err != nil {
+			log.Fatalf("Failed to change socket permissions: %v", err)
 		}
 		var opts []grpc.ServerOption
 		grpcServer := grpc.NewServer(opts...)
@@ -36,8 +44,9 @@ func (c *cominServer) Start() {
 	}()
 }
 
-func New(manager *manager.Manager) *cominServer {
+func New(manager *manager.Manager, unixSocketPath string) *cominServer {
 	return &cominServer{
-		manager: manager,
+		manager:        manager,
+		unixSocketPath: unixSocketPath,
 	}
 }

@@ -138,8 +138,7 @@ var statusCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		opts := client.ClientOpts{
-			Host: "localhost",
-			Port: 14242,
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		}
 		c, err := client.New(opts)
 		if err != nil {

@@ -16,12 +16,11 @@ type Client struct {
 }
 
 type ClientOpts struct {
-	Port int
-	Host string
+	UnixSocketPath string
 }
 
 func New(clientOpts ClientOpts) (c Client, err error) {
-	serverAddr := fmt.Sprintf("%s:%d", clientOpts.Host, clientOpts.Port)
+	serverAddr := fmt.Sprintf("unix://%s", clientOpts.UnixSocketPath)
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	c.conn, err = grpc.NewClient(serverAddr, opts...)
