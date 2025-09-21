@@ -1,11 +1,7 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
 
 	"github.com/dustin/go-humanize"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -20,33 +16,6 @@ import (
 
 var statusOneline bool
 var statusJson bool
-
-func getStatus() (status *pb.State, err error) {
-	url := "http://localhost:4242/api/status"
-	client := http.Client{
-		Timeout: time.Second * 2,
-	}
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return
-	}
-	res, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	if res.Body != nil {
-		defer res.Body.Close() // nolint
-	}
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return
-	}
-	err = json.Unmarshal(body, &status)
-	if err != nil {
-		return
-	}
-	return
-}
 
 func longStatus(status *pb.State) {
 	fmt.Printf("Status of the machine %s\n", status.Builder.Hostname)

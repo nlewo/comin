@@ -12,6 +12,13 @@ import "google/protobuf/wrappers.proto";
 option features.field_presence = IMPLICIT;
 option go_package = "github.com/nlewo/comin/internal/protobuf";
 
+service Comin {
+  rpc GetState(google.protobuf.Empty) returns (State) {}
+  rpc Fetch(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Suspend(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Resume(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+}
+
 // We consider each created genration is legit to be deployed: hard
 // reset is ensured at RepositoryStatus creation.
 message Generation {
@@ -58,11 +65,6 @@ message Deployment {
   string profile_path = 7;
   string status = 8;
   string operation = 9;
-}
-
-service Comin {
-  rpc GetState(google.protobuf.Empty) returns (State) {}
-  rpc Fetch(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
 message State {

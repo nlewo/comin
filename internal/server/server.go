@@ -9,6 +9,8 @@ import (
 	"github.com/nlewo/comin/internal/manager"
 	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"google.golang.org/grpc"
@@ -32,6 +34,23 @@ func (s *cominServer) Fetch(ctx context.Context, empty *emptypb.Empty) (*emptypb
 	}
 	s.manager.Fetcher.TriggerFetch(remotes)
 	return nil, nil
+}
+
+func (s *cominServer) Suspend(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	err := s.manager.Suspend()
+	if err != nil {
+		st := status.New(codes.Aborted, err.Error())
+		err = st.Err()
+	}
+	return nil, err
+}
+func (s *cominServer) Resume(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	err := s.manager.Resume()
+	if err != nil {
+		st := status.New(codes.Aborted, err.Error())
+		err = st.Err()
+	}
+	return nil, err
 }
 
 func (c *cominServer) Start() {

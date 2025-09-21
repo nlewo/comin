@@ -42,3 +42,11 @@ func (c Client) GetManagerState() (state *pb.State, err error) {
 func (c Client) Fetch() {
 	c.cominClient.Fetch(context.Background(), &emptypb.Empty{})
 }
+func (c Client) Suspend() error {
+	_, err := c.cominClient.Suspend(context.Background(), &emptypb.Empty{})
+	return err
+}
+func (c Client) Resume() error {
+	_, err := c.cominClient.Resume(context.Background(), &emptypb.Empty{})
+	return err
+}
