@@ -12,25 +12,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func handlerStatus(m *manager.Manager, w http.ResponseWriter, r *http.Request) {
-	logrus.Debugf("Getting status request %s from %s", r.URL, r.RemoteAddr)
-	w.WriteHeader(http.StatusOK)
-	s := m.GetState()
-	logrus.Debugf("Manager state is %#v", s)
-	rJson, err := json.MarshalIndent(s, "", "\t")
-	if err != nil {
-		logrus.Error(err)
-	}
-	_, _ = io.Writer.Write(w, rJson)
-}
-
 // Serve starts http servers. We create two HTTP servers to easily be
 // able to expose metrics publicly while keeping on localhost only the
 // API.
 func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPort int, metricsAddress string, metricsPort int) {
-	handlerStatusFn := func(w http.ResponseWriter, r *http.Request) {
-		handlerStatus(m, w, r)
-	}
 	handlerFetcherFn := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		s := m.GetState().Fetcher
@@ -103,7 +88,6 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 	}
 
 	muxApi := http.NewServeMux()
-	muxApi.HandleFunc("/api/status", handlerStatusFn)
 	muxApi.HandleFunc("/api/fetcher", handlerFetcherFn)
 	muxApi.HandleFunc("/api/fetcher/fetch", handlerFetcherFetchFn)
 	muxApi.HandleFunc("/api/builder/suspend", handlerBuilderSuspendFn)

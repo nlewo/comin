@@ -4,24 +4,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestBasic(t *testing.T) {
 
 	startedAt := time.Now()
 	endedAt := startedAt.Add(10 * time.Second)
-	deployment := store.Deployment{
-		UUID: "uuid",
-		// Generation builder.Generation
-		StartedAt:    startedAt,
-		EndedAt:      endedAt,
-		Err:          nil,
+	deployment := &protobuf.Deployment{
+		Uuid:         "uuid",
+		Generation:   &protobuf.Generation{},
+		StartedAt:    timestamppb.New(startedAt),
+		EndedAt:      timestamppb.New(endedAt),
 		ErrorMsg:     "",
 		RestartComin: false,
 		ProfilePath:  "",
-		Status:       store.Done,
+		Status:       store.StatusToString(store.Done),
 		Operation:    "",
 	}
 

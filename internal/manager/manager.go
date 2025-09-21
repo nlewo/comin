@@ -15,19 +15,12 @@ import (
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
+	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
-
-type State struct {
-	NeedToReboot bool           `json:"need_to_reboot"`
-	IsSuspended  bool           `json:"suspended"`
-	Fetcher      fetcher.State  `json:"fetcher"`
-	Builder      builder.State  `json:"builder"`
-	Deployer     deployer.State `json:"deployer"`
-	Store        store.State    `json:"store"`
-}
 
 type Manager struct {
 	// The machine id of the current host. It is used to ensure
@@ -36,7 +29,7 @@ type Manager struct {
 	machineId string
 
 	stateRequestCh chan struct{}
-	stateResultCh  chan State
+	stateResultCh  chan *pb.State
 
 	needToReboot bool
 
@@ -55,7 +48,7 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 	m := &Manager{
 		machineId:      machineId,
 		stateRequestCh: make(chan struct{}),
-		stateResultCh:  make(chan State),
+		stateResultCh:  make(chan *pb.State),
 		prometheus:     p,
 		storage:        s,
 		scheduler:      sched,
@@ -67,19 +60,19 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 	return m
 }
 
-func (m *Manager) GetState() State {
+func (m *Manager) GetState() *pb.State {
 	m.stateRequestCh <- struct{}{}
 	return <-m.stateResultCh
 }
 
-func (m *Manager) toState() State {
-	return State{
+func (m *Manager) toState() *pb.State {
+
+	return &pb.State{
 		NeedToReboot: m.needToReboot,
-		IsSuspended:  m.isSuspended,
-		Fetcher:      m.Fetcher.GetState(),
+		IsSuspended:  wrapperspb.Bool(m.isSuspended),
 		Builder:      m.Builder.State(),
 		Deployer:     m.deployer.State(),
-		Store:        m.storage.GetState(),
+		Fetcher:      m.Fetcher.GetState(),
 	}
 }
 
@@ -130,13 +123,13 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Error(err)
 					continue
 				}
-				if generation.EvalErr != nil {
+				if generation.EvalErr != "" {
 					continue
 				}
 				if generation.MachineId != "" && m.machineId != generation.MachineId {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
-					logrus.Infof("manager: the build of the generation %s is submitted", generation.UUID.String())
+					logrus.Infof("manager: the build of the generation %s is submitted", generation.Uuid)
 					m.Builder.SubmitBuild(generationUUID)
 				}
 			case generationUUID := <-m.Builder.BuildDone:
@@ -145,9 +138,9 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Error(err)
 					continue
 				}
-				if generation.BuildErr == nil {
+				if generation.BuildErr == "" {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					m.deployer.Submit(generation)
+					m.deployer.Submit(&generation)
 				}
 			}
 		}
@@ -168,7 +161,7 @@ func (m *Manager) Run() {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
 		case dpl := <-m.deployer.DeploymentDoneCh:
-			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, store.StatusToString(dpl.Status))
+			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, dpl.Status)
 			getsEvicted, evicted := m.storage.DeploymentInsertAndCommit(dpl)
 			if getsEvicted && evicted.ProfilePath != "" {
 				_ = profile.RemoveProfilePath(evicted.ProfilePath)

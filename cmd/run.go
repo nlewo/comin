@@ -14,8 +14,10 @@ import (
 	"github.com/nlewo/comin/internal/http"
 	"github.com/nlewo/comin/internal/manager"
 	"github.com/nlewo/comin/internal/prometheus"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/scheduler"
+	"github.com/nlewo/comin/internal/server"
 	storePkg "github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -66,11 +68,11 @@ var runCmd = &cobra.Command{
 		// We get the last mainCommitId to avoid useless
 		// redeployment as well as non fast forward checkouts
 		var mainCommitId string
-		var lastDeployment *storePkg.Deployment
+		var lastDeployment *protobuf.Deployment
 		if ok, ld := store.LastDeployment(); ok {
 			mainCommitId = ld.Generation.MainCommitId
-			lastDeployment = &ld
-			metrics.SetDeploymentInfo(ld.Generation.SelectedCommitId, storePkg.StatusToString(ld.Status))
+			lastDeployment = ld
+			metrics.SetDeploymentInfo(ld.Generation.SelectedCommitId, ld.Status)
 		}
 		repository, err := repository.New(gitConfig, mainCommitId, metrics)
 		if err != nil {
@@ -92,6 +94,8 @@ var runCmd = &cobra.Command{
 			metrics,
 			cfg.ApiServer.ListenAddress, cfg.ApiServer.Port,
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
+		srv := server.New(manager)
+		srv.Start()
 		manager.Run()
 	},
 }

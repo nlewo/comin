@@ -6,19 +6,20 @@ import (
 	"os"
 	"sync"
 
+	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 )
 
 type State struct {
-	Deployments []Deployment  `json:"deployments"`
-	Generations []*Generation `json:"generations"`
+	Deployments []*pb.Deployment `json:"deployments"`
+	Generations []*pb.Generation `json:"generations"`
 }
 
 type Data struct {
 	Version string `json:"version"`
 	// Deployments are order from the most recent to older
-	Deployments []Deployment  `json:"deployments"`
-	Generations []*Generation `json:"generations"`
+	Deployments []*pb.Deployment `json:"deployments"`
+	Generations []*pb.Generation `json:"generations"`
 }
 
 type Store struct {
@@ -29,10 +30,10 @@ type Store struct {
 	capacityMain     int
 	capacityTesting  int
 
-	lastEvalStarted   *Generation
-	lastEvalFinished  *Generation
-	lastBuildStarted  *Generation
-	lastBuildFinished *Generation
+	lastEvalStarted   *pb.Generation
+	lastEvalFinished  *pb.Generation
+	lastBuildStarted  *pb.Generation
+	lastBuildFinished *pb.Generation
 }
 
 func New(filename, gcRootsDir string, capacityMain, capacityTesting int) (*Store, error) {
@@ -45,8 +46,8 @@ func New(filename, gcRootsDir string, capacityMain, capacityTesting int) (*Store
 	if err := os.MkdirAll(gcRootsDir, os.ModeDir); err != nil {
 		return nil, err
 	}
-	st.Deployments = make([]Deployment, 0)
-	st.Generations = make([]*Generation, 0)
+	st.Deployments = make([]*pb.Deployment, 0)
+	st.Generations = make([]*pb.Generation, 0)
 	st.Version = "1"
 	return &st, nil
 }
@@ -60,29 +61,29 @@ func (s *Store) GetState() State {
 	}
 }
 
-func (s *Store) DeploymentInsertAndCommit(dpl Deployment) (ok bool, evicted Deployment) {
+func (s *Store) DeploymentInsertAndCommit(dpl *pb.Deployment) (ok bool, evicted *pb.Deployment) {
 	ok, evicted = s.DeploymentInsert(dpl)
 	if ok {
-		logrus.Infof("The deployment %s has been removed from store.json file", evicted.UUID)
+		logrus.Infof("The deployment %s has been removed from store.json file", evicted.Uuid)
 	}
 	if err := s.Commit(); err != nil {
 		logrus.Errorf("Error while commiting the store.json file: %s", err)
 		return
 	}
-	logrus.Infof("The new deployment %s has been commited to store.json file", dpl.UUID)
+	logrus.Infof("The new deployment %s has been commited to store.json file", dpl.Uuid)
 	return
 }
 
 // DeploymentInsert inserts a deployment and return an evicted
 // deployment because the capacity has been reached.
-func (s *Store) DeploymentInsert(dpl Deployment) (getsEvicted bool, evicted Deployment) {
+func (s *Store) DeploymentInsert(dpl *pb.Deployment) (getsEvicted bool, evicted *pb.Deployment) {
 	var qty, older int
 	capacity := s.capacityMain
-	if dpl.IsTesting() {
+	if IsTesting(dpl) {
 		capacity = s.capacityTesting
 	}
 	for i, d := range s.Deployments {
-		if dpl.IsTesting() == d.IsTesting() {
+		if IsTesting(dpl) == IsTesting(d) {
 			older = i
 			qty += 1
 		}
@@ -93,15 +94,15 @@ func (s *Store) DeploymentInsert(dpl Deployment) (getsEvicted bool, evicted Depl
 		getsEvicted = true
 		s.Deployments = append(s.Deployments[:older], s.Deployments[older+1:]...)
 	}
-	s.Deployments = append([]Deployment{dpl}, s.Deployments...)
+	s.Deployments = append([]*pb.Deployment{dpl}, s.Deployments...)
 	return
 }
 
-func (s *Store) DeploymentList() []Deployment {
+func (s *Store) DeploymentList() []*pb.Deployment {
 	return s.Deployments
 }
 
-func (s *Store) LastDeployment() (ok bool, d Deployment) {
+func (s *Store) LastDeployment() (ok bool, d *pb.Deployment) {
 	if len(s.DeploymentList()) > 1 {
 		return true, s.DeploymentList()[0]
 	}

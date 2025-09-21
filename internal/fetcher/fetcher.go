@@ -6,16 +6,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
 )
 
 type Fetcher struct {
 	isFetching         atomic.Bool
-	repositoryStatus   repository.RepositoryStatus
+	repositoryStatus   *protobuf.RepositoryStatus
 	mu                 sync.RWMutex
 	submitRemotes      chan []string
-	RepositoryStatusCh chan repository.RepositoryStatus
+	RepositoryStatusCh chan *protobuf.RepositoryStatus
 	repo               repository.Repository
 }
 
@@ -23,7 +24,7 @@ func NewFetcher(repo repository.Repository) *Fetcher {
 	f := &Fetcher{
 		repo:               repo,
 		submitRemotes:      make(chan []string),
-		RepositoryStatusCh: make(chan repository.RepositoryStatus),
+		RepositoryStatusCh: make(chan *protobuf.RepositoryStatus),
 	}
 	f.repositoryStatus = repo.GetRepositoryStatus()
 	return f
@@ -45,13 +46,13 @@ type RemoteState struct {
 
 type State struct {
 	IsFetching       bool
-	RepositoryStatus repository.RepositoryStatus
+	RepositoryStatus *protobuf.RepositoryStatus
 }
 
-func (f *Fetcher) GetState() State {
+func (f *Fetcher) GetState() *protobuf.Fetcher {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	return State{
+	return &protobuf.Fetcher{
 		IsFetching:       f.isFetching.Load(),
 		RepositoryStatus: f.repositoryStatus,
 	}
@@ -61,7 +62,7 @@ func (f *Fetcher) Start() {
 	logrus.Info("fetcher: starting")
 	go func() {
 		remotes := make([]string, 0)
-		var workerRepositoryStatusCh chan repository.RepositoryStatus
+		var workerRepositoryStatusCh chan *protobuf.RepositoryStatus
 		for {
 			select {
 			case submittedRemotes := <-f.submitRemotes:

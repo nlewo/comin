@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/deployer"
-	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +21,7 @@ func TestDeployerBasic(t *testing.T) {
 	d.Run()
 	assert.False(t, d.IsDeploying())
 
-	g := store.Generation{SelectedCommitId: "commit-1"}
+	g := &protobuf.Generation{SelectedCommitId: "commit-1"}
 	d.Submit(g)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, d.IsDeploying())
@@ -51,14 +51,14 @@ func TestDeployerSubmit(t *testing.T) {
 	d.Run()
 	assert.False(t, d.IsDeploying())
 
-	d.Submit(store.Generation{SelectedCommitId: "commit-1"})
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, d.IsDeploying())
 		assert.Nil(c, d.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
-	d.Submit(store.Generation{SelectedCommitId: "commit-2"})
-	d.Submit(store.Generation{SelectedCommitId: "commit-3"})
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-2"})
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-3"})
 	assert.NotNil(t, d.GenerationToDeploy)
 
 	// To simulate the end of 2 deployments (commit-1 and commit-3)
@@ -92,7 +92,7 @@ func TestDeployerSuspend(t *testing.T) {
 	assert.False(t, d.IsDeploying())
 	assert.False(t, d.RunnerIsSuspended())
 
-	d.Submit(store.Generation{SelectedCommitId: "commit-1"})
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(t, d.RunnerIsSuspended())
 	}, 3*time.Second, 100*time.Millisecond)

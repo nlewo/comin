@@ -31,3 +31,13 @@ The main comin components are
 - the deployer: from a `Generation`, it creates a `Deployment` which
   is used to decide how to run the `switch-to-configuration` script.
 - the manager: it is in charge of managing all this components
+
+
+
+## Design choices
+
+### Protobuf
+
+Protobuf has been introduced to be able to stream events from the
+agent to the CLI client. This was pretty hard to achieve with the
+previous HTTP Rest API.

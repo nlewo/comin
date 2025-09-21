@@ -10,22 +10,24 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type DeployFunc func(context.Context, string, string) (bool, string, error)
 
 type Deployer struct {
-	GenerationCh       chan store.Generation
+	GenerationCh       chan *protobuf.Generation
 	deployerFunc       DeployFunc
-	DeploymentDoneCh   chan store.Deployment
+	DeploymentDoneCh   chan *protobuf.Deployment
 	mu                 sync.Mutex
-	deployment         atomic.Pointer[store.Deployment]
-	previousDeployment atomic.Pointer[store.Deployment]
+	deployment         atomic.Pointer[protobuf.Deployment]
+	previousDeployment atomic.Pointer[protobuf.Deployment]
 	isDeploying        atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
-	GenerationToDeploy    *store.Generation
+	GenerationToDeploy    *protobuf.Generation
 	generationAvailableCh chan struct{}
 	postDeploymentCommand string
 
@@ -37,17 +39,17 @@ type Deployer struct {
 }
 
 type State struct {
-	IsDeploying        bool              `json:"is_deploying"`
-	GenerationToDeploy *store.Generation `json:"generation_to_deploy"`
-	Deployment         *store.Deployment `json:"deployment"`
-	PreviousDeployment *store.Deployment `json:"previous_deployment"`
-	IsSuspended        bool              `json:"is_suspended"`
+	IsDeploying        bool                 `json:"is_deploying"`
+	GenerationToDeploy *protobuf.Generation `json:"generation_to_deploy"`
+	Deployment         *protobuf.Deployment `json:"deployment"`
+	PreviousDeployment *protobuf.Deployment `json:"previous_deployment"`
+	IsSuspended        bool                 `json:"is_suspended"`
 }
 
-func (d *Deployer) State() State {
+func (d *Deployer) State() *protobuf.Deployer {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return State{
+	return &protobuf.Deployer{
 		IsDeploying:        d.isDeploying.Load(),
 		GenerationToDeploy: d.GenerationToDeploy,
 		Deployment:         d.deployment.Load(),
@@ -56,7 +58,7 @@ func (d *Deployer) State() State {
 	}
 }
 
-func (d *Deployer) Deployment() *store.Deployment {
+func (d *Deployer) Deployment() *protobuf.Deployment {
 	return d.deployment.Load()
 }
 
@@ -72,42 +74,42 @@ func (d *Deployer) IsSuspended() bool {
 	return d.isSuspended.Load()
 }
 
-func showDeployment(padding string, d store.Deployment) {
+func showDeployment(padding string, d *protobuf.Deployment) {
 	switch d.Status {
-	case store.Running:
-		fmt.Printf("%sDeployment is running since %s\n", padding, humanize.Time(d.StartedAt))
+	case store.StatusToString(store.Running):
+		fmt.Printf("%sDeployment is running since %s\n", padding, humanize.Time(d.StartedAt.AsTime()))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
-	case store.Done:
-		fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt))
+	case store.StatusToString(store.Done):
+		fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
-	case store.Failed:
-		fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt))
+	case store.StatusToString(store.Failed):
+		fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
 	}
-	fmt.Printf("%sGeneration %s\n", padding, d.Generation.UUID)
+	fmt.Printf("%sGeneration %s\n", padding, d.Generation.Uuid)
 	fmt.Printf("%sCommit ID %s from %s/%s\n", padding, d.Generation.SelectedCommitId, d.Generation.SelectedRemoteName, d.Generation.SelectedBranchName)
 	fmt.Printf("%sCommit message %s\n", padding, strings.Trim(d.Generation.SelectedCommitMsg, "\n"))
 	fmt.Printf("%sOutpath %s\n", padding, d.Generation.OutPath)
 }
 
-func (s State) Show(padding string) {
+func Show(s *protobuf.Deployer, padding string) {
 	fmt.Printf("  Deployer\n")
 	if s.Deployment == nil {
 		if s.PreviousDeployment == nil {
 			fmt.Printf("%sNo deployment yet\n", padding)
 			return
 		}
-		showDeployment(padding, *s.PreviousDeployment)
+		showDeployment(padding, s.PreviousDeployment)
 		return
 	}
-	showDeployment(padding, *s.Deployment)
+	showDeployment(padding, s.Deployment)
 }
 
-func New(deployFunc DeployFunc, previousDeployment *store.Deployment, postDeploymentCommand string) *Deployer {
+func New(deployFunc DeployFunc, previousDeployment *protobuf.Deployment, postDeploymentCommand string) *Deployer {
 	deployer := &Deployer{
-		DeploymentDoneCh:      make(chan store.Deployment, 1),
+		DeploymentDoneCh:      make(chan *protobuf.Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
 		postDeploymentCommand: postDeploymentCommand,
@@ -139,18 +141,18 @@ func (d *Deployer) Resume() {
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
 // of the last deployment, this generation is skipped.
-func (d *Deployer) Submit(generation store.Generation) {
-	logrus.Infof("deployer: submiting generation %s", generation.UUID)
+func (d *Deployer) Submit(generation *protobuf.Generation) {
+	logrus.Infof("deployer: submiting generation %s", generation.Uuid)
 	d.mu.Lock()
 	previous := d.previousDeployment.Load()
 	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting != previous.Generation.SelectedBranchIsTesting {
-		d.GenerationToDeploy = &generation
+		d.GenerationToDeploy = generation
 		select {
 		case d.generationAvailableCh <- struct{}{}:
 		default:
 		}
 	} else {
-		logrus.Infof("deployer: skipping deployment of the generation %s because it is the same than the last deployment", generation.UUID)
+		logrus.Infof("deployer: skipping deployment of the generation %s because it is the same than the last deployment", generation.Uuid)
 	}
 	d.mu.Unlock()
 }
@@ -170,18 +172,18 @@ func (d *Deployer) Run() {
 			g := d.GenerationToDeploy
 			d.GenerationToDeploy = nil
 			d.mu.Unlock()
-			logrus.Infof("deployer: deploying generation %s", g.UUID)
+			logrus.Infof("deployer: deploying generation %s", g.Uuid)
 
 			operation := "switch"
 			if g.SelectedBranchIsTesting {
 				operation = "test"
 			}
-			dpl := store.Deployment{
-				UUID:       uuid.NewString(),
-				Generation: *g,
+			dpl := protobuf.Deployment{
+				Uuid:       uuid.NewString(),
+				Generation: g,
 				Operation:  operation,
-				StartedAt:  time.Now().UTC(),
-				Status:     store.Running,
+				StartedAt:  timestamppb.New(time.Now().UTC()),
+				Status:     store.StatusToString(store.Running),
 			}
 			d.mu.Lock()
 			d.previousDeployment.Swap(d.Deployment())
@@ -196,14 +198,13 @@ func (d *Deployer) Run() {
 				operation,
 			)
 
-			deployment := *d.Deployment()
-			deployment.EndedAt = time.Now().UTC()
-			deployment.Err = err
+			deployment := d.Deployment()
+			deployment.EndedAt = timestamppb.New(time.Now().UTC())
 			if err != nil {
 				deployment.ErrorMsg = err.Error()
-				deployment.Status = store.Failed
+				deployment.Status = store.StatusToString(store.Failed)
 			} else {
-				deployment.Status = store.Done
+				deployment.Status = store.StatusToString(store.Done)
 			}
 			deployment.RestartComin = cominNeedRestart
 			deployment.ProfilePath = profilePath
@@ -212,13 +213,13 @@ func (d *Deployer) Run() {
 			if cmd != "" {
 				_, err = runPostDeploymentCommand(cmd, deployment)
 				if err != nil {
-					logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", g.UUID, cmd, err)
+					logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", g.Uuid, cmd, err)
 				}
 			}
 
 			d.isDeploying.Store(false)
-			d.deployment.Store(&deployment)
-			d.DeploymentDoneCh <- *d.Deployment()
+			d.deployment.Store(deployment)
+			d.DeploymentDoneCh <- d.Deployment()
 		}
 	}()
 }
