@@ -56,20 +56,22 @@ func (s *cominServer) Resume(ctx context.Context, empty *emptypb.Empty) (*emptyp
 func (c *cominServer) Start() {
 	go func() {
 		if err := os.RemoveAll(c.unixSocketPath); err != nil {
-			log.Fatalf("Failed to remove existing socket file: %v", err)
+			log.Fatalf("server: failed to remove existing socket file: %s", err)
 		}
 		logrus.Infof("server: GRPC server starts listening on the Unix socket %s", c.unixSocketPath)
 		lis, err := net.Listen("unix", c.unixSocketPath)
 		if err != nil {
-			log.Fatalf("Failed to listen on %s: %v", c.unixSocketPath, err)
+			log.Fatalf("server: failed to listen on %s: %s", c.unixSocketPath, err)
 		}
 		if err := os.Chmod(c.unixSocketPath, 0777); err != nil {
-			log.Fatalf("Failed to change socket permissions: %v", err)
+			log.Fatalf("server: failed to change socket permissions: %s", err)
 		}
 		var opts []grpc.ServerOption
 		grpcServer := grpc.NewServer(opts...)
 		pb.RegisterCominServer(grpcServer, c)
-		grpcServer.Serve(lis)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("server: failed to serve: %s", err)
+		}
 	}()
 }
 

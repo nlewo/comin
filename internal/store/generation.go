@@ -9,7 +9,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/protobuf"
-	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -91,8 +90,8 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs *pb.RepositoryStatus) (g pb.Generation) {
-	g = pb.Generation{
+func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs *protobuf.RepositoryStatus) (g protobuf.Generation) {
+	g = protobuf.Generation{
 		Uuid:                    uuid.New().String(),
 		FlakeUrl:                fmt.Sprintf("git+file://%s?dir=%s&rev=%s", repositoryPath, repositoryDir, rs.SelectedCommitId),
 		Hostname:                hostname,
@@ -111,7 +110,7 @@ func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs
 	return
 }
 
-func GenerationShow(g *pb.Generation) {
+func GenerationShow(g *protobuf.Generation) {
 	padding := "    "
 	fmt.Printf("%sGeneration UUID %s\n", padding, g.Uuid)
 	fmt.Printf("%sCommit ID %s from %s/%s\n", padding, g.SelectedCommitId, g.SelectedRemoteName, g.SelectedBranchName)
@@ -151,7 +150,7 @@ func GenerationShow(g *pb.Generation) {
 
 // generationsGC garbage collects unwanted generations. This is not thread safe.
 func (s *Store) generationsGC() {
-	alive := make([]*pb.Generation, 0)
+	alive := make([]*protobuf.Generation, 0)
 	for _, g := range s.data.Generations {
 		if g == s.lastEvalStarted || g == s.lastEvalFinished || g == s.lastBuildStarted || g == s.lastBuildFinished {
 			alive = append(alive, g)
@@ -254,7 +253,7 @@ func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 }
 
 // GenerationGet is thread safe and returns a copy
-func (s *Store) GenerationGet(uuid string) (pb.Generation, error) {
+func (s *Store) GenerationGet(uuid string) (protobuf.Generation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, g := range s.data.Generations {
@@ -265,7 +264,7 @@ func (s *Store) GenerationGet(uuid string) (pb.Generation, error) {
 	return protobuf.Generation{}, fmt.Errorf("store: no generation with uuid %s has been found", uuid)
 }
 
-func (s *Store) generationGet(uuid string) (g *pb.Generation, err error) {
+func (s *Store) generationGet(uuid string) (g *protobuf.Generation, err error) {
 	for _, g := range s.data.Generations {
 		if g.Uuid == uuid {
 			return g, nil
@@ -274,6 +273,6 @@ func (s *Store) generationGet(uuid string) (g *pb.Generation, err error) {
 	return nil, fmt.Errorf("store: no generation with uuid %s has been found", uuid)
 }
 
-func GenerationHasToBeBuilt(g *pb.Generation) bool {
+func GenerationHasToBeBuilt(g *protobuf.Generation) bool {
 	return g.EvalStatus == Evaluated.String() && g.BuildStatus != Built.String()
 }

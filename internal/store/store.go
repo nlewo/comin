@@ -6,21 +6,20 @@ import (
 	"sync"
 
 	"github.com/nlewo/comin/internal/protobuf"
-	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type State struct {
-	Deployments []*pb.Deployment `json:"deployments"`
-	Generations []*pb.Generation `json:"generations"`
+	Deployments []*protobuf.Deployment `json:"deployments"`
+	Generations []*protobuf.Generation `json:"generations"`
 }
 
 type Data struct {
 	Version string `json:"version"`
 	// Deployments are order from the most recent to older
-	Deployments []*pb.Deployment `json:"deployments"`
-	Generations []*pb.Generation `json:"generations"`
+	Deployments []*protobuf.Deployment `json:"deployments"`
+	Generations []*protobuf.Generation `json:"generations"`
 }
 
 type Store struct {
@@ -31,16 +30,16 @@ type Store struct {
 	capacityMain     int
 	capacityTesting  int
 
-	lastEvalStarted   *pb.Generation
-	lastEvalFinished  *pb.Generation
-	lastBuildStarted  *pb.Generation
-	lastBuildFinished *pb.Generation
+	lastEvalStarted   *protobuf.Generation
+	lastEvalFinished  *protobuf.Generation
+	lastBuildStarted  *protobuf.Generation
+	lastBuildFinished *protobuf.Generation
 }
 
 func New(filename, gcRootsDir string, capacityMain, capacityTesting int) (*Store, error) {
 	data := &protobuf.Store{
-		Deployments: make([]*pb.Deployment, 0),
-		Generations: make([]*pb.Generation, 0),
+		Deployments: make([]*protobuf.Deployment, 0),
+		Generations: make([]*protobuf.Generation, 0),
 	}
 	st := Store{
 		filename:         filename,
@@ -61,7 +60,7 @@ func (s *Store) GetState() *protobuf.Store {
 	return s.data
 }
 
-func (s *Store) DeploymentInsertAndCommit(dpl *pb.Deployment) (ok bool, evicted *pb.Deployment) {
+func (s *Store) DeploymentInsertAndCommit(dpl *protobuf.Deployment) (ok bool, evicted *protobuf.Deployment) {
 	ok, evicted = s.DeploymentInsert(dpl)
 	if ok {
 		logrus.Infof("store: the deployment %s has been removed from store.json file", evicted.Uuid)
@@ -76,7 +75,7 @@ func (s *Store) DeploymentInsertAndCommit(dpl *pb.Deployment) (ok bool, evicted 
 
 // DeploymentInsert inserts a deployment and return an evicted
 // deployment because the capacity has been reached.
-func (s *Store) DeploymentInsert(dpl *pb.Deployment) (getsEvicted bool, evicted *pb.Deployment) {
+func (s *Store) DeploymentInsert(dpl *protobuf.Deployment) (getsEvicted bool, evicted *protobuf.Deployment) {
 	var qty, older int
 	capacity := s.capacityMain
 	if IsTesting(dpl) {
@@ -94,15 +93,15 @@ func (s *Store) DeploymentInsert(dpl *pb.Deployment) (getsEvicted bool, evicted 
 		getsEvicted = true
 		s.data.Deployments = append(s.data.Deployments[:older], s.data.Deployments[older+1:]...)
 	}
-	s.data.Deployments = append([]*pb.Deployment{dpl}, s.data.Deployments...)
+	s.data.Deployments = append([]*protobuf.Deployment{dpl}, s.data.Deployments...)
 	return
 }
 
-func (s *Store) DeploymentList() []*pb.Deployment {
+func (s *Store) DeploymentList() []*protobuf.Deployment {
 	return s.data.Deployments
 }
 
-func (s *Store) LastDeployment() (ok bool, d *pb.Deployment) {
+func (s *Store) LastDeployment() (ok bool, d *protobuf.Deployment) {
 	if len(s.DeploymentList()) > 1 {
 		return true, s.DeploymentList()[0]
 	}

@@ -32,7 +32,7 @@ func New(clientOpts ClientOpts) (c Client, err error) {
 }
 
 func (c Client) Close() {
-	c.conn.Close()
+	c.conn.Close() // nolint: errcheck
 }
 
 func (c Client) GetManagerState() (state *pb.State, err error) {
@@ -40,7 +40,7 @@ func (c Client) GetManagerState() (state *pb.State, err error) {
 }
 
 func (c Client) Fetch() {
-	c.cominClient.Fetch(context.Background(), &emptypb.Empty{})
+	c.cominClient.Fetch(context.Background(), &emptypb.Empty{}) // nolint: errcheck
 }
 func (c Client) Suspend() error {
 	_, err := c.cominClient.Suspend(context.Background(), &emptypb.Empty{})
