@@ -11,7 +11,7 @@ import (
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/prometheus"
-	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
@@ -87,92 +87,92 @@ func TestBuild(t *testing.T) {
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
-	assert.False(t, m.Fetcher.GetState().IsFetching)
-	assert.False(t, m.Builder.State().IsEvaluating)
-	assert.False(t, m.Builder.State().IsBuilding)
+	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
+	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
+	assert.False(t, m.Builder.State().IsBuilding.GetValue())
 
 	commitId := "id-1"
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: commitId,
 	}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, m.Builder.State().IsEvaluating)
-		assert.False(c, m.Builder.State().IsBuilding)
+		assert.True(c, m.Builder.State().IsEvaluating.GetValue())
+		assert.False(c, m.Builder.State().IsBuilding.GetValue())
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the failure of an evaluation
 	eMock.evalOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
-		assert.False(c, m.Builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
+		assert.False(c, m.Builder.State().IsBuilding.GetValue())
+		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
 		assert.NotNil(c, g.EvalErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	commitId = "id-2"
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: commitId,
 	}
 	// This simulates the success of an evaluation
 	eMock.evalOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
-		assert.True(c, m.Builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
-		assert.Nil(c, g.EvalErr)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
+		assert.True(c, m.Builder.State().IsBuilding.GetValue())
+		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
+		assert.Empty(c, g.EvalErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the failure of a build
 	eMock.buildOk <- false
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
-		assert.False(c, m.Builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
+		assert.False(c, m.Builder.State().IsBuilding.GetValue())
+		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
 		assert.NotNil(c, g.BuildErr)
 		assert.Nil(c, m.deployer.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the success of a build
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id-3",
 	}
 	eMock.evalOk <- true
 	eMock.buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
-		assert.False(c, m.Builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
-		assert.Nil(c, g.BuildErr)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
+		assert.False(c, m.Builder.State().IsBuilding.GetValue())
+		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
+		assert.Empty(c, g.BuildErr)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the success of another build and ensure this
 	// new build is the one proposed for deployment.
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id-4",
 	}
 	eMock.evalOk <- true
 	eMock.buildOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, m.Builder.State().IsEvaluating)
-		assert.False(c, m.Builder.State().IsBuilding)
-		g, _ := m.storage.GenerationGet(*m.Builder.GenerationUUID)
-		assert.Nil(c, g.BuildErr)
+		assert.False(c, m.Builder.State().IsEvaluating.GetValue())
+		assert.False(c, m.Builder.State().IsBuilding.GetValue())
+		g, _ := m.storage.GenerationGet(m.Builder.GenerationUuid)
+		assert.Empty(c, g.BuildErr)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// This simulates the push of new commit while building
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id-5",
 	}
 	eMock.evalOk <- true
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, m.Builder.State().IsBuilding)
+		assert.True(c, m.Builder.State().IsBuilding.GetValue())
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
@@ -194,10 +194,10 @@ func TestDeploy(t *testing.T) {
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
-	assert.False(t, m.Fetcher.GetState().IsFetching)
-	assert.False(t, m.Builder.State().IsEvaluating)
-	assert.False(t, m.Builder.State().IsBuilding)
-	m.deployer.Submit(store.Generation{})
+	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
+	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
+	assert.False(t, m.Builder.State().IsBuilding.GetValue())
+	m.deployer.Submit(&protobuf.Generation{})
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "profile-path", m.deployer.State().Deployment.ProfilePath)
 	}, 5*time.Second, 100*time.Millisecond)
@@ -219,12 +219,12 @@ func TestIncorrectMachineId(t *testing.T) {
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id",
 	}
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(t, m.GetState().Builder.IsBuilding)
+		assert.False(t, m.GetState().Builder.IsBuilding.GetValue())
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
@@ -244,12 +244,12 @@ func TestCorrectMachineId(t *testing.T) {
 	go m.Run()
 
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id",
 	}
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(t, m.GetState().Builder.IsBuilding)
+		assert.True(t, m.GetState().Builder.IsBuilding.GetValue())
 	}, 5*time.Second, 100*time.Millisecond)
 }
 

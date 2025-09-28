@@ -44,6 +44,10 @@ type HttpServer struct {
 	Port          int    `yaml:"port"`
 }
 
+type Grpc struct {
+	UnixSocketPath string `yaml:"unix_socket_path"`
+}
+
 type Configuration struct {
 	Hostname              string     `yaml:"hostname"`
 	StateDir              string     `yaml:"state_dir"`
@@ -51,6 +55,7 @@ type Configuration struct {
 	FlakeSubdirectory     string     `yaml:"flake_subdirectory"`
 	Remotes               []Remote   `yaml:"remotes"`
 	ApiServer             HttpServer `yaml:"api_server"`
+	Grpc                  Grpc       `yaml:"grpc"`
 	Exporter              HttpServer `yaml:"exporter"`
 	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
 	PostDeploymentCommand string     `yaml:"post_deployment_command"`

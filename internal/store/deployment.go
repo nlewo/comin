@@ -1,6 +1,6 @@
 package store
 
-import "time"
+import pb "github.com/nlewo/comin/internal/protobuf"
 
 type Status int64
 
@@ -25,20 +25,20 @@ func StatusToString(status Status) string {
 	return ""
 }
 
-type Deployment struct {
-	UUID       string     `json:"uuid"`
-	Generation Generation `json:"generation"`
-	StartedAt  time.Time  `json:"started_at"`
-	EndedAt    time.Time  `json:"ended_at"`
-	// It is ignored in the JSON marshaling
-	Err          error  `json:"-"`
-	ErrorMsg     string `json:"error_msg"`
-	RestartComin bool   `json:"restart_comin"`
-	ProfilePath  string `json:"profile_path"`
-	Status       Status `json:"status"`
-	Operation    string `json:"operation"`
+func StringToStatus(statusStr string) Status {
+	switch statusStr {
+	case "init":
+		return Init
+	case "running":
+		return Running
+	case "done":
+		return Done
+	case "failed":
+		return Failed
+	}
+	return Init
 }
 
-func (d Deployment) IsTesting() bool {
+func IsTesting(d *pb.Deployment) bool {
 	return d.Operation == "test"
 }

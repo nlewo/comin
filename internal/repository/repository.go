@@ -12,22 +12,26 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/internal/prometheus"
+	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 type repository struct {
 	Repository       *git.Repository
 	GitConfig        types.GitConfig
-	RepositoryStatus RepositoryStatus
+	RepositoryStatus *pb.RepositoryStatus
 	prometheus       prometheus.Prometheus
 	gpgPubliKeys     []string
 }
 
 type Repository interface {
-	FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan RepositoryStatus)
+	FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan *pb.RepositoryStatus)
 	// GetRepositoryStatus is currently not thread safe and is only used to initialize the fetcher
-	GetRepositoryStatus() RepositoryStatus
+	GetRepositoryStatus() *pb.RepositoryStatus
 }
 
 // repositoryStatus is the last saved repositoryStatus
@@ -64,17 +68,17 @@ func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prom
 	return
 }
 
-func (r *repository) GetRepositoryStatus() RepositoryStatus {
-	return r.RepositoryStatus
+func (r *repository) GetRepositoryStatus() *pb.RepositoryStatus {
+	return proto.CloneOf(r.RepositoryStatus)
 }
 
-func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan RepositoryStatus) {
-	rsCh = make(chan RepositoryStatus)
+func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan *pb.RepositoryStatus) {
+	rsCh = make(chan *pb.RepositoryStatus)
 	go func() {
 		// FIXME: switch to the FetchContext to clean resource up on timeout
 		r.Fetch(remoteNames)
 		_ = r.Update()
-		rsCh <- r.RepositoryStatus
+		rsCh <- proto.CloneOf(r.RepositoryStatus)
 	}()
 	return rsCh
 }
@@ -82,11 +86,10 @@ func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (
 func (r *repository) Fetch(remoteNames []string) {
 	var err error
 	var status string
-	r.RepositoryStatus.Error = nil
 	r.RepositoryStatus.ErrorMsg = ""
 	logrus.Debugf("repository: fetching %s", remoteNames)
 	for _, remote := range r.GitConfig.Remotes {
-		repositoryStatusRemote := r.RepositoryStatus.GetRemote(remote.Name)
+		repositoryStatusRemote := GetRemote(r.RepositoryStatus, remote.Name)
 		if !slices.Contains(remoteNames, remote.Name) {
 			continue
 		}
@@ -95,10 +98,10 @@ func (r *repository) Fetch(remoteNames []string) {
 			status = "failed"
 		} else {
 			repositoryStatusRemote.FetchErrorMsg = ""
-			repositoryStatusRemote.Fetched = true
+			repositoryStatusRemote.Fetched = wrapperspb.Bool(true)
 			status = "succeeded"
 		}
-		repositoryStatusRemote.FetchedAt = time.Now().UTC()
+		repositoryStatusRemote.FetchedAt = timestamppb.New(time.Now().UTC())
 		r.prometheus.IncFetchCounter(remote.Name, status)
 	}
 }
@@ -141,13 +144,13 @@ func (r *repository) Update() error {
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
-			r.RepositoryStatus.SelectedBranchIsTesting = false
+			r.RepositoryStatus.SelectedBranchIsTesting = wrapperspb.Bool(false)
 		}
 		if head.String() != r.RepositoryStatus.MainCommitId {
 			selectedCommitId = head.String()
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Main.Name
-			r.RepositoryStatus.SelectedBranchIsTesting = false
+			r.RepositoryStatus.SelectedBranchIsTesting = wrapperspb.Bool(false)
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
 			r.RepositoryStatus.MainCommitId = head.String()
 			r.RepositoryStatus.MainBranchName = remote.Main.Name
@@ -190,7 +193,7 @@ func (r *repository) Update() error {
 			selectedCommitId = head.String()
 			r.RepositoryStatus.SelectedCommitMsg = msg
 			r.RepositoryStatus.SelectedBranchName = remote.Testing.Name
-			r.RepositoryStatus.SelectedBranchIsTesting = true
+			r.RepositoryStatus.SelectedBranchIsTesting = wrapperspb.Bool(true)
 			r.RepositoryStatus.SelectedRemoteName = remote.Name
 			break
 		}
@@ -201,27 +204,25 @@ func (r *repository) Update() error {
 	}
 
 	if err := hardReset(*r, plumbing.NewHash(selectedCommitId)); err != nil {
-		r.RepositoryStatus.Error = err
 		r.RepositoryStatus.ErrorMsg = err.Error()
 		return err
 	}
 
 	if len(r.gpgPubliKeys) > 0 {
-		r.RepositoryStatus.SelectedCommitShouldBeSigned = true
+		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(true)
 		signedBy, err := headSignedBy(r.Repository, r.gpgPubliKeys)
 		if err != nil {
-			r.RepositoryStatus.Error = err
 			r.RepositoryStatus.ErrorMsg = err.Error()
 		}
 		if signedBy == nil {
-			r.RepositoryStatus.SelectedCommitSigned = false
+			r.RepositoryStatus.SelectedCommitSigned = wrapperspb.Bool(false)
 			r.RepositoryStatus.SelectedCommitSignedBy = ""
 		} else {
-			r.RepositoryStatus.SelectedCommitSigned = true
+			r.RepositoryStatus.SelectedCommitSigned = wrapperspb.Bool(true)
 			r.RepositoryStatus.SelectedCommitSignedBy = signedBy.PrimaryIdentity().Name
 		}
 	} else {
-		r.RepositoryStatus.SelectedCommitShouldBeSigned = false
+		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(false)
 	}
 	return nil
 }

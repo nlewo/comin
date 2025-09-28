@@ -1,11 +1,8 @@
 package cmd
 
 import (
-	"fmt"
-	"io"
-	"net/http"
-	"time"
-
+	"github.com/nlewo/comin/internal/client"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -15,18 +12,16 @@ var suspendCmd = &cobra.Command{
 	Long:  "This command suspends the build and deploy operations. If a build is running, it is stopped. If a deployment is running, it is not interupted but future deployment will be suspended.",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		url := "http://localhost:4242/api/manager/suspend"
-		client := http.Client{
-			Timeout: time.Second * 2,
+		opts := client.ClientOpts{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		}
-		req, err := http.NewRequest(http.MethodPost, url, nil)
+		c, err := client.New(opts)
 		if err != nil {
-			return
+			logrus.Fatal(err)
 		}
-		resp, _ := client.Do(req)
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			fmt.Printf("error: %s", string(body))
+		err = c.Suspend()
+		if err != nil {
+			logrus.Fatal(err)
 		}
 	},
 }
@@ -36,18 +31,16 @@ var resumeCmd = &cobra.Command{
 	Long:  "This command resumes the build and deploy operations. If a build has been suspended, it will be restarted.",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		url := "http://localhost:4242/api/manager/resume"
-		client := http.Client{
-			Timeout: time.Second * 2,
+		opts := client.ClientOpts{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		}
-		req, err := http.NewRequest(http.MethodPost, url, nil)
+		c, err := client.New(opts)
 		if err != nil {
-			return
+			logrus.Fatal(err)
 		}
-		resp, _ := client.Do(req)
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			fmt.Printf("error: %s", string(body))
+		err = c.Resume()
+		if err != nil {
+			logrus.Fatal(err)
 		}
 	},
 }

@@ -35,6 +35,8 @@
       buildInputs = [
         pkgs.go pkgs.godef pkgs.gopls
         pkgs.golangci-lint
+        pkgs.protobuf pkgs.protoc-gen-go pkgs.protoc-gen-go-grpc
+        pkgs.buf
       ];
     };
   };

@@ -8,8 +8,10 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/google/uuid"
-	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type EvalStatus int64
@@ -35,6 +37,21 @@ func (s EvalStatus) String() string {
 	return "unknown"
 }
 
+func StringToEvalStatus(statusStr string) EvalStatus {
+	switch statusStr {
+	case "initialized":
+		return EvalInit
+	case "evaluating":
+		return Evaluating
+	case "evaluated":
+		return Evaluated
+	case "failed":
+		return EvalFailed
+	default:
+		return EvalInit // Default value
+	}
+}
+
 type BuildStatus int64
 
 const (
@@ -58,44 +75,24 @@ func (s BuildStatus) String() string {
 	return "unknown"
 }
 
-// We consider each created genration is legit to be deployed: hard
-// reset is ensured at RepositoryStatus creation.
-type Generation struct {
-	UUID     uuid.UUID `json:"uuid"`
-	FlakeUrl string    `json:"flake-url"`
-	Hostname string    `json:"hostname"`
-
-	SelectedRemoteUrl       string `json:"remote-url"`
-	SelectedRemoteName      string `json:"remote-name"`
-	SelectedBranchName      string `json:"branch-name"`
-	SelectedCommitId        string `json:"commit-id"`
-	SelectedCommitMsg       string `json:"commit-msg"`
-	SelectedBranchIsTesting bool   `json:"branch-is-testing"`
-
-	MainCommitId   string `json:"main-commit-id"`
-	MainRemoteName string `json:"main-remote-name"`
-	MainBranchName string `json:"main-branch-name"`
-
-	EvalStatus    EvalStatus `json:"eval-status"`
-	EvalStartedAt time.Time  `json:"eval-started-at"`
-	EvalEndedAt   time.Time  `json:"eval-ended-at"`
-	EvalErr       error      `json:"-"`
-	EvalErrStr    string     `json:"eval-err"`
-	OutPath       string     `json:"outpath"`
-	DrvPath       string     `json:"drvpath"`
-
-	MachineId string `json:"machine-id"`
-
-	BuildStatus    BuildStatus `json:"build-status"`
-	BuildStartedAt time.Time   `json:"build-started-at"`
-	BuildEndedAt   time.Time   `json:"build-ended-at"`
-	BuildErr       error       `json:"-"`
-	BuildErrStr    string      `json:"build-err"`
+func StringToBuildStatus(statusStr string) BuildStatus {
+	switch statusStr {
+	case "initialized":
+		return BuildInit
+	case "building":
+		return Building
+	case "built":
+		return Built
+	case "failed":
+		return BuildFailed
+	default:
+		return BuildInit
+	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs repository.RepositoryStatus) (g Generation) {
-	g = Generation{
-		UUID:                    uuid.New(),
+func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs *protobuf.RepositoryStatus) (g protobuf.Generation) {
+	g = protobuf.Generation{
+		Uuid:                    uuid.New().String(),
 		FlakeUrl:                fmt.Sprintf("git+file://%s?dir=%s&rev=%s", repositoryPath, repositoryDir, rs.SelectedCommitId),
 		Hostname:                hostname,
 		SelectedRemoteName:      rs.SelectedRemoteName,
@@ -106,60 +103,60 @@ func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs
 		MainRemoteName:          rs.MainBranchName,
 		MainBranchName:          rs.MainBranchName,
 		MainCommitId:            rs.MainCommitId,
-		EvalStatus:              EvalInit,
-		BuildStatus:             BuildInit,
+		EvalStatus:              EvalInit.String(),
+		BuildStatus:             BuildInit.String(),
 	}
-	s.Generations = append(s.Generations, &g)
+	s.data.Generations = append(s.data.Generations, &g)
 	return
 }
 
-func GenerationShow(g Generation) {
+func GenerationShow(g *protobuf.Generation) {
 	padding := "    "
-	fmt.Printf("%sGeneration UUID %s\n", padding, g.UUID)
+	fmt.Printf("%sGeneration UUID %s\n", padding, g.Uuid)
 	fmt.Printf("%sCommit ID %s from %s/%s\n", padding, g.SelectedCommitId, g.SelectedRemoteName, g.SelectedBranchName)
 	fmt.Printf("%sCommit message: %s\n", padding, strings.Trim(g.SelectedCommitMsg, "\n"))
 
-	if g.EvalStatus == EvalInit {
+	if g.EvalStatus == EvalInit.String() {
 		fmt.Printf("%sNo evaluation started\n", padding)
 		return
 	}
-	if g.EvalStatus == Evaluating {
-		fmt.Printf("%sEvaluation started %s\n", padding, humanize.Time(g.EvalStartedAt))
+	if g.EvalStatus == Evaluating.String() {
+		fmt.Printf("%sEvaluation started %s\n", padding, humanize.Time(g.EvalStartedAt.AsTime()))
 		return
 	}
 	switch g.EvalStatus {
-	case Evaluated:
-		fmt.Printf("%sEvaluation succedded %s\n", padding, humanize.Time(g.EvalEndedAt))
+	case Evaluated.String():
+		fmt.Printf("%sEvaluation succedded %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
 		fmt.Printf("%s  DrvPath: %s\n", padding, g.DrvPath)
-	case EvalFailed:
-		fmt.Printf("%sEvaluation failed %s\n", padding, humanize.Time(g.EvalEndedAt))
+	case EvalFailed.String():
+		fmt.Printf("%sEvaluation failed %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
 	}
-	if g.BuildStatus == BuildInit {
+	if g.BuildStatus == BuildInit.String() {
 		fmt.Printf("%sNo build started\n", padding)
 		return
 	}
-	if g.BuildStatus == Building {
-		fmt.Printf("%sBuild started %s\n", padding, humanize.Time(g.BuildStartedAt))
+	if g.BuildStatus == Building.String() {
+		fmt.Printf("%sBuild started %s\n", padding, humanize.Time(g.BuildStartedAt.AsTime()))
 		return
 	}
 	switch g.BuildStatus {
-	case Built:
-		fmt.Printf("%sBuilt %s\n", padding, humanize.Time(g.BuildEndedAt))
+	case Built.String():
+		fmt.Printf("%sBuilt %s\n", padding, humanize.Time(g.BuildEndedAt.AsTime()))
 		fmt.Printf("%s  Outpath:  %s\n", padding, g.OutPath)
-	case BuildFailed:
-		fmt.Printf("%sBuild failed %s\n", padding, humanize.Time(g.BuildEndedAt))
+	case BuildFailed.String():
+		fmt.Printf("%sBuild failed %s\n", padding, humanize.Time(g.BuildEndedAt.AsTime()))
 	}
 }
 
 // generationsGC garbage collects unwanted generations. This is not thread safe.
 func (s *Store) generationsGC() {
-	alive := make([]*Generation, 0)
-	for _, g := range s.Generations {
+	alive := make([]*protobuf.Generation, 0)
+	for _, g := range s.data.Generations {
 		if g == s.lastEvalStarted || g == s.lastEvalFinished || g == s.lastBuildStarted || g == s.lastBuildFinished {
 			alive = append(alive, g)
 		}
 	}
-	for _, g := range s.Generations {
+	for _, g := range s.data.Generations {
 		keep := false
 		for _, a := range alive {
 			if g == a {
@@ -168,74 +165,72 @@ func (s *Store) generationsGC() {
 			}
 		}
 		if !keep {
-			logrus.Infof("store: generation %s removed from the store", g.UUID)
+			logrus.Infof("store: generation %s removed from the store", g.Uuid)
 		}
 	}
-	s.Generations = alive
+	s.data.Generations = alive
 }
 
-func (s *Store) GenerationEvalStarted(uuid uuid.UUID) error {
+func (s *Store) GenerationEvalStarted(uuid string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	g, err := s.generationGet(uuid)
 	if err != nil {
 		return err
 	}
-	g.EvalStartedAt = time.Now().UTC()
-	g.EvalStatus = Evaluating
+	g.EvalStartedAt = timestamppb.New(time.Now().UTC())
+	g.EvalStatus = Evaluating.String()
 	s.lastEvalStarted = g
 	s.generationsGC()
 	return nil
 }
 
-func (s *Store) GenerationEvalFinished(uuid uuid.UUID, drvPath, outPath, machineId string, evalErr error) error {
+func (s *Store) GenerationEvalFinished(uuid string, drvPath, outPath, machineId string, evalErr error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	g, err := s.generationGet(uuid)
 	if err != nil {
 		return err
 	}
-	g.EvalErr = evalErr
 	if evalErr != nil {
-		g.EvalErrStr = evalErr.Error()
-		g.EvalStatus = EvalFailed
+		g.EvalErr = evalErr.Error()
+		g.EvalStatus = EvalFailed.String()
 	} else {
-		g.EvalStatus = Evaluated
+		g.EvalStatus = Evaluated.String()
 	}
 	g.DrvPath = drvPath
 	g.OutPath = outPath
 	g.MachineId = machineId
-	g.EvalEndedAt = time.Now().UTC()
+	g.EvalEndedAt = timestamppb.New(time.Now().UTC())
 	s.lastEvalFinished = g
 	s.generationsGC()
 	return nil
 }
 
-func (s *Store) GenerationBuildStart(uuid uuid.UUID) error {
+func (s *Store) GenerationBuildStart(uuid string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	g, err := s.generationGet(uuid)
 	if err != nil {
 		return err
 	}
-	g.BuildStartedAt = time.Now().UTC()
-	g.BuildStatus = Building
+	g.BuildStartedAt = timestamppb.New(time.Now().UTC())
+	g.BuildStatus = Building.String()
 	s.lastBuildStarted = g
 	s.generationsGC()
 	return nil
 }
 
-func (s *Store) GenerationBuildFinished(uuid uuid.UUID, buildErr error) error {
+func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	g, err := s.generationGet(uuid)
 	if err != nil {
 		return err
 	}
-	g.BuildEndedAt = time.Now().UTC()
-	g.BuildErr = buildErr
+	g.BuildEndedAt = timestamppb.New(time.Now().UTC())
 	if buildErr == nil {
-		g.BuildStatus = Built
+		g.BuildStatus = Built.String()
 		// We create a gcroots for the last built generation
 		// in order to avoid the Nix garbage collector to
 		// remove this store path which could be used later by
@@ -246,38 +241,38 @@ func (s *Store) GenerationBuildFinished(uuid uuid.UUID, buildErr error) error {
 			}
 		}
 		if err := os.Symlink(g.OutPath, s.generationGcRoot); err != nil {
-			logrus.Errorf("Could not create the gcroot symlink for the generation %s: %s", g.UUID.String(), err)
+			logrus.Errorf("Could not create the gcroot symlink for the generation %s: %s", g.Uuid, err)
 		}
 	} else {
-		g.BuildStatus = BuildFailed
-		g.BuildErrStr = buildErr.Error()
+		g.BuildStatus = BuildFailed.String()
+		g.BuildErr = buildErr.Error()
 	}
 	s.lastBuildFinished = g
 	s.generationsGC()
 	return nil
 }
 
-// GenerationGet is thread safe
-func (s *Store) GenerationGet(uuid uuid.UUID) (g Generation, err error) {
+// GenerationGet is thread safe and returns a copy
+func (s *Store) GenerationGet(uuid string) (protobuf.Generation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, g := range s.Generations {
-		if g.UUID == uuid {
-			return *g, nil
+	for _, g := range s.data.Generations {
+		if g.Uuid == uuid {
+			return *(proto.CloneOf(g)), nil
 		}
 	}
-	return Generation{}, fmt.Errorf("store: no generation with uuid %s has been found", uuid)
+	return protobuf.Generation{}, fmt.Errorf("store: no generation with uuid %s has been found", uuid)
 }
 
-func (s *Store) generationGet(uuid uuid.UUID) (g *Generation, err error) {
-	for _, g := range s.Generations {
-		if g.UUID == uuid {
+func (s *Store) generationGet(uuid string) (g *protobuf.Generation, err error) {
+	for _, g := range s.data.Generations {
+		if g.Uuid == uuid {
 			return g, nil
 		}
 	}
-	return &Generation{}, fmt.Errorf("store: no generation with uuid %s has been found", uuid)
+	return nil, fmt.Errorf("store: no generation with uuid %s has been found", uuid)
 }
 
-func GenerationHasToBeBuilt(g Generation) bool {
-	return g.EvalStatus == Evaluated && g.BuildStatus != Built
+func GenerationHasToBeBuilt(g *protobuf.Generation) bool {
+	return g.EvalStatus == Evaluated.String() && g.BuildStatus != Built.String()
 }

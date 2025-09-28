@@ -3,22 +3,22 @@ package utils
 import (
 	"context"
 
-	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/protobuf"
 )
 
 type RepositoryMock struct {
-	RsCh chan repository.RepositoryStatus
+	RsCh chan *protobuf.RepositoryStatus
 }
 
 func NewRepositoryMock() (r *RepositoryMock) {
-	rsCh := make(chan repository.RepositoryStatus, 5)
+	rsCh := make(chan *protobuf.RepositoryStatus, 5)
 	return &RepositoryMock{
 		RsCh: rsCh,
 	}
 }
-func (r *RepositoryMock) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan repository.RepositoryStatus) {
+func (r *RepositoryMock) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan *protobuf.RepositoryStatus) {
 	return r.RsCh
 }
-func (r *RepositoryMock) GetRepositoryStatus() repository.RepositoryStatus {
-	return repository.RepositoryStatus{}
+func (r *RepositoryMock) GetRepositoryStatus() *protobuf.RepositoryStatus {
+	return &protobuf.RepositoryStatus{}
 }

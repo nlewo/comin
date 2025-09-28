@@ -6,43 +6,44 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/nlewo/comin/internal/store"
+	pb "github.com/nlewo/comin/internal/protobuf"
+
 	"github.com/sirupsen/logrus"
 )
 
-func envGitSha(d store.Deployment) string {
+func envGitSha(d *pb.Deployment) string {
 	return d.Generation.SelectedCommitId
 }
 
-func envGitRef(d store.Deployment) string {
+func envGitRef(d *pb.Deployment) string {
 	return fmt.Sprintf("%s/%s", d.Generation.SelectedRemoteName, d.Generation.SelectedBranchName)
 }
 
-func envGitMessage(d store.Deployment) string {
+func envGitMessage(d *pb.Deployment) string {
 	return strings.Trim(d.Generation.SelectedCommitMsg, "\n")
 }
 
-func envCominGeneration(d store.Deployment) string {
-	return d.Generation.UUID.String()
+func envCominGeneration(d *pb.Deployment) string {
+	return d.Generation.Uuid
 }
 
-func envCominHostname(d store.Deployment) string {
+func envCominHostname(d *pb.Deployment) string {
 	return d.Generation.Hostname
 }
 
-func envCominStatus(d store.Deployment) string {
-	return store.StatusToString(d.Status)
+func envCominStatus(d *pb.Deployment) string {
+	return d.Status
 }
 
-func envCominErrorMessage(d store.Deployment) string {
+func envCominErrorMessage(d *pb.Deployment) string {
 	return d.ErrorMsg
 }
 
-func envCominFlakeUrl(d store.Deployment) string {
+func envCominFlakeUrl(d *pb.Deployment) string {
 	return d.Generation.FlakeUrl
 }
 
-func runPostDeploymentCommand(command string, d store.Deployment) (string, error) {
+func runPostDeploymentCommand(command string, d *pb.Deployment) (string, error) {
 
 	cmd := exec.Command(command)
 

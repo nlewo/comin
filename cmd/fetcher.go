@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"net/http"
-	"time"
-
+	"github.com/nlewo/comin/internal/client"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -12,15 +11,14 @@ var fetchCmd = &cobra.Command{
 	Short: "Trigger a fetch of all Git remotes",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		url := "http://localhost:4242/api/fetcher/fetch"
-		client := http.Client{
-			Timeout: time.Second * 2,
+		opts := client.ClientOpts{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		}
-		req, err := http.NewRequest(http.MethodPost, url, nil)
+		c, err := client.New(opts)
 		if err != nil {
-			return
+			logrus.Fatal(err)
 		}
-		_, _ = client.Do(req)
+		c.Fetch()
 	},
 }
 
