@@ -37,6 +37,21 @@ var runCmd = &cobra.Command{
 
 		gitConfig := config.MkGitConfig(cfg)
 
+		if err := os.MkdirAll(cfg.StateDir, os.ModePerm); err != nil {
+			logrus.Errorf("Failed to create the state dir %s: %s", cfg.StateDir, err)
+			return
+		}
+		// TODO: this could be removed from release > 0.9.0.
+		//
+		// Previous comin versions didn't correctly set the
+		// permissions of the /var/lib/comin folder. This
+		// means we need to explicitly chown them to fix this
+		// for existing comin deployments.
+		if err := os.Chmod(cfg.StateDir, 0755); err != nil {
+			logrus.Errorf("Failed to chmod the state dir %s: %s", cfg.StateDir, err)
+			return
+		}
+
 		executor, err := executorPkg.NewNixOS()
 		if runtime.GOOS == "darwin" {
 			executor, err = executorPkg.NewNixDarwin()
