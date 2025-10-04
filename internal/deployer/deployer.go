@@ -101,6 +101,9 @@ func Show(s *protobuf.Deployer, padding string) {
 }
 
 func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf.Deployment, postDeploymentCommand string) *Deployer {
+	if previousDeployment != nil {
+		logrus.Infof("deployer: initializing with previous deployment %s", previousDeployment.Uuid)
+	}
 	deployer := &Deployer{
 		store:                 store,
 		DeploymentDoneCh:      make(chan *protobuf.Deployment, 1),
@@ -110,7 +113,6 @@ func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf
 
 		resumeCh: make(chan struct{}, 1),
 	}
-
 	deployer.previousDeployment.Store(previousDeployment)
 	deployer.deployment.Store(previousDeployment)
 
@@ -139,7 +141,7 @@ func (d *Deployer) Submit(generation *protobuf.Generation) {
 	logrus.Infof("deployer: submiting generation %s", generation.Uuid)
 	d.mu.Lock()
 	previous := d.previousDeployment.Load()
-	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting != previous.Generation.SelectedBranchIsTesting {
+	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting.GetValue() != previous.Generation.SelectedBranchIsTesting.GetValue() {
 		d.GenerationToDeploy = generation
 		select {
 		case d.generationAvailableCh <- struct{}{}:
