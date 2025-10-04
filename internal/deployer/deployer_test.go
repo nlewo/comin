@@ -7,6 +7,7 @@ import (
 
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/internal/store"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +18,10 @@ func TestDeployerBasic(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := deployer.New(deployFunc, nil, "")
+	tmp := t.TempDir()
+	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	assert.Nil(t, err)
+	d := deployer.New(s, deployFunc, nil, "")
 	d.Run()
 	assert.False(t, d.IsDeploying())
 
@@ -47,7 +51,10 @@ func TestDeployerSubmit(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := deployer.New(deployFunc, nil, "")
+	tmp := t.TempDir()
+	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	assert.Nil(t, err)
+	d := deployer.New(s, deployFunc, nil, "")
 	d.Run()
 	assert.False(t, d.IsDeploying())
 
@@ -84,7 +91,10 @@ func TestDeployerSuspend(t *testing.T) {
 		return false, "profile-path", nil
 	}
 
-	d := deployer.New(deployFunc, nil, "")
+	tmp := t.TempDir()
+	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	assert.Nil(t, err)
+	d := deployer.New(s, deployFunc, nil, "")
 	d.Run()
 	assert.False(t, d.IsSuspended())
 	d.Suspend()

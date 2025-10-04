@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
@@ -37,6 +36,7 @@ type Deployer struct {
 	// This is true when the runner is actually suspended. This is
 	// mainly used for testing purpose.
 	runnerIsSuspended atomic.Bool
+	store             *store.Store
 }
 
 func (d *Deployer) State() *protobuf.Deployer {
@@ -100,8 +100,9 @@ func Show(s *protobuf.Deployer, padding string) {
 	showDeployment(padding, s.Deployment)
 }
 
-func New(deployFunc DeployFunc, previousDeployment *protobuf.Deployment, postDeploymentCommand string) *Deployer {
+func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf.Deployment, postDeploymentCommand string) *Deployer {
 	deployer := &Deployer{
+		store:                 store,
 		DeploymentDoneCh:      make(chan *protobuf.Deployment, 1),
 		deployerFunc:          deployFunc,
 		generationAvailableCh: make(chan struct{}, 1),
@@ -171,19 +172,16 @@ func (d *Deployer) Run() {
 			if g.SelectedBranchIsTesting.GetValue() {
 				operation = "test"
 			}
-			dpl := protobuf.Deployment{
-				Uuid:       uuid.NewString(),
-				Generation: g,
-				Operation:  operation,
-				StartedAt:  timestamppb.New(time.Now().UTC()),
-				Status:     store.StatusToString(store.Running),
-			}
+			dpl := d.store.NewDeployment(g, operation)
 			d.mu.Lock()
 			d.previousDeployment.Swap(d.Deployment())
-			d.deployment.Store(&dpl)
+			d.deployment.Store(dpl)
 			d.isDeploying.Store(true)
 			d.mu.Unlock()
-
+			if err := d.store.DeploymentStarted(dpl.Uuid); err != nil {
+				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
+				continue
+			}
 			ctx := context.TODO()
 			cominNeedRestart, profilePath, err := d.deployerFunc(
 				ctx,
@@ -193,15 +191,10 @@ func (d *Deployer) Run() {
 
 			deployment := d.Deployment()
 			deployment.EndedAt = timestamppb.New(time.Now().UTC())
-			if err != nil {
-				deployment.ErrorMsg = err.Error()
-				deployment.Status = store.StatusToString(store.Failed)
-			} else {
-				deployment.Status = store.StatusToString(store.Done)
+			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath); err != nil {
+				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
+				continue
 			}
-			deployment.RestartComin = wrapperspb.Bool(cominNeedRestart)
-			deployment.ProfilePath = profilePath
-
 			cmd := d.postDeploymentCommand
 			if cmd != "" {
 				_, err = runPostDeploymentCommand(cmd, deployment)
