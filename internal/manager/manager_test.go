@@ -19,11 +19,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var mkDeployerMock = func() *deployer.Deployer {
+var mkDeployerMock = func(t *testing.T) *deployer.Deployer {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "", nil
 	}
-	return deployer.New(deployFunc, nil, "")
+	tmp := t.TempDir()
+	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	assert.Nil(t, err)
+	return deployer.New(s, deployFunc, nil, "")
 }
 
 type ExecutorMock struct {
@@ -83,7 +86,7 @@ func TestBuild(t *testing.T) {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
-	d := deployer.New(deployFunc, nil, "")
+	d := deployer.New(s, deployFunc, nil, "")
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
@@ -190,7 +193,7 @@ func TestDeploy(t *testing.T) {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
-	d := deployer.New(deployFunc, nil, "")
+	d := deployer.New(s, deployFunc, nil, "")
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
@@ -213,7 +216,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	eMock := NewExecutorMock("invalid-machine-id")
 	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
-	d := mkDeployerMock()
+	d := mkDeployerMock(t)
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
 	go m.Run()
@@ -238,7 +241,7 @@ func TestCorrectMachineId(t *testing.T) {
 	eMock := NewExecutorMock("the-test-machine-id")
 	eMock.evalOk <- true
 	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
-	d := mkDeployerMock()
+	d := mkDeployerMock(t)
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
 	go m.Run()
@@ -261,7 +264,7 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	eMock.buildOk <- true
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
-	d := mkDeployerMock()
+	d := mkDeployerMock(t)
 
 	// Test with Darwin configuration
 	e, _ := executor.NewNixDarwin()

@@ -18,7 +18,7 @@ func Serve(m *manager.Manager, p prometheus.Prometheus, apiAddress string, apiPo
 	muxMetrics.Handle("/metrics", p.Handler())
 	go func() {
 		url := fmt.Sprintf("%s:%d", metricsAddress, metricsPort)
-		logrus.Infof("Starting the metrics server on %s", url)
+		logrus.Infof("http: starting the metrics server on %s", url)
 		if err := http.ListenAndServe(url, muxMetrics); err != nil {
 			logrus.Errorf("Error while running the metrics server: %s", err)
 			os.Exit(1)
