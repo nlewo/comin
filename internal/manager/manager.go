@@ -163,8 +163,20 @@ func (m *Manager) Run() {
 		case dpl := <-m.deployer.DeploymentDoneCh:
 			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, dpl.Status)
 			getsEvicted, evicted := m.storage.DeploymentInsertAndCommit(dpl)
+
+			// We remove the evicted deployment profile
+			// path only if this profile path is not used
+			// by any still alive other deployments.
 			if getsEvicted && evicted.ProfilePath != "" {
-				_ = profile.RemoveProfilePath(evicted.ProfilePath)
+				alive := false
+				for _, d := range m.storage.DeploymentList() {
+					if d.ProfilePath == evicted.ProfilePath {
+						alive = true
+					}
+				}
+				if !alive {
+					_ = profile.RemoveProfilePath(evicted.ProfilePath)
+				}
 			}
 			m.needToReboot = m.executor.NeedToReboot()
 			m.prometheus.SetHostInfo(m.needToReboot)
