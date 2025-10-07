@@ -74,6 +74,7 @@ message State {
   Deployer deployer = 4;
   Fetcher fetcher = 5;
   Store store = 6;
+  Controller controller = 7;
 }
 
 message Deployer {
@@ -91,6 +92,18 @@ message Builder {
   string generation_uuid = 4;
   google.protobuf.BoolValue is_suspended = 5;
   string hostname = 6;
+}
+
+message Controller {
+  bool generation_enable_confirmation_for_build = 1;
+  string generation_available_for_build = 2;
+  string generation_need_confirmation_for_build = 3;
+  string generation_allowed_for_build = 4;
+
+  bool generation_enable_confirmation_for_deploy = 5;
+  string generation_available_for_deploy = 6;
+  string generation_need_confirmation_for_deploy = 7;
+  string generation_allowed_for_deploy = 8;
 }
 
 message Fetcher {

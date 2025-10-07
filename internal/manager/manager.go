@@ -40,11 +40,12 @@ type Manager struct {
 	Builder    *builder.Builder
 	deployer   *deployer.Deployer
 	executor   executor.Executor
+	controller *Controller
 
 	isSuspended bool
 }
 
-func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, executor executor.Executor) *Manager {
+func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, executor executor.Executor, controller *Controller) *Manager {
 	m := &Manager{
 		machineId:      machineId,
 		stateRequestCh: make(chan struct{}),
@@ -56,6 +57,7 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 		Builder:        builder,
 		deployer:       deployer,
 		executor:       executor,
+		controller:     controller,
 	}
 	return m
 }
@@ -130,8 +132,11 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
 					logrus.Infof("manager: the build of the generation %s is submitted", generation.Uuid)
-					m.Builder.SubmitBuild(generationUUID)
+					m.controller.AskForBuild(generationUUID)
 				}
+			case generationUUID := <-m.controller.submitGenerationForBuild:
+				m.Builder.SubmitBuild(generationUUID)
+
 			case generationUUID := <-m.Builder.BuildDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
@@ -140,11 +145,17 @@ func (m *Manager) FetchAndBuild() {
 				}
 				if generation.BuildErr == "" {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					m.deployer.Submit(&generation)
+					m.controller.AskForDeploy(generationUUID)
 				}
+			case generationUUID := <-m.controller.submitGenerationForDeploy:
+				generation, err := m.storage.GenerationGet(generationUUID)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				m.deployer.Submit(&generation)
 			}
 		}
-
 	}()
 }
 
