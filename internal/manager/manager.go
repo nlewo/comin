@@ -40,11 +40,12 @@ type Manager struct {
 	Builder    *builder.Builder
 	deployer   *deployer.Deployer
 	executor   executor.Executor
+	Controller *Controller
 
 	isSuspended bool
 }
 
-func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, executor executor.Executor) *Manager {
+func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, executor executor.Executor, controller *Controller) *Manager {
 	m := &Manager{
 		machineId:      machineId,
 		stateRequestCh: make(chan struct{}),
@@ -56,6 +57,7 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 		Builder:        builder,
 		deployer:       deployer,
 		executor:       executor,
+		Controller:     controller,
 	}
 	return m
 }
@@ -73,6 +75,7 @@ func (m *Manager) toState() *pb.State {
 		Deployer:     m.deployer.State(),
 		Fetcher:      m.Fetcher.GetState(),
 		Store:        m.storage.GetState(),
+		Controller:   m.Controller.State(),
 	}
 }
 
@@ -130,8 +133,11 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
 					logrus.Infof("manager: the build of the generation %s is submitted", generation.Uuid)
-					m.Builder.SubmitBuild(generationUUID)
+					m.Controller.AskForBuild(generationUUID)
 				}
+			case generationUUID := <-m.Controller.Build.submit:
+				m.Builder.SubmitBuild(generationUUID)
+
 			case generationUUID := <-m.Builder.BuildDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
@@ -140,11 +146,19 @@ func (m *Manager) FetchAndBuild() {
 				}
 				if generation.BuildErr == "" {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					m.deployer.Submit(&generation)
+					if !m.deployer.IsAlreadyDeployed(&generation) {
+						m.Controller.AskForDeploy(generationUUID)
+					}
 				}
+			case generationUUID := <-m.Controller.Deploy.submit:
+				generation, err := m.storage.GenerationGet(generationUUID)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				m.deployer.Submit(&generation)
 			}
 		}
-
 	}()
 }
 

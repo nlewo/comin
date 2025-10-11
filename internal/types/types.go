@@ -49,14 +49,16 @@ type Grpc struct {
 }
 
 type Configuration struct {
-	Hostname              string     `yaml:"hostname"`
-	StateDir              string     `yaml:"state_dir"`
-	StateFilepath         string     `yaml:"state_filepath"`
-	FlakeSubdirectory     string     `yaml:"flake_subdirectory"`
-	Remotes               []Remote   `yaml:"remotes"`
-	ApiServer             HttpServer `yaml:"api_server"`
-	Grpc                  Grpc       `yaml:"grpc"`
-	Exporter              HttpServer `yaml:"exporter"`
-	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
-	PostDeploymentCommand string     `yaml:"post_deployment_command"`
+	Hostname                    string     `yaml:"hostname"`
+	StateDir                    string     `yaml:"state_dir"`
+	StateFilepath               string     `yaml:"state_filepath"`
+	FlakeSubdirectory           string     `yaml:"flake_subdirectory"`
+	Remotes                     []Remote   `yaml:"remotes"`
+	ApiServer                   HttpServer `yaml:"api_server"`
+	Grpc                        Grpc       `yaml:"grpc"`
+	Exporter                    HttpServer `yaml:"exporter"`
+	GpgPublicKeyPaths           []string   `yaml:"gpg_public_key_paths"`
+	PostDeploymentCommand       string     `yaml:"post_deployment_command"`
+	EnableConfirmationForBuild  bool       `yaml:"enable_confirmation_for_build,omitempty"`
+	EnableConfirmationForDeploy bool       `yaml:"enable_confirmation_for_deploy,omitempty"`
 }
