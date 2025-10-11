@@ -187,6 +187,16 @@
           pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
         '';
       };
+      confirmationForBuild = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether to ask a user confirmation before building a new generation.";
+      };
+      confirmationForDeploy = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Whether to ask a user confirmation before deploying a new generation.";
+      };
     };
   };
 }
