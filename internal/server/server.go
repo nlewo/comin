@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/protobuf"
 	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -51,6 +52,19 @@ func (s *cominServer) Resume(ctx context.Context, empty *emptypb.Empty) (*emptyp
 		err = st.Err()
 	}
 	return nil, err
+}
+
+func (s *cominServer) Confirm(ctx context.Context, req *protobuf.ConfirmRequest) (*emptypb.Empty, error) {
+	switch req.For {
+	case "build":
+		s.manager.Controller.Build.Confirm(req.GenerationUuid)
+	case "deploy":
+		s.manager.Controller.Deploy.Confirm(req.GenerationUuid)
+	case "all":
+		s.manager.Controller.Build.Confirm(req.GenerationUuid)
+		s.manager.Controller.Deploy.Confirm(req.GenerationUuid)
+	}
+	return nil, nil
 }
 
 func (c *cominServer) Start() {

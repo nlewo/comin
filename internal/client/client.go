@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/nlewo/comin/internal/protobuf"
 	pb "github.com/nlewo/comin/internal/protobuf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -48,5 +49,11 @@ func (c Client) Suspend() error {
 }
 func (c Client) Resume() error {
 	_, err := c.cominClient.Resume(context.Background(), &emptypb.Empty{})
+	return err
+}
+
+func (c Client) Confirm(generationUUID, for_ string) error {
+	_, err := c.cominClient.Confirm(context.Background(), &protobuf.ConfirmRequest{
+		GenerationUuid: generationUUID, For: for_})
 	return err
 }

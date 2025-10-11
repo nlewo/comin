@@ -5,28 +5,56 @@ import (
 
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+type Confirmer struct {
+	state  *protobuf.Confirmer
+	submit chan string
+}
+
+func NewConfirmer(enable bool) *Confirmer {
+	return &Confirmer{
+		state: &protobuf.Confirmer{
+			Enabled: wrapperspb.Bool(enable),
+		},
+		submit: make(chan string, 1),
+	}
+}
+
+func (c *Confirmer) ask(generationUUID string) {
+	c.state.Needed = generationUUID
+	if !c.state.Enabled.GetValue() || c.state.Allowed == generationUUID {
+		c.Confirm(generationUUID)
+	}
+}
+
+func (c *Confirmer) Confirm(generationUUID string) {
+	c.state.Allowed = generationUUID
+	if c.state.Needed == generationUUID {
+		c.state.Needed = ""
+		c.submit <- generationUUID
+	}
+}
+
 type Controller struct {
-	submitGenerationForBuild  chan string
-	submitGenerationForDeploy chan string
-	state                     *protobuf.Controller
-	mu                        sync.Mutex
+	Build  *Confirmer
+	Deploy *Confirmer
+	mu     sync.Mutex
 }
 
 func NewController(enableConfirmationForBuild, enableConfirmationForDeploy bool) *Controller {
 	return &Controller{
-		submitGenerationForBuild:  make(chan string, 1),
-		submitGenerationForDeploy: make(chan string, 1),
-		state: &protobuf.Controller{
-			GenerationEnableConfirmationForBuild:  enableConfirmationForBuild,
-			GenerationEnableConfirmationForDeploy: enableConfirmationForDeploy,
-		},
+		Build:  NewConfirmer(enableConfirmationForBuild),
+		Deploy: NewConfirmer(enableConfirmationForDeploy),
 	}
 }
 
 func (c *Controller) State() *protobuf.Controller {
-	return c.state
+	return &protobuf.Controller{
+		Build:  c.Build.state,
+		Deploy: c.Deploy.state,
+	}
 }
 
 // AskForBuild indicates the buildment of a generation needs to be
@@ -36,26 +64,15 @@ func (c *Controller) State() *protobuf.Controller {
 func (c *Controller) AskForBuild(generationUUID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
 	logrus.Infof("controller: ask for building generation %s", generationUUID)
-	c.state.GenerationNeedConfirmationForBuild = generationUUID
-	if !c.state.GenerationEnableConfirmationForBuild || c.state.GenerationAllowedForBuild == generationUUID {
-		c.confirmForBuild(generationUUID)
-	}
+	c.Build.ask(generationUUID)
 }
 
 func (c *Controller) ConfirmForBuild(generationUUID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logrus.Infof("controller: confirm for building generation %s", generationUUID)
-	c.confirmForBuild(generationUUID)
-}
-
-func (c *Controller) confirmForBuild(generationUUID string) {
-	c.state.GenerationAllowedForBuild = generationUUID
-	if c.state.GenerationNeedConfirmationForBuild == generationUUID {
-		c.submitGenerationForBuild <- generationUUID
-	}
+	c.Build.Confirm(generationUUID)
 }
 
 // AskForDeploy indicates the deployment of a generation needs to be
@@ -67,30 +84,20 @@ func (c *Controller) AskForDeploy(generationUUID string) {
 	defer c.mu.Unlock()
 
 	logrus.Infof("controller: ask for deploying generation %s", generationUUID)
-	c.state.GenerationNeedConfirmationForDeploy = generationUUID
-	if !c.state.GenerationEnableConfirmationForDeploy || c.state.GenerationAllowedForDeploy == generationUUID {
-		c.confirmForDeploy(generationUUID)
-	}
+	c.Deploy.ask(generationUUID)
 }
 
 func (c *Controller) ConfirmForDeploy(generationUUID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logrus.Infof("controller: confirm for deploying generation %s", generationUUID)
-	c.confirmForDeploy(generationUUID)
-}
-
-func (c *Controller) confirmForDeploy(generationUUID string) {
-	c.state.GenerationAllowedForDeploy = generationUUID
-	if c.state.GenerationNeedConfirmationForDeploy == generationUUID {
-		c.submitGenerationForDeploy <- generationUUID
-	}
+	c.Deploy.Confirm(generationUUID)
 }
 
 func (c *Controller) ConfirmForBuildAndDeploy(generationUUID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logrus.Infof("controller: confirm for building and deploying generation %s", generationUUID)
-	c.confirmForBuild(generationUUID)
-	c.confirmForDeploy(generationUUID)
+	c.Build.Confirm(generationUUID)
+	c.Deploy.Confirm(generationUUID)
 }

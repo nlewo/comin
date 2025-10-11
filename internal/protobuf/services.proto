@@ -17,6 +17,12 @@ service Comin {
   rpc Fetch(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Suspend(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Resume(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Confirm(ConfirmRequest) returns (google.protobuf.Empty);
+}
+
+message ConfirmRequest {
+  string generationUuid = 1;
+  string for = 2;  // possible values: "build", "deploy", "all"
 }
 
 // We consider each created genration is legit to be deployed: hard
@@ -94,16 +100,15 @@ message Builder {
   string hostname = 6;
 }
 
-message Controller {
-  bool generation_enable_confirmation_for_build = 1;
-  string generation_available_for_build = 2;
-  string generation_need_confirmation_for_build = 3;
-  string generation_allowed_for_build = 4;
+message Confirmer { 
+  google.protobuf.BoolValue enabled = 1;
+  string needed = 2;
+  string allowed = 3;
+}
 
-  bool generation_enable_confirmation_for_deploy = 5;
-  string generation_available_for_deploy = 6;
-  string generation_need_confirmation_for_deploy = 7;
-  string generation_allowed_for_deploy = 8;
+message Controller {
+  Confirmer build = 1;
+  Confirmer deploy = 2;
 }
 
 message Fetcher {

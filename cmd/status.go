@@ -68,6 +68,9 @@ func jsonStatus(status *pb.State) {
 }
 
 func onelineStatus(status *pb.State) {
+	if status.Controller.Build.Needed != "" || status.Controller.Deploy.Needed != "" {
+		fmt.Printf(" ❔")
+	}
 	if status.IsSuspended.GetValue() {
 		fmt.Printf(" ⏸️ ")
 	}

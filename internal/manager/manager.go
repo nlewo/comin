@@ -40,7 +40,7 @@ type Manager struct {
 	Builder    *builder.Builder
 	deployer   *deployer.Deployer
 	executor   executor.Executor
-	controller *Controller
+	Controller *Controller
 
 	isSuspended bool
 }
@@ -57,7 +57,7 @@ func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fet
 		Builder:        builder,
 		deployer:       deployer,
 		executor:       executor,
-		controller:     controller,
+		Controller:     controller,
 	}
 	return m
 }
@@ -75,6 +75,7 @@ func (m *Manager) toState() *pb.State {
 		Deployer:     m.deployer.State(),
 		Fetcher:      m.Fetcher.GetState(),
 		Store:        m.storage.GetState(),
+		Controller:   m.Controller.State(),
 	}
 }
 
@@ -132,9 +133,9 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
 					logrus.Infof("manager: the build of the generation %s is submitted", generation.Uuid)
-					m.controller.AskForBuild(generationUUID)
+					m.Controller.AskForBuild(generationUUID)
 				}
-			case generationUUID := <-m.controller.submitGenerationForBuild:
+			case generationUUID := <-m.Controller.Build.submit:
 				m.Builder.SubmitBuild(generationUUID)
 
 			case generationUUID := <-m.Builder.BuildDone:
@@ -145,9 +146,11 @@ func (m *Manager) FetchAndBuild() {
 				}
 				if generation.BuildErr == "" {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					m.controller.AskForDeploy(generationUUID)
+					if !m.deployer.IsAlreadyDeployed(&generation) {
+						m.Controller.AskForDeploy(generationUUID)
+					}
 				}
-			case generationUUID := <-m.controller.submitGenerationForDeploy:
+			case generationUUID := <-m.Controller.Deploy.submit:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
 					logrus.Error(err)
