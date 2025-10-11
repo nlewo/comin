@@ -33,10 +33,10 @@ var confirmationAcceptCmd = &cobra.Command{
 		deploy_uuid := state.Controller.Deploy.Needed
 		if build_uuid != "" {
 			fmt.Printf("Generation %s accepted for building and deploying\n", build_uuid)
-			c.Confirm(build_uuid, "all")
+			c.Confirm(build_uuid, "all") // nolint
 		} else if deploy_uuid != "" {
 			fmt.Printf("Generation %s accepted for deploying\n", deploy_uuid)
-			c.Confirm(deploy_uuid, "deploy")
+			c.Confirm(deploy_uuid, "deploy") // nolint
 		} else {
 			fmt.Printf("No confirmation is required\n")
 		}

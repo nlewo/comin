@@ -8,7 +8,6 @@ import (
 
 	"github.com/nlewo/comin/internal/manager"
 	"github.com/nlewo/comin/internal/protobuf"
-	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -18,12 +17,12 @@ import (
 )
 
 type cominServer struct {
-	pb.CominServer
+	protobuf.CominServer
 	manager        *manager.Manager
 	unixSocketPath string
 }
 
-func (s *cominServer) GetState(ctx context.Context, empty *emptypb.Empty) (*pb.State, error) {
+func (s *cominServer) GetState(ctx context.Context, empty *emptypb.Empty) (*protobuf.State, error) {
 	return s.manager.GetState(), nil
 }
 
@@ -82,7 +81,7 @@ func (c *cominServer) Start() {
 		}
 		var opts []grpc.ServerOption
 		grpcServer := grpc.NewServer(opts...)
-		pb.RegisterCominServer(grpcServer, c)
+		protobuf.RegisterCominServer(grpcServer, c)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("server: failed to serve: %s", err)
 		}
