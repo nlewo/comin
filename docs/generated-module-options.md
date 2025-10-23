@@ -34,7 +34,43 @@ null or package
 
 
 
+## services\.comin\.confirmationForBuild
+
+Whether to ask a user confirmation before building a new generation\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
+## services\.comin\.confirmationForDeploy
+
+
+
+Whether to ask a user confirmation before deploying a new generation\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
 ## services\.comin\.debug
+
+
 
 Whether to run comin in debug mode\. Be careful, secrets are shown!\.
 
