@@ -19,7 +19,7 @@ import (
 // GetExpectedMachineId evals nixosConfigurations or darwinConfigurations based on configurationAttr
 // returns (machine-id, nil) is comin.machineId is set, ("", nil) otherwise.
 func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr string) (machineId string, err error) {
-	expr := fmt.Sprintf("%s#%s.%s.config.services.comin.machineId", path, configurationAttr, hostname)
+	expr := fmt.Sprintf("%s#%s.'%s'.config.services.comin.machineId", path, configurationAttr, hostname)
 	args := []string{
 		"eval",
 		expr,
@@ -61,7 +61,7 @@ func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer)
 }
 
 func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr string) (drvPath string, outPath string, err error) {
-	installable := fmt.Sprintf("%s#%s.%s.config.system.build.toplevel", flakeUrl, configurationAttr, hostname)
+	installable := fmt.Sprintf("%s#%s.'%s'.config.system.build.toplevel", flakeUrl, configurationAttr, hostname)
 	args := []string{
 		"derivation",
 		"show",
