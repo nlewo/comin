@@ -19,17 +19,19 @@ import (
 type DeployFunc func(context.Context, string, string) (bool, string, error)
 
 type Deployer struct {
-	GenerationCh       chan *protobuf.Generation
-	deployerFunc       DeployFunc
-	DeploymentDoneCh   chan *protobuf.Deployment
-	mu                 sync.Mutex
-	deployment         atomic.Pointer[protobuf.Deployment]
-	previousDeployment atomic.Pointer[protobuf.Deployment]
-	isDeploying        atomic.Bool
+	GenerationCh             chan *protobuf.Generation
+	deployerFunc             DeployFunc
+	DeploymentDoneCh         chan *protobuf.Deployment
+	mu                       sync.Mutex
+	deployment               atomic.Pointer[protobuf.Deployment]
+	previousDeployment       atomic.Pointer[protobuf.Deployment]
+	isDeploying              atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
-	GenerationToDeploy    *protobuf.Generation
-	generationAvailableCh chan struct{}
-	postDeploymentCommand string
+	GenerationToDeploy      *protobuf.Generation
+	generationAvailableCh   chan struct{}
+	postDeploymentCommand   string
+	livelinessCheckCommand  string
+
 
 	isSuspended atomic.Bool
 	resumeCh    chan struct{}
@@ -100,16 +102,17 @@ func Show(s *protobuf.Deployer, padding string) {
 	showDeployment(padding, s.Deployment)
 }
 
-func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf.Deployment, postDeploymentCommand string) *Deployer {
+func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf.Deployment, postDeploymentCommand string, livelinessCheckCommand string) *Deployer {
 	if previousDeployment != nil {
 		logrus.Infof("deployer: initializing with previous deployment %s", previousDeployment.Uuid)
 	}
 	deployer := &Deployer{
-		store:                 store,
-		DeploymentDoneCh:      make(chan *protobuf.Deployment, 1),
-		deployerFunc:          deployFunc,
-		generationAvailableCh: make(chan struct{}, 1),
-		postDeploymentCommand: postDeploymentCommand,
+		store:                  store,
+		DeploymentDoneCh:       make(chan *protobuf.Deployment, 1),
+		deployerFunc:           deployFunc,
+		generationAvailableCh:  make(chan struct{}, 1),
+		postDeploymentCommand:  postDeploymentCommand,
+		livelinessCheckCommand: livelinessCheckCommand,
 
 		resumeCh: make(chan struct{}, 1),
 	}
@@ -197,6 +200,37 @@ func (d *Deployer) Run() {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
 				continue
 			}
+            // The deployment is finished, we can run the liveliness check if any
+			if err == nil && d.livelinessCheckCommand != "" {
+				livelinessCheckCmd := d.livelinessCheckCommand
+				logrus.Infof("deployer: deploying generation %s, running liveliness check command [%s]", g.Uuid, livelinessCheckCmd)
+				output, errLiveliness := runLivelinessCheckCommand(livelinessCheckCmd, deployment)
+				if errLiveliness != nil {
+					logrus.Errorf("deployer: deploying generation %s, liveliness check command [%s] failed: %s", g.Uuid, livelinessCheckCmd, output)
+
+					// Rollback
+					operation = "switch"
+					previous := d.previousDeployment.Load()
+					if previous != nil {
+						logrus.Infof("deployer: rolling back to generation %s", previous.Generation.Uuid)
+						_, _, errRollback := d.deployerFunc(
+							ctx,
+							previous.Generation.OutPath,
+							operation,
+						)
+						if errRollback != nil {
+							logrus.Errorf("deployer: rollback to generation %s failed: %s", previous.Generation.Uuid, errRollback)
+							// We are in a failed state, we let the deployment as Failed
+						} else {
+							// We have rollbacked to the previous deployment
+							d.deployment.Store(previous)
+						}
+					}
+				} else {
+					logrus.Infof("deployer: deploying generation %s, liveliness check command [%s] succeed", g.Uuid, livelinessCheckCmd)
+				}
+			}
+
 			cmd := d.postDeploymentCommand
 			if cmd != "" {
 				_, err = runPostDeploymentCommand(cmd, deployment)
