@@ -16,6 +16,9 @@ in rec {
   } // (
     lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null)
       { post_deployment_command = cfg.services.comin.postDeploymentCommand; }
+  ) // (
+    lib.optionalAttrs (cfg.services.comin.livelinessCheckCommand != null)
+      { liveliness_check_command = cfg.services.comin.livelinessCheckCommand; }
   );
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 }

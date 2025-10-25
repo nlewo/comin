@@ -21,7 +21,7 @@ func TestDeployerBasic(t *testing.T) {
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	d := deployer.New(s, deployFunc, nil, "")
+	d := deployer.New(s, deployFunc, nil, "", "")
 	d.Run()
 	assert.False(t, d.IsDeploying())
 
@@ -54,7 +54,7 @@ func TestDeployerSubmit(t *testing.T) {
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	d := deployer.New(s, deployFunc, nil, "")
+	d := deployer.New(s, deployFunc, nil, "", "")
 	d.Run()
 	assert.False(t, d.IsDeploying())
 
@@ -74,7 +74,7 @@ func TestDeployerSubmit(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.False(c, d.IsDeploying())
 		assert.Equal(c, "profile-path", d.Deployment().ProfilePath)
-		assert.Nil(t, d.GenerationToDeploy)
+		assert.Nil(c, d.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -94,7 +94,7 @@ func TestDeployerSuspend(t *testing.T) {
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	d := deployer.New(s, deployFunc, nil, "")
+	d := deployer.New(s, deployFunc, nil, "", "")
 	d.Run()
 	assert.False(t, d.IsSuspended())
 	d.Suspend()

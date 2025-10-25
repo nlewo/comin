@@ -26,7 +26,7 @@ var mkDeployerMock = func(t *testing.T) *deployer.Deployer {
 	tmp := t.TempDir()
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
-	return deployer.New(s, deployFunc, nil, "")
+	return deployer.New(s, deployFunc, nil, "", "")
 }
 
 type ExecutorMock struct {
@@ -86,7 +86,7 @@ func TestBuild(t *testing.T) {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
-	d := deployer.New(s, deployFunc, nil, "")
+	d := deployer.New(s, deployFunc, nil, "", "")
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
@@ -193,7 +193,7 @@ func TestDeploy(t *testing.T) {
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
-	d := deployer.New(s, deployFunc, nil, "")
+	d := deployer.New(s, deployFunc, nil, "", "")
 	e, _ := executor.NewNixOS()
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
