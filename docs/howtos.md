@@ -21,6 +21,20 @@ has to be on top of the `main` branch.
 To `nixos-rebuild switch` to this configuration, the `main` branch has
 to be rebased on the `testing` branch.
 
+## How to ensure a deployment is healthy
+
+After a deployment, you might want to run some checks to ensure that the new generation is healthy. For example, you might want to check that a web server is responding or that a specific service is running.
+
+Comin provides the `services.comin.livelinessCheckCommand` option to run a command after a successful deployment. If the command returns a non-zero exit code, the deployment is considered failed and comin will roll back to the previous generation.
+
+Here is an example of how to use it:
+
+```nix
+services.comin.livelinessCheckCommand = "curl --fail http://localhost:8080/health";
+```
+
+In this example, comin will run `curl --fail http://localhost:8080/health` after each deployment. If the command fails, comin will roll back to the previous generation.
+
 ## Iterate faster with local repository
 
 By default, comin polls remotes every 60 seconds. You could however

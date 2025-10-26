@@ -180,6 +180,29 @@ string
 
 
 
+## services\.comin\.livelinessCheckCommand
+
+
+
+A command to be executed after a successful deployment to check if the new generation is healthy\. If the command returns a non-zero exit code, the deployment is considered failed and comin will roll back to the previous generation\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+` null `
+
+
+
+*Example:*
+` "curl --fail http://localhost:8080/health" `
+
+
+
 ## services\.comin\.machineId
 
 
