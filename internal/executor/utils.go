@@ -16,16 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var storeDir string
-
-func init() {
-	var err error
-	storeDir, err = GetNixStoreDir()
-	if err != nil {
-		panic(err)
-	}
-}
-
 func GetNixStoreDir() (string, error) {
 	if dir := os.Getenv("NIX_STORE_DIR"); dir != "" {
 		return dir, nil
@@ -82,7 +72,7 @@ func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer)
 	return nil
 }
 
-func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr string) (drvPath string, outPath string, err error) {
+func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr, storeDir string) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#%s.%s.config.system.build.toplevel", flakeUrl, configurationAttr, hostname)
 	args := []string{
 		"derivation",
