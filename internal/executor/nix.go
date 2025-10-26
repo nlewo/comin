@@ -15,14 +15,20 @@ type NixLocal struct {
 	storeDir          string
 }
 
-func NewNixExecutor(configurationAttr string) (*NixLocal, error) {
-	storeDir, err := GetNixStoreDir()
-	if err != nil {
-		return nil, err
+func NewNixExecutor(configurationAttr string, storeDir ...string) (*NixLocal, error) {
+	var s string
+	var err error
+	if len(storeDir) > 0 && storeDir[0] != "" {
+		s = storeDir[0]
+	} else {
+		s, err = GetNixStoreDir()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &NixLocal{
 		configurationAttr: configurationAttr,
-		storeDir:          storeDir,
+		storeDir:          s,
 	}, nil
 }
 

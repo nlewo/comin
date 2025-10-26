@@ -69,8 +69,9 @@ func (n ExecutorMock) Build(ctx context.Context, drvPath string) (err error) {
 }
 func NewExecutorMock(machineId string) ExecutorMock {
 	return ExecutorMock{
-		evalOk:  make(chan bool, 1),
-		buildOk: make(chan bool, 1),
+		evalOk:    make(chan bool, 1),
+		buildOk:   make(chan bool, 1),
+		machineId: machineId,
 	}
 }
 
@@ -87,7 +88,7 @@ func TestBuild(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "", "")
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixExecutor("nixosConfigurations", "/nix/store")
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
@@ -194,7 +195,7 @@ func TestDeploy(t *testing.T) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "", "")
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixExecutor("nixosConfigurations", "/nix/store")
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e)
 	go m.Run()
 	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
@@ -217,7 +218,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	eMock := NewExecutorMock("invalid-machine-id")
 	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixExecutor("nixosConfigurations", "/nix/store")
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
 	go m.Run()
 
@@ -242,7 +243,7 @@ func TestCorrectMachineId(t *testing.T) {
 	eMock.evalOk <- true
 	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixExecutor("nixosConfigurations", "/nix/store")
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e)
 	go m.Run()
 
@@ -267,7 +268,7 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	d := mkDeployerMock(t)
 
 	// Test with Darwin configuration
-	e, _ := executor.NewNixDarwin()
+	e, _ := executor.NewNixExecutor("darwinConfigurations", "/nix/store")
 	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", e)
 
 	// Verify the manager was created with the correct configuration attribute
