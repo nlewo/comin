@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -34,6 +35,11 @@ func (s Scheduler) FetchRemotes(fetcher *fetcher.Fetcher, remotes []types.Remote
 				),
 				gocron.NewTask(
 					func() {
+						if remote.Poller.RandomDelay > 0 {
+							delay := time.Duration(rand.Intn(remote.Poller.RandomDelay)) * time.Second
+							logrus.Infof("scheduler: sleeping for %s before fetching remote %s", delay, remote.Name)
+							time.Sleep(delay)
+						}
 						logrus.Debugf("scheduler: running task for remote %s", remote.Name)
 						fetcher.TriggerFetch([]string{remote.Name})
 					},

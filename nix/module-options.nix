@@ -142,6 +142,13 @@
                       The poller period in seconds.
                     '';
                   };
+                  random_delay = mkOption {
+                    type = types.int;
+                    default = 0;
+                    description = ''
+                      The maximum random delay in seconds before fetching the remote.
+                    '';
+                  };
                 };
               };
             };

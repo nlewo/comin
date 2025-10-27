@@ -11,7 +11,8 @@ type Remote struct {
 }
 
 type Poller struct {
-	Period int `yaml:"period"`
+	Period      int `yaml:"period"`
+	RandomDelay int `yaml:"random_delay"`
 }
 
 type GitConfig struct {
