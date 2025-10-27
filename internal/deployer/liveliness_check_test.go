@@ -19,14 +19,14 @@ func TestLivelinessCheck(t *testing.T) {
 	}
 
 	// Test with a failing liveliness check
-	d := New(s, deployFunc, nil, "", "exit 1")
+	d := New(s, deployFunc, nil, "", "sh -c 'exit 1'")
 	d.Submit(&protobuf.Generation{Uuid: "a"})
 	go d.Run()
 	deployment := <-d.DeploymentDoneCh
 	assert.Equal(t, store.StatusToString(store.Failed), deployment.Status)
 
 	// Test with a succeeding liveliness check
-	d = New(s, deployFunc, nil, "", "exit 0")
+	d = New(s, deployFunc, nil, "", "sh -c 'exit 0'")
 	d.Submit(&protobuf.Generation{Uuid: "b"})
 	go d.Run()
 	deployment = <-d.DeploymentDoneCh

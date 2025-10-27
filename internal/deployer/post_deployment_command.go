@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
+	shellwords "github.com/mattn/go-shellwords"
 	pb "github.com/nlewo/comin/internal/protobuf"
 
 	"github.com/sirupsen/logrus"
@@ -44,9 +45,15 @@ func envCominFlakeUrl(d *pb.Deployment) string {
 }
 
 func runPostDeploymentCommand(command string, d *pb.Deployment) (string, error) {
+	args, err := shellwords.Parse(command)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse command %q: %w", command, err)
+	}
+	if len(args) == 0 {
+		return "", fmt.Errorf("empty command")
+	}
 
-	cmd := exec.Command(command)
-
+	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = append(os.Environ(),
 		"COMIN_GIT_SHA="+envGitSha(d),
 		"COMIN_GIT_REF="+envGitRef(d),
@@ -65,6 +72,5 @@ func runPostDeploymentCommand(command string, d *pb.Deployment) (string, error) 
 	}
 
 	logrus.Debugf("cmd:[%s] output:[%s]", command, outputString)
-
 	return outputString, nil
 }
