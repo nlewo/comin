@@ -201,7 +201,7 @@ func (d *Deployer) Run() {
 			if err == nil && d.livelinessCheckCommand != "" {
 				livelinessCheckCmd := d.livelinessCheckCommand
 				logrus.Infof("deployer: deploying generation %s, running liveliness check command [%s]", g.Uuid, livelinessCheckCmd)
-				output, errLiveliness := runLivelinessCheckCommand(livelinessCheckCmd, deployment)
+				_, errLiveliness := runLivelinessCheckCommand(livelinessCheckCmd, deployment)
 				if errLiveliness != nil {
 					logrus.Errorf("deployer: deploying generation %s, liveliness check command [%s] failed: %v", g.Uuid, livelinessCheckCmd, errLiveliness)
 					err = errLiveliness
