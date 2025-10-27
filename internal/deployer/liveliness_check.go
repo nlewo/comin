@@ -20,7 +20,7 @@ func runLivelinessCheckCommand(command string, deployment *protobuf.Deployment) 
 		return "", err
 	}
 
-	cmd := exec.Command("sh", "-c", tpl.String())
+	cmd := exec.Command(tpl.String())
 	cmd.Env = os.Environ()
 	output, err := cmd.CombinedOutput()
 
