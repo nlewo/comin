@@ -8,6 +8,8 @@ package manager
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
@@ -183,6 +185,13 @@ func (m *Manager) Run() {
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
 				logrus.Infof("manager: comin needs to be restarted")
+				if runtime.GOOS == "linux" {
+					logrus.Infof("manager: running 'systemctl daemon-reload'")
+					cmd := exec.Command("systemctl", "daemon-reload")
+					if err := cmd.Run(); err != nil {
+						logrus.Errorf("manager: 'systemctl daemon-reload' failed: %s", err)
+					}
+				}
 				logrus.Infof("manager: exiting comin to let the service manager restart it")
 				os.Exit(0)
 			}
