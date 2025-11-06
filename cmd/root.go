@@ -30,7 +30,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(rollbackCmd)
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if debug {
 			logrus.Info("Debug logs enabled")

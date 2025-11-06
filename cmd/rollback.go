@@ -63,7 +63,7 @@ var rollbackCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.AddCommand(rollbackCmd)
 	rollbackCmd.PersistentFlags().StringVarP(&configFilepath, "config", "", "", "the configuration file path")
 	_ = rollbackCmd.MarkPersistentFlagRequired("config")
 }
-
