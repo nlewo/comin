@@ -31,7 +31,7 @@ func GetNixStoreDir() (string, error) {
 // GetExpectedMachineId evals nixosConfigurations or darwinConfigurations based on configurationAttr
 // returns (machine-id, nil) is comin.machineId is set, ("", nil) otherwise.
 func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr string) (machineId string, err error) {
-	expr := fmt.Sprintf("%s#%s.%s.config.services.comin.machineId", path, configurationAttr, hostname)
+	expr := fmt.Sprintf("%s#%s.\"%s\".config.services.comin.machineId", path, configurationAttr, hostname)
 	args := []string{
 		"eval",
 		expr,
