@@ -91,3 +91,13 @@ When comin is running on a Darwin system, it automatically builds and
 deploys a configuration found in the flake output
 `darwinConfigurations.hostname`. So, you only need to set this flake
 output and run comin on the target machine.
+
+## How to rollback to a previous generation
+
+Comin allows you to manually rollback to the last successful deployment. To do so, you can use the `rollback` command:
+
+```bash
+comin rollback --config /etc/comin/configuration.yaml
+```
+
+This command will find the last successful deployment and will redeploy it.
