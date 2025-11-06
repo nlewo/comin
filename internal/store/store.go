@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+
 type State struct {
 	Deployments []*protobuf.Deployment `json:"deployments"`
 	Generations []*protobuf.Generation `json:"generations"`
@@ -107,6 +108,16 @@ func (s *Store) LastDeployment() (ok bool, d *protobuf.Deployment) {
 	}
 	return
 }
+
+func (s *Store) GetLastSuccessfulDeployment() (d *protobuf.Deployment, err error) {
+	for _, d := range s.data.Deployments {
+		if d.Status == StatusToString(Done) {
+			return d, nil
+		}
+	}
+	return nil, errors.New("no successful deployment found")
+}
+
 
 func (s *Store) Load() (err error) {
 	var data protobuf.Store

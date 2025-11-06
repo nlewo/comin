@@ -75,11 +75,19 @@ func showDeployment(padding string, d *protobuf.Deployment) {
 		fmt.Printf("%sDeployment is running since %s\n", padding, humanize.Time(d.StartedAt.AsTime()))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 	case store.StatusToString(store.Done):
-		fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		if d.Operation == "rollback" {
+			fmt.Printf("%sRollback succeeded %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		} else {
+			fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		}
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
 	case store.StatusToString(store.Failed):
-		fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		if d.Operation == "rollback" {
+			fmt.Printf("%sRollback failed %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		} else {
+			fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		}
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
 	}
@@ -207,21 +215,10 @@ func (d *Deployer) Run() {
 					err = errLiveliness
 
 					// Rollback
-					operation = "switch"
 					previous := d.previousDeployment.Load()
 					if previous != nil {
-						logrus.Infof("deployer: rolling back to generation %s", previous.Generation.Uuid)
-						_, _, errRollback := d.deployerFunc(
-							ctx,
-							previous.Generation.OutPath,
-							operation,
-						)
-						if errRollback != nil {
-							logrus.Errorf("deployer: rollback to generation %s failed: %s", previous.Generation.Uuid, errRollback)
-												// We are in a failed state, we let the deployment as Failed
-						} else {
-							// We have rollbacked to the previous deployment
-							d.deployment.Store(previous)
+						if err := d.Rollback(previous); err != nil {
+							logrus.Errorf("deployer: rollback to generation %s failed: %s", previous.Generation.Uuid, err)
 						}
 					}
 					// The deployment has failed, we update the store and
@@ -255,4 +252,39 @@ func (d *Deployer) Run() {
 			d.DeploymentDoneCh <- d.Deployment()
 		}
 	}()
+}
+
+func (d *Deployer) Rollback(deployment *protobuf.Deployment) error {
+	logrus.Infof("deployer: rolling back to generation %s", deployment.Generation.Uuid)
+	operation := "switch"
+	ctx := context.TODO()
+
+	dpl := d.store.NewDeployment(deployment.Generation, "rollback")
+	d.previousDeployment.Swap(d.Deployment())
+	d.deployment.Store(dpl)
+	d.isDeploying.Store(true)
+	defer d.isDeploying.Store(false)
+
+	if err := d.store.DeploymentStarted(dpl.Uuid); err != nil {
+		return err
+	}
+
+	cominNeedRestart, profilePath, err := d.deployerFunc(
+		ctx,
+		deployment.Generation.OutPath,
+		operation,
+	)
+
+	dpl.EndedAt = timestamppb.New(time.Now().UTC())
+	if err != nil {
+		d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath)
+		return err
+	}
+
+	if err := d.store.DeploymentFinished(dpl.Uuid, nil, cominNeedRestart, profilePath); err != nil {
+		return err
+	}
+
+	d.deployment.Store(dpl)
+	return nil
 }
