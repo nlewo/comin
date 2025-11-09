@@ -126,8 +126,6 @@ func fetch(r repository, remote types.Remote) (err error) {
 		}
 	}
 
-	logrus.Debugf("fetchOptions: %+v", fetchOptions)
-
 	// TODO: we should get a parent context
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(remote.Timeout)*time.Second)
 	defer cancel()
