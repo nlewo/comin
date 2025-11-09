@@ -19,19 +19,18 @@ import (
 type DeployFunc func(context.Context, string, string) (bool, string, error)
 
 type Deployer struct {
-	GenerationCh             chan *protobuf.Generation
-	deployerFunc             DeployFunc
-	DeploymentDoneCh         chan *protobuf.Deployment
-	mu                       sync.Mutex
-	deployment               atomic.Pointer[protobuf.Deployment]
-	previousDeployment       atomic.Pointer[protobuf.Deployment]
-	isDeploying              atomic.Bool
+	GenerationCh       chan *protobuf.Generation
+	deployerFunc       DeployFunc
+	DeploymentDoneCh   chan *protobuf.Deployment
+	mu                 sync.Mutex
+	deployment         atomic.Pointer[protobuf.Deployment]
+	previousDeployment atomic.Pointer[protobuf.Deployment]
+	isDeploying        atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
-	GenerationToDeploy      *protobuf.Generation
-	generationAvailableCh   chan struct{}
-	postDeploymentCommand   string
-	livelinessCheckCommand  string
-
+	GenerationToDeploy     *protobuf.Generation
+	generationAvailableCh  chan struct{}
+	postDeploymentCommand  string
+	livelinessCheckCommand string
 
 	isSuspended atomic.Bool
 	resumeCh    chan struct{}
@@ -159,7 +158,11 @@ func (d *Deployer) Submit(generation *protobuf.Generation) {
 		default:
 		}
 	} else {
-		logrus.Infof("deployer: skipping deployment of the generation %s because it is the same than the last deployment", generation.Uuid)
+		if previous.Status == store.StatusToString(store.Failed) {
+			logrus.Infof("deployer: skipping deployment of generation %s because it is the same as the last failed deployment", generation.Uuid)
+		} else {
+			logrus.Infof("deployer: skipping deployment of generation %s because it is the same as the last successful deployment", generation.Uuid)
+		}
 	}
 	d.mu.Unlock()
 }

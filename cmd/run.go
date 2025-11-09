@@ -84,7 +84,7 @@ var runCmd = &cobra.Command{
 		// redeployment as well as non fast forward checkouts
 		var mainCommitId string
 		var lastDeployment *protobuf.Deployment
-		if ok, ld := store.LastDeployment(); ok {
+		if ld, err := store.GetLastSuccessfulDeployment(); err == nil {
 			mainCommitId = ld.Generation.MainCommitId
 			lastDeployment = ld
 			metrics.SetDeploymentInfo(ld.Generation.SelectedCommitId, ld.Status)
