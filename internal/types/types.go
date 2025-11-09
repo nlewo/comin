@@ -27,6 +27,7 @@ type GitConfig struct {
 type Auth struct {
 	AccessToken     string
 	AccessTokenPath string `yaml:"access_token_path"`
+	Username        string
 }
 
 type Branch struct {
