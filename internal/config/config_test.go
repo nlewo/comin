@@ -22,7 +22,6 @@ func TestConfig(t *testing.T) {
 				Auth: types.Auth{
 					AccessToken:     "my-secret",
 					AccessTokenPath: "./secret",
-					Username:        "comin",
 				},
 				Timeout: 300,
 			},
@@ -32,7 +31,6 @@ func TestConfig(t *testing.T) {
 				Auth: types.Auth{
 					AccessToken:     "",
 					AccessTokenPath: "",
-					Username:        "comin",
 				},
 				Timeout: 300,
 			},

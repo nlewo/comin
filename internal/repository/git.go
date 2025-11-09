@@ -121,7 +121,9 @@ func fetch(r repository, remote types.Remote) (err error) {
 	// TODO: support several authentication methods
 	if remote.Auth.AccessToken != "" {
 		fetchOptions.Auth = &http.BasicAuth{
-			Username: remote.Auth.Username,
+			// On GitLab, any non blank username is
+			// working.
+			Username: "comin",
 			Password: remote.Auth.AccessToken,
 		}
 	}

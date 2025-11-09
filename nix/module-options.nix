@@ -86,15 +86,6 @@
                       The path of the auth file.
                     '';
                   };
-                  username = mkOption {
-                    type = str;
-                    default = "comin";
-                    description = ''
-                      The username used to authenticate to the Git
-                      remote repository. Note that any non empty
-                      username is valid on GitLab and GitHub.
-                    '';
-                  };
                 };
               };
             };
