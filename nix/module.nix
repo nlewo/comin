@@ -22,9 +22,7 @@ in {
     services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
-      path = [ config.nix.package ];
-      # The comin service is restarted by comin itself when it
-      # detects the unit file changed.
+      path = [ config.nix.package pkgs.systemd ];
       restartIfChanged = false;
       serviceConfig = {
         ExecStart =
@@ -33,6 +31,31 @@ in {
           + " run "
           + "--config ${cominConfigYaml}";
         Restart = "always";
+      };
+    };
+
+    
+    # We use an external "restarter" service instead of relying on systemd's automatic
+    # restart of the comin service because:
+    # 
+    # - `services.comin.restartIfChanged = false` prevents NixOS from restarting comin
+    #   when its unit file or dependencies change during a switch.
+    # - The comin service self-updates and calls `switch-to-configuration`, then exits
+    #   to let systemd restart it, but that restart happens using the *previous*
+    #   in-memory unit definition — not the newly generated one.
+    # - A full `systemctl restart comin.service` is required after `daemon-reload` to
+    #   rebind systemd to the new unit file from the current generation.
+    #
+    # This restarter path unit watches for `/var/lib/comin/restart-needed` as a signal
+    # and explicitly runs `systemctl daemon-reload && systemctl restart comin.service`
+    # to ensure the service restarts under the correct, updated unit definition.
+
+    systemd.services.comin-restarter = {
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = ''
+          ${pkgs.systemd}/bin/systemctl restart comin.service
+        '';
       };
     };
   };

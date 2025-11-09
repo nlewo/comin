@@ -183,16 +183,20 @@ func (m *Manager) Run() {
 			m.needToReboot = m.executor.NeedToReboot()
 			m.prometheus.SetHostInfo(m.needToReboot)
 			if dpl.RestartComin.GetValue() {
-				// TODO: stop contexts
-				logrus.Infof("manager: comin needs to be restarted")
+				logrus.Infof("manager: comin needs to be restarted, triggering restarter service")
+
+				// see nix module.nix systemd.services.comin-restarter
 				if runtime.GOOS == "linux" {
-					logrus.Infof("manager: running 'systemctl daemon-reload'")
-					cmd := exec.Command("systemctl", "daemon-reload")
+					cmd := exec.Command("systemctl", "start", "comin-restarter.service")
 					if err := cmd.Run(); err != nil {
-						logrus.Errorf("manager: 'systemctl daemon-reload' failed: %s", err)
+						logrus.Errorf("manager: failed to start comin-restarter.service: %s", err)
 					}
 				}
-				logrus.Infof("manager: exiting comin to let the service manager restart it")
+
+				// On non-systemd platforms like Darwin, we exit to
+				// let the service manager restart comin. On
+				// systemd, the comin-restarter.service will
+				// restart the comin.service.
 				os.Exit(0)
 			}
 		}
