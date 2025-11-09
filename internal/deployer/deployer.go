@@ -217,14 +217,15 @@ func (d *Deployer) Run() {
 					logrus.Errorf("deployer: deploying generation %s, liveliness check command [%s] failed: %v", g.Uuid, livelinessCheckCmd, errLiveliness)
 					err = errLiveliness
 
-					// Rollback
-					previous := d.previousDeployment.Load()
-					if previous != nil {
-						if err := d.Rollback(previous); err != nil {
-							logrus.Errorf("deployer: rollback to generation %s failed: %s", previous.Generation.Uuid, err)
+					// Auto-Rollback
+					lastSuccessful, err := d.store.GetLastSuccessfulDeployment()
+					if err != nil {
+						logrus.Errorf("deployer: could not get the last successful deployment: %s", err)
+					} else {
+						if err := d.Rollback(lastSuccessful); err != nil {
+							logrus.Errorf("deployer: rollback to generation %s failed: %s", lastSuccessful.Generation.Uuid, err)
 						}
-					}
-					// The deployment has failed, we update the store and
+					} // The main deployment has failed, we update the store and
 					// we don't run the post-deployment command
 					d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath)
 					d.isDeploying.Store(false)
