@@ -45,10 +45,6 @@ in {
     #   in-memory unit definition — not the newly generated one.
     # - A full `systemctl restart comin.service` is required after `daemon-reload` to
     #   rebind systemd to the new unit file from the current generation.
-    #
-    # This restarter path unit watches for `/var/lib/comin/restart-needed` as a signal
-    # and explicitly runs `systemctl daemon-reload && systemctl restart comin.service`
-    # to ensure the service restarts under the correct, updated unit definition.
 
     systemd.services.comin-restarter = {
       serviceConfig = {
