@@ -24,7 +24,7 @@ in
 
 buildGoModule rec {
   pname = "comin";
-  version = "0.8.0";
+  version = "0.9.0";
   nativeCheckInputs = [ git ];
   src = lib.fileset.toSource {
     root = ../.;
@@ -36,7 +36,7 @@ buildGoModule rec {
       ../main.go
     ];
   };
-  vendorHash = "sha256-I4ePkYhuvotmvv8ghLcAm5QWlWHVa/BU2Picbyggy90=";
+  vendorHash = "sha256-XX2hf6ahJgtpWn6XGW6g9/TJ8y3ALPV6lalbTWxK7/w=";
   ldflags = [
     "-X github.com/nlewo/comin/cmd.version=${version}"
   ];

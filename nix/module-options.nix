@@ -142,6 +142,13 @@
                       The poller period in seconds.
                     '';
                   };
+                  random_delay = mkOption {
+                    type = types.int;
+                    default = 0;
+                    description = ''
+                      The maximum random delay in seconds before fetching the remote.
+                    '';
+                  };
                 };
               };
             };
@@ -186,6 +193,12 @@
         example = lib.literalExpression ''
           pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
         '';
+      };
+      livelinessCheckCommand = mkOption {
+        description = "A command to be executed after a successful deployment to check if the new generation is healthy. If the command returns a non-zero exit code, the deployment is considered failed and comin will roll back to the previous generation.";
+        type = nullOr str;
+        default = null;
+        example = "curl --fail http://localhost:8080/health";
       };
     };
   };

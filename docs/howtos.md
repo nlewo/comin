@@ -21,6 +21,20 @@ has to be on top of the `main` branch.
 To `nixos-rebuild switch` to this configuration, the `main` branch has
 to be rebased on the `testing` branch.
 
+## How to ensure a deployment is healthy
+
+After a deployment, you might want to run some checks to ensure that the new generation is healthy. For example, you might want to check that a web server is responding or that a specific service is running.
+
+Comin provides the `services.comin.livelinessCheckCommand` option to run a command after a successful deployment. If the command returns a non-zero exit code, the deployment is considered failed and comin will roll back to the previous generation.
+
+Here is an example of how to use it:
+
+```nix
+services.comin.livelinessCheckCommand = "curl --fail http://localhost:8080/health";
+```
+
+In this example, comin will run `curl --fail http://localhost:8080/health` after each deployment. If the command fails, comin will roll back to the previous generation.
+
 ## Iterate faster with local repository
 
 By default, comin polls remotes every 60 seconds. You could however
@@ -77,3 +91,13 @@ When comin is running on a Darwin system, it automatically builds and
 deploys a configuration found in the flake output
 `darwinConfigurations.hostname`. So, you only need to set this flake
 output and run comin on the target machine.
+
+## How to rollback to a previous generation
+
+Comin allows you to manually rollback to the last successful deployment. To do so, you can use the `rollback` command:
+
+```bash
+comin rollback --config /etc/comin/configuration.yaml
+```
+
+This command will find the last successful deployment and will redeploy it.

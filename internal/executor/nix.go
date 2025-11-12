@@ -12,10 +12,24 @@ import (
 
 type NixLocal struct {
 	configurationAttr string
+	storeDir          string
 }
 
-func NewNixExecutor(configurationAttr string) (*NixLocal, error) {
-	return &NixLocal{configurationAttr: configurationAttr}, nil
+func NewNixExecutor(configurationAttr string, storeDir ...string) (*NixLocal, error) {
+	var s string
+	var err error
+	if len(storeDir) > 0 && storeDir[0] != "" {
+		s = storeDir[0]
+	} else {
+		s, err = GetNixStoreDir()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &NixLocal{
+		configurationAttr: configurationAttr,
+		storeDir:          s,
+	}, nil
 }
 
 func (n *NixLocal) ReadMachineId() (string, error) {
@@ -45,11 +59,11 @@ func (n *NixLocal) IsStorePathExist(storePath string) bool {
 }
 
 func (n *NixLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
-	return showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
+	return showDerivation(ctx, flakeUrl, hostname, n.configurationAttr, n.storeDir)
 }
 
 func (n *NixLocal) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
-	drvPath, outPath, err = showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
+	drvPath, outPath, err = showDerivation(ctx, flakeUrl, hostname, n.configurationAttr, n.storeDir)
 	if err != nil {
 		return
 	}

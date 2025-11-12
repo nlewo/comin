@@ -11,7 +11,8 @@ type Remote struct {
 }
 
 type Poller struct {
-	Period int `yaml:"period"`
+	Period      int `yaml:"period"`
+	RandomDelay int `yaml:"random_delay"`
 }
 
 type GitConfig struct {
@@ -58,5 +59,6 @@ type Configuration struct {
 	Grpc                  Grpc       `yaml:"grpc"`
 	Exporter              HttpServer `yaml:"exporter"`
 	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
-	PostDeploymentCommand string     `yaml:"post_deployment_command"`
+	PostDeploymentCommand  string     `yaml:"post_deployment_command"`
+	LivelinessCheckCommand string     `yaml:"liveliness_check_command"`
 }

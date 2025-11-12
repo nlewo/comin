@@ -84,7 +84,7 @@ var runCmd = &cobra.Command{
 		// redeployment as well as non fast forward checkouts
 		var mainCommitId string
 		var lastDeployment *protobuf.Deployment
-		if ok, ld := store.LastDeployment(); ok {
+		if ld, err := store.GetLastSuccessfulDeployment(); err == nil {
 			mainCommitId = ld.Generation.MainCommitId
 			lastDeployment = ld
 			metrics.SetDeploymentInfo(ld.Generation.SelectedCommitId, ld.Status)
@@ -101,7 +101,7 @@ var runCmd = &cobra.Command{
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
 		builder := builder.New(store, executor, gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, 30*time.Minute)
-		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
+		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand, cfg.LivelinessCheckCommand)
 
 		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor)
 
