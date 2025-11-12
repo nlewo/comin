@@ -16,6 +16,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func GetNixStoreDir() (string, error) {
+	if dir := os.Getenv("NIX_STORE_DIR"); dir != "" {
+		return dir, nil
+	}
+	cmd := exec.Command("nix", "eval", "--raw", "--expr", "builtins.storeDir")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to determine Nix store dir: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // GetExpectedMachineId evals nixosConfigurations or darwinConfigurations based on configurationAttr
 // returns (machine-id, nil) is comin.machineId is set, ("", nil) otherwise.
 func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr string) (machineId string, err error) {
@@ -60,8 +72,8 @@ func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer)
 	return nil
 }
 
-func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr string) (drvPath string, outPath string, err error) {
-	installable := fmt.Sprintf("%s#%s.\"%s\".config.system.build.toplevel", flakeUrl, configurationAttr, hostname)
+func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr, storeDir string) (drvPath string, outPath string, err error) {
+	installable := fmt.Sprintf("%s#%s.%s.config.system.build.toplevel", flakeUrl, configurationAttr, hostname)
 	args := []string{
 		"derivation",
 		"show",
@@ -84,8 +96,18 @@ func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr s
 	for key := range output {
 		keys = append(keys, key)
 	}
-	drvPath = keys[0]
-	outPath = output[drvPath].Outputs.Out.Path
+	rawDrvPath := keys[0]
+	rawOutPath := output[rawDrvPath].Outputs.Out.Path
+
+	drvPath = rawDrvPath
+	if !strings.HasPrefix(drvPath, "/") {
+		drvPath = filepath.Join(storeDir, drvPath)
+	}
+	outPath = rawOutPath
+	if !strings.HasPrefix(outPath, "/") {
+		outPath = filepath.Join(storeDir, outPath)
+	}
+
 	logrus.Infof("nix: the derivation path is %s", drvPath)
 	logrus.Infof("nix: the output path is %s", outPath)
 	return

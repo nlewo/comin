@@ -27,11 +27,10 @@ type Deployer struct {
 	previousDeployment       atomic.Pointer[protobuf.Deployment]
 	isDeploying              atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
-	GenerationToDeploy      *protobuf.Generation
-	generationAvailableCh   chan struct{}
-	postDeploymentCommand   string
-	livelinessCheckCommand  string
-
+	GenerationToDeploy     *protobuf.Generation
+	generationAvailableCh  chan struct{}
+	postDeploymentCommand  string
+	livelinessCheckCommand string
 
 	isSuspended atomic.Bool
 	resumeCh    chan struct{}
@@ -75,11 +74,19 @@ func showDeployment(padding string, d *protobuf.Deployment) {
 		fmt.Printf("%sDeployment is running since %s\n", padding, humanize.Time(d.StartedAt.AsTime()))
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 	case store.StatusToString(store.Done):
-		fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		if d.Operation == "rollback" {
+			fmt.Printf("%sRollback succeeded %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		} else {
+			fmt.Printf("%sDeployment succeeded %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		}
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
 	case store.StatusToString(store.Failed):
-		fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		if d.Operation == "rollback" {
+			fmt.Printf("%sRollback failed %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		} else {
+			fmt.Printf("%sDeployment failed %s\n", padding, humanize.Time(d.EndedAt.AsTime()))
+		}
 		fmt.Printf("%sOperation %s\n", padding, d.Operation)
 		fmt.Printf("%sProfilePath %s\n", padding, d.ProfilePath)
 	}
@@ -151,7 +158,11 @@ func (d *Deployer) Submit(generation *protobuf.Generation) {
 		default:
 		}
 	} else {
-		logrus.Infof("deployer: skipping deployment of the generation %s because it is the same than the last deployment", generation.Uuid)
+		if previous.Status == store.StatusToString(store.Failed) {
+			logrus.Infof("deployer: skipping deployment of generation %s because it is the same as the last failed deployment", generation.Uuid)
+		} else {
+			logrus.Infof("deployer: skipping deployment of generation %s because it is the same as the last successful deployment", generation.Uuid)
+		}
 	}
 	d.mu.Unlock()
 }
@@ -196,39 +207,40 @@ func (d *Deployer) Run() {
 
 			deployment := d.Deployment()
 			deployment.EndedAt = timestamppb.New(time.Now().UTC())
-			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath); err != nil {
-				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
-				continue
-			}
-            // The deployment is finished, we can run the liveliness check if any
+
+			// The deployment is finished, we can run the liveliness check if any
 			if err == nil && d.livelinessCheckCommand != "" {
 				livelinessCheckCmd := d.livelinessCheckCommand
 				logrus.Infof("deployer: deploying generation %s, running liveliness check command [%s]", g.Uuid, livelinessCheckCmd)
-				output, errLiveliness := runLivelinessCheckCommand(livelinessCheckCmd, deployment)
+				_, errLiveliness := runLivelinessCheckCommand(livelinessCheckCmd, deployment)
 				if errLiveliness != nil {
-					logrus.Errorf("deployer: deploying generation %s, liveliness check command [%s] failed: %s", g.Uuid, livelinessCheckCmd, output)
+					logrus.Errorf("deployer: deploying generation %s, liveliness check command [%s] failed: %v", g.Uuid, livelinessCheckCmd, errLiveliness)
+					err = errLiveliness
 
-					// Rollback
-					operation = "switch"
-					previous := d.previousDeployment.Load()
-					if previous != nil {
-						logrus.Infof("deployer: rolling back to generation %s", previous.Generation.Uuid)
-						_, _, errRollback := d.deployerFunc(
-							ctx,
-							previous.Generation.OutPath,
-							operation,
-						)
-						if errRollback != nil {
-							logrus.Errorf("deployer: rollback to generation %s failed: %s", previous.Generation.Uuid, errRollback)
-							// We are in a failed state, we let the deployment as Failed
-						} else {
-							// We have rollbacked to the previous deployment
-							d.deployment.Store(previous)
+					// Auto-Rollback
+					lastSuccessful, err := d.store.GetLastSuccessfulDeployment()
+					if err != nil {
+						logrus.Errorf("deployer: could not get the last successful deployment: %s", err)
+					} else {
+						if err := d.Rollback(lastSuccessful); err != nil {
+							logrus.Errorf("deployer: rollback to generation %s failed: %s", lastSuccessful.Generation.Uuid, err)
 						}
-					}
+					} // The main deployment has failed, we update the store and
+					// we don't run the post-deployment command
+					d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath)
+					d.isDeploying.Store(false)
+					dpl.Status = store.StatusToString(store.Failed)
+					d.deployment.Store(dpl)
+					d.DeploymentDoneCh <- dpl
+					continue
 				} else {
 					logrus.Infof("deployer: deploying generation %s, liveliness check command [%s] succeed", g.Uuid, livelinessCheckCmd)
 				}
+			}
+
+			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath); err != nil {
+				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
+				continue
 			}
 
 			cmd := d.postDeploymentCommand
@@ -244,4 +256,39 @@ func (d *Deployer) Run() {
 			d.DeploymentDoneCh <- d.Deployment()
 		}
 	}()
+}
+
+func (d *Deployer) Rollback(deployment *protobuf.Deployment) error {
+	logrus.Infof("deployer: rolling back to generation %s", deployment.Generation.Uuid)
+	operation := "switch"
+	ctx := context.TODO()
+
+	dpl := d.store.NewDeployment(deployment.Generation, "rollback")
+	d.previousDeployment.Swap(d.Deployment())
+	d.deployment.Store(dpl)
+	d.isDeploying.Store(true)
+	defer d.isDeploying.Store(false)
+
+	if err := d.store.DeploymentStarted(dpl.Uuid); err != nil {
+		return err
+	}
+
+	cominNeedRestart, profilePath, err := d.deployerFunc(
+		ctx,
+		deployment.Generation.OutPath,
+		operation,
+	)
+
+	dpl.EndedAt = timestamppb.New(time.Now().UTC())
+	if err != nil {
+		d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath)
+		return err
+	}
+
+	if err := d.store.DeploymentFinished(dpl.Uuid, nil, cominNeedRestart, profilePath); err != nil {
+		return err
+	}
+
+	d.deployment.Store(dpl)
+	return nil
 }

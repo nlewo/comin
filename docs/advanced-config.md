@@ -17,8 +17,11 @@ services.comin = {
       url = "/your/local/infra/repository";
       # We don't want to deploy the local main branch on each commit
       branches.main.name = "main-tilia";
-	    # We want to fetch this remote every 2 seconds
-      poller.period = 2;
+	    # We want to fetch this remote every 2 seconds with a random delay up to 10 seconds
+      poller = {
+        period = 2;
+        random_delay = 10;
+      };
     }
   ];
   machineId = "22823ba6c96947e78b006c51a56fd89c";

@@ -86,14 +86,24 @@ func onelineStatus(status *pb.State) {
 	} else if status.Deployer.Deployment != nil {
 		switch status.Deployer.Deployment.Status {
 		case store.StatusToString(store.Running):
-			fmt.Printf(" deploy %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
-				humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
+			if status.Deployer.Deployment.Operation == "rollback" {
+				fmt.Printf(" rollback %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+					humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
+			} else {
+				fmt.Printf(" deploy %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+					humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
+			}
 		case store.StatusToString(store.Failed):
 			fmt.Printf(" %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
 		case store.StatusToString(store.Done):
-			fmt.Printf(" %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
-				humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
+			if status.Deployer.Deployment.Operation == "rollback" {
+				fmt.Printf(" rollback %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+					humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
+			} else {
+				fmt.Printf(" deploy %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+					humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
+			}
 		}
 	}
 	if status.NeedToReboot.GetValue() {

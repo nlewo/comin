@@ -448,6 +448,24 @@ signed integer
 
 
 
+## services\.comin\.remotes\.\*\.poller\.random_delay
+
+
+
+The maximum random delay in seconds before fetching the remote\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+` 0 `
+
+
+
 ## services\.comin\.remotes\.\*\.timeout
 
 

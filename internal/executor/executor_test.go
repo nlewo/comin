@@ -9,7 +9,7 @@ import (
 
 func TestNixExecutorWithDarwinConfiguration(t *testing.T) {
 	// Test creating a NixExecutor with Darwin configuration
-	executor, err := NewNixExecutor("darwinConfigurations")
+	executor, err := NewNixExecutor("darwinConfigurations", "/nix/store")
 	assert.NoError(t, err)
 	assert.NotNil(t, executor)
 	assert.Equal(t, "darwinConfigurations", executor.configurationAttr)
@@ -17,7 +17,7 @@ func TestNixExecutorWithDarwinConfiguration(t *testing.T) {
 
 func TestNixExecutorWithNixOSConfiguration(t *testing.T) {
 	// Test creating a NixExecutor with NixOS configuration
-	executor, err := NewNixExecutor("nixosConfigurations")
+	executor, err := NewNixExecutor("nixosConfigurations", "/nix/store")
 	assert.NoError(t, err)
 	assert.NotNil(t, executor)
 	assert.Equal(t, "nixosConfigurations", executor.configurationAttr)
@@ -46,7 +46,7 @@ func TestNixExecutorEval(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor, err := NewNixExecutor(tt.configurationAttr)
+			executor, err := NewNixExecutor(tt.configurationAttr, "/nix/store")
 			assert.NoError(t, err)
 
 			ctx := context.Background()
@@ -83,7 +83,7 @@ func TestNixExecutorShowDerivation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor, err := NewNixExecutor(tt.configurationAttr)
+			executor, err := NewNixExecutor(tt.configurationAttr, "/nix/store")
 			assert.NoError(t, err)
 
 			ctx := context.Background()
@@ -115,7 +115,7 @@ func TestNixExecutorList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor, err := NewNixExecutor(tt.configurationAttr)
+			executor, err := NewNixExecutor(tt.configurationAttr, "/nix/store")
 			assert.NoError(t, err)
 
 			// Test that List doesn't panic and handles configuration attribute correctly
@@ -148,7 +148,7 @@ func TestNixExecutorDeploy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor, err := NewNixExecutor(tt.configurationAttr)
+			executor, err := NewNixExecutor(tt.configurationAttr, "/nix/store")
 			assert.NoError(t, err)
 
 			ctx := context.Background()
