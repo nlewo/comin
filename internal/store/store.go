@@ -98,6 +98,8 @@ func (s *Store) DeploymentInsert(dpl *protobuf.Deployment) (getsEvicted bool, ev
 }
 
 func (s *Store) DeploymentList() []*protobuf.Deployment {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.data.Deployments
 }
 

@@ -103,7 +103,21 @@ var runCmd = &cobra.Command{
 		builder := builder.New(store, executor, gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, 30*time.Minute)
 		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
 
-		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor)
+		mode, err := manager.ParseMode(cfg.BuildConfirmer.Mode)
+		if err != nil {
+			logrus.Error(err)
+			os.Exit(1)
+		}
+		buildConfirmer := manager.NewConfirmer(mode, time.Duration(cfg.BuildConfirmer.AutoDuration)*time.Second)
+		buildConfirmer.Start()
+		mode, err = manager.ParseMode(cfg.DeployConfirmer.Mode)
+		if err != nil {
+			logrus.Error(err)
+			os.Exit(1)
+		}
+		deployConfirmer := manager.NewConfirmer(mode, time.Duration(cfg.DeployConfirmer.AutoDuration)*time.Second)
+		deployConfirmer.Start()
+		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor, buildConfirmer, deployConfirmer)
 
 		http.Serve(manager,
 			metrics,

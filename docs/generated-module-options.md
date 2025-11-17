@@ -34,7 +34,65 @@ null or package
 
 
 
+## services\.comin\.buildConfirmer
+
+The confirmer options for the build\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+` { } `
+
+
+
+## services\.comin\.buildConfirmer\.autoconfirm_duration
+
+
+
+The autoconfirm timer duration in seconds\. After this
+duration, the action is automatically confirmed\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+` 120 `
+
+
+
+## services\.comin\.buildConfirmer\.mode
+
+
+
+The confirmer mode\. “without” immediately confirms
+without any user interaction\. “manual” requires a user
+confirmation\. “auto” automatically confirms after
+waiting for the autoconfirm_duration\.
+
+
+
+*Type:*
+one of “without”, “auto”, “manual”
+
+
+
+*Default:*
+` "without" `
+
+
+
 ## services\.comin\.debug
+
+
 
 Whether to run comin in debug mode\. Be careful, secrets are shown!\.
 
@@ -47,6 +105,64 @@ boolean
 
 *Default:*
 ` false `
+
+
+
+## services\.comin\.deployConfirmer
+
+
+
+The confirmer options for the deployment\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+` { } `
+
+
+
+## services\.comin\.deployConfirmer\.autoconfirm_duration
+
+
+
+The autoconfirm timer duration in seconds\. After this
+duration, the action is automatically confirmed\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+` 120 `
+
+
+
+## services\.comin\.deployConfirmer\.mode
+
+
+
+The confirmer mode\. “without” immediately confirms
+without any user interaction\. “manual” requires a user
+confirmation\. “auto” automatically confirms after
+waiting for the autoconfirm_duration\.
+
+
+
+*Type:*
+one of “without”, “auto”, “manual”
+
+
+
+*Default:*
+` "without" `
 
 
 

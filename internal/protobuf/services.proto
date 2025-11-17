@@ -17,6 +17,12 @@ service Comin {
   rpc Fetch(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Suspend(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Resume(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Confirm(ConfirmRequest) returns (google.protobuf.Empty);
+}
+
+message ConfirmRequest {
+  string generationUuid = 1;
+  string for = 2;  // possible values: "build", "deploy", "all"
 }
 
 // We consider each created genration is legit to be deployed: hard
@@ -74,6 +80,8 @@ message State {
   Deployer deployer = 4;
   Fetcher fetcher = 5;
   Store store = 6;
+  Confirmer build_confirmer = 7;
+  Confirmer deploy_confirmer = 8;
 }
 
 message Deployer {
@@ -91,6 +99,15 @@ message Builder {
   string generation_uuid = 4;
   google.protobuf.BoolValue is_suspended = 5;
   string hostname = 6;
+}
+
+message Confirmer {
+  int64 mode = 1;
+  string submitted = 2;
+  string confirmed = 3;
+  int64 autoconfirm_duration = 4;
+  google.protobuf.Timestamp autoconfirm_started_at = 5;
+  google.protobuf.BoolValue autoconfirm_started = 6;
 }
 
 message Fetcher {
