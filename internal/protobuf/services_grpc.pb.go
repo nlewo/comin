@@ -27,6 +27,7 @@ const (
 	Comin_Fetch_FullMethodName    = "/protobuf.Comin/Fetch"
 	Comin_Suspend_FullMethodName  = "/protobuf.Comin/Suspend"
 	Comin_Resume_FullMethodName   = "/protobuf.Comin/Resume"
+	Comin_Confirm_FullMethodName  = "/protobuf.Comin/Confirm"
 )
 
 // CominClient is the client API for Comin service.
@@ -37,6 +38,7 @@ type CominClient interface {
 	Fetch(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Suspend(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Resume(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Confirm(ctx context.Context, in *ConfirmRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type cominClient struct {
@@ -87,6 +89,16 @@ func (c *cominClient) Resume(ctx context.Context, in *emptypb.Empty, opts ...grp
 	return out, nil
 }
 
+func (c *cominClient) Confirm(ctx context.Context, in *ConfirmRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, Comin_Confirm_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CominServer is the server API for Comin service.
 // All implementations must embed UnimplementedCominServer
 // for forward compatibility.
@@ -95,6 +107,7 @@ type CominServer interface {
 	Fetch(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	Suspend(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	Resume(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	Confirm(context.Context, *ConfirmRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCominServer()
 }
 
@@ -116,6 +129,9 @@ func (UnimplementedCominServer) Suspend(context.Context, *emptypb.Empty) (*empty
 }
 func (UnimplementedCominServer) Resume(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Resume not implemented")
+}
+func (UnimplementedCominServer) Confirm(context.Context, *ConfirmRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Confirm not implemented")
 }
 func (UnimplementedCominServer) mustEmbedUnimplementedCominServer() {}
 func (UnimplementedCominServer) testEmbeddedByValue()               {}
@@ -210,6 +226,24 @@ func _Comin_Resume_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Comin_Confirm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CominServer).Confirm(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Comin_Confirm_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CominServer).Confirm(ctx, req.(*ConfirmRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Comin_ServiceDesc is the grpc.ServiceDesc for Comin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -232,6 +266,10 @@ var Comin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Resume",
 			Handler:    _Comin_Resume_Handler,
+		},
+		{
+			MethodName: "Confirm",
+			Handler:    _Comin_Confirm_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

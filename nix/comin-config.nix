@@ -13,6 +13,8 @@ in rec {
       port = cfg.services.comin.exporter.port;
     };
     gpg_public_key_paths = cfg.services.comin.gpgPublicKeyPaths;
+    build_confirmer = cfg.services.comin.buildConfirmer;
+    deploy_confirmer = cfg.services.comin.deployConfirmer;
   } // (
     lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null)
       { post_deployment_command = cfg.services.comin.postDeploymentCommand; }
