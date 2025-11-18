@@ -52,6 +52,8 @@ func IsTesting(d *protobuf.Deployment) bool {
 }
 
 func (s *Store) NewDeployment(g *protobuf.Generation, operation string) *protobuf.Deployment {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	d := &protobuf.Deployment{
 		Uuid:       uuid.New().String(),
 		Generation: g,

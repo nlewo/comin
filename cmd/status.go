@@ -68,6 +68,9 @@ func jsonStatus(status *pb.State) {
 }
 
 func onelineStatus(status *pb.State) {
+	if status.BuildConfirmer.Submitted != "" && status.BuildConfirmer.Confirmed == "" || status.DeployConfirmer.Submitted != "" && status.DeployConfirmer.Confirmed == "" {
+		fmt.Printf(" ❔ ")
+	}
 	if status.IsSuspended.GetValue() {
 		fmt.Printf(" ⏸️ ")
 	}

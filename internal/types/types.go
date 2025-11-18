@@ -48,6 +48,11 @@ type Grpc struct {
 	UnixSocketPath string `yaml:"unix_socket_path"`
 }
 
+type Confirmer struct {
+	Mode         string `yaml:"mode"`
+	AutoDuration int    `yaml:"auto_duration"`
+}
+
 type Configuration struct {
 	Hostname              string     `yaml:"hostname"`
 	StateDir              string     `yaml:"state_dir"`
@@ -59,4 +64,6 @@ type Configuration struct {
 	Exporter              HttpServer `yaml:"exporter"`
 	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
 	PostDeploymentCommand string     `yaml:"post_deployment_command"`
+	BuildConfirmer        Confirmer  `yaml:"build_confirmer"`
+	DeployConfirmer       Confirmer  `yaml:"deploy_confirmer"`
 }
