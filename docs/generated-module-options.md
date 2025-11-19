@@ -176,7 +176,7 @@ string
 
 
 *Default:*
-` "the-machine-hostname" `
+` config.networking.hostName `
 
 
 
@@ -372,7 +372,7 @@ string
 
 
 *Default:*
-` "testing-the-machine-hostname" `
+` testing-${config.services.comin.hostname} `
 
 
 
