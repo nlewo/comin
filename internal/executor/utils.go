@@ -46,7 +46,7 @@ func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr
 }
 
 func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
-	commonArgs := []string{"--extra-experimental-features", "nix-command", "--extra-experimental-features", "flakes", "--accept-flake-config"}
+	commonArgs := []string{"--extra-experimental-features", "flakes nix-command", "--accept-flake-config"}
 	args = append(commonArgs, args...)
 	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
 	logrus.Infof("nix: running '%s'", cmdStr)
