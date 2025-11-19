@@ -14,8 +14,9 @@
       hostname = mkOption {
         type = str;
         default = config.networking.hostName;
+        defaultText = lib.literalExpression "config.networking.hostName";
         description = ''
-          The name of the configuration to evaluate and deploy. 
+          The name of the configuration to evaluate and deploy.
           This value is used by comin to evaluate the flake output
           nixosConfigurations."<hostname>" or darwinConfigurations."<hostname>".
           Defaults to networking.hostName - you MUST set either this option
@@ -122,6 +123,7 @@
                         name = mkOption {
                           type = str;
                           default = "testing-${config.services.comin.hostname}";
+                          defaultText = lib.literalExpression "testing-\${config.services.comin.hostname}";
                           description = "The name of the testing branch.";
                         };
                       };
