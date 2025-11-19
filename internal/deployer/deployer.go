@@ -153,7 +153,7 @@ func (d *Deployer) Submit(generation *protobuf.Generation) {
 	d.mu.Unlock()
 }
 
-func (d *Deployer) Run() {
+func (d *Deployer) Run(ctx context.Context) {
 	go func() {
 		for {
 			<-d.generationAvailableCh
@@ -184,7 +184,6 @@ func (d *Deployer) Run() {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
 				continue
 			}
-			ctx := context.TODO()
 			cominNeedRestart, profilePath, err := d.deployerFunc(
 				ctx,
 				g.OutPath,

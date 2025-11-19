@@ -59,7 +59,7 @@ func (f *Fetcher) GetState() *protobuf.Fetcher {
 	}
 }
 
-func (f *Fetcher) Start() {
+func (f *Fetcher) Start(ctx context.Context) {
 	logrus.Info("fetcher: starting")
 	go func() {
 		remotes := make([]string, 0)
@@ -80,7 +80,7 @@ func (f *Fetcher) Start() {
 			}
 			if !f.isFetching.Load() && len(remotes) != 0 {
 				f.isFetching.Store(true)
-				workerRepositoryStatusCh = f.repo.FetchAndUpdate(context.TODO(), remotes)
+				workerRepositoryStatusCh = f.repo.FetchAndUpdate(ctx, remotes)
 				remotes = []string{}
 			}
 		}
