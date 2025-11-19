@@ -22,7 +22,7 @@ func TestDeployerBasic(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
-	d.Run()
+	d.Run(t.Context())
 	assert.False(t, d.IsDeploying())
 
 	g := &protobuf.Generation{SelectedCommitId: "commit-1"}
@@ -55,7 +55,7 @@ func TestDeployerSubmit(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
-	d.Run()
+	d.Run(t.Context())
 	assert.False(t, d.IsDeploying())
 
 	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"})
@@ -95,7 +95,7 @@ func TestDeployerSuspend(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
-	d.Run()
+	d.Run(t.Context())
 	assert.False(t, d.IsSuspended())
 	d.Suspend()
 	assert.True(t, d.IsSuspended())

@@ -96,7 +96,7 @@ var runCmd = &cobra.Command{
 		}
 
 		fetcher := fetcher.NewFetcher(repository)
-		fetcher.Start()
+		fetcher.Start(cmd.Context())
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
@@ -111,7 +111,7 @@ var runCmd = &cobra.Command{
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
 		srv := server.New(manager, cfg.Grpc.UnixSocketPath)
 		srv.Start()
-		manager.Run()
+		manager.Run(cmd.Context())
 	},
 }
 

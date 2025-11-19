@@ -45,7 +45,7 @@ func (s *cominServer) Suspend(ctx context.Context, empty *emptypb.Empty) (*empty
 	return nil, err
 }
 func (s *cominServer) Resume(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
-	err := s.manager.Resume()
+	err := s.manager.Resume(ctx)
 	if err != nil {
 		st := status.New(codes.Aborted, err.Error())
 		err = st.Err()

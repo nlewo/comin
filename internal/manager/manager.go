@@ -6,6 +6,7 @@
 package manager
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -88,11 +89,11 @@ func (m *Manager) Suspend() error {
 	return nil
 }
 
-func (m *Manager) Resume() error {
+func (m *Manager) Resume(ctx context.Context) error {
 	if !m.isSuspended {
 		return fmt.Errorf("the manager is not suspended")
 	}
-	if err := m.Builder.Resume(); err != nil {
+	if err := m.Builder.Resume(ctx); err != nil {
 		return err
 	}
 	m.deployer.Resume()
@@ -103,14 +104,14 @@ func (m *Manager) Resume() error {
 // FetchAndBuild fetches new commits. If a new commit is available, it
 // evaluates and builds the derivation. Once built, it pushes the
 // generation on a channel which is consumed by the deployer.
-func (m *Manager) FetchAndBuild() {
+func (m *Manager) FetchAndBuild(ctx context.Context) {
 	go func() {
 		for {
 			select {
 			case rs := <-m.Fetcher.RepositoryStatusCh:
 				if !rs.SelectedCommitShouldBeSigned.GetValue() || rs.SelectedCommitSigned.GetValue() {
 					logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-					err := m.Builder.Eval(rs)
+					err := m.Builder.Eval(ctx, rs)
 					if err != nil {
 						logrus.Error(err)
 					}
@@ -130,7 +131,7 @@ func (m *Manager) FetchAndBuild() {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
 					logrus.Infof("manager: the build of the generation %s is submitted", generation.Uuid)
-					m.Builder.SubmitBuild(generationUUID)
+					m.Builder.SubmitBuild(ctx, generationUUID)
 				}
 			case generationUUID := <-m.Builder.BuildDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
@@ -148,13 +149,13 @@ func (m *Manager) FetchAndBuild() {
 	}()
 }
 
-func (m *Manager) Run() {
+func (m *Manager) Run(ctx context.Context) {
 	logrus.Infof("manager: starting with machineId=%s", m.machineId)
 	m.needToReboot = m.executor.NeedToReboot()
 	m.prometheus.SetHostInfo(m.needToReboot)
 
-	m.FetchAndBuild()
-	m.deployer.Run()
+	m.FetchAndBuild(ctx)
+	m.deployer.Run(ctx)
 
 	for {
 		select {

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"runtime"
 
 	"github.com/nlewo/comin/internal/executor"
@@ -14,7 +13,7 @@ var buildCmd = &cobra.Command{
 	Short: "Build a machine configuration",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.TODO()
+		ctx := cmd.Context()
 		hosts := make([]string, 1)
 		var configurationAttr string
 		if runtime.GOOS == "darwin" {

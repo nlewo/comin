@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"runtime"
 
 	"github.com/nlewo/comin/internal/executor"
@@ -15,7 +14,7 @@ var evalCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		hosts := make([]string, 1)
-		ctx := context.TODO()
+		ctx := cmd.Context()
 		var configurationAttr string
 		if runtime.GOOS == "darwin" {
 			configurationAttr = "darwinConfigurations"

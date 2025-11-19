@@ -138,7 +138,7 @@ func (d *Deployer) Resume() {
 // deployment is finished. If this generation is the same than the one
 // of the last deployment, this generation is skipped.
 func (d *Deployer) Submit(generation *protobuf.Generation) {
-	logrus.Infof("deployer: submiting generation %s", generation.Uuid)
+	logrus.Infof("deployer: submitting generation %s", generation.Uuid)
 	d.mu.Lock()
 	previous := d.previousDeployment.Load()
 	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting.GetValue() != previous.Generation.SelectedBranchIsTesting.GetValue() {
@@ -153,7 +153,7 @@ func (d *Deployer) Submit(generation *protobuf.Generation) {
 	d.mu.Unlock()
 }
 
-func (d *Deployer) Run() {
+func (d *Deployer) Run(ctx context.Context) {
 	go func() {
 		for {
 			<-d.generationAvailableCh
@@ -184,7 +184,6 @@ func (d *Deployer) Run() {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
 				continue
 			}
-			ctx := context.TODO()
 			cominNeedRestart, profilePath, err := d.deployerFunc(
 				ctx,
 				g.OutPath,

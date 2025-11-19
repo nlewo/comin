@@ -165,8 +165,7 @@ func (r *Buildator) Run(ctx context.Context) (err error) {
 // Nix store, it then consider the build is done. In this case, it
 // doesn't notify for the end of the evaluation but for the end of the
 // build.
-func (b *Builder) Eval(rs *protobuf.RepositoryStatus) error {
-	ctx := context.TODO()
+func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error {
 	// This is to prempt the builder since we don't need to allow
 	// several evaluation in parallel
 	b.Stop()
@@ -242,7 +241,7 @@ func (b *Builder) Suspend() error {
 	return nil
 }
 
-func (b *Builder) Resume() error {
+func (b *Builder) Resume(ctx context.Context) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.isSuspended {
@@ -256,7 +255,7 @@ func (b *Builder) Resume() error {
 		if store.GenerationHasToBeBuilt(&generation) {
 			logrus.Infof("builder: builder is resumed and generation %s has to be built", b.GenerationUuid)
 			// TODO: expose the error in the builder state
-			if err := b.build(b.GenerationUuid); err != nil {
+			if err := b.build(ctx, b.GenerationUuid); err != nil {
 				logrus.Error(err)
 			}
 		} else {
@@ -269,7 +268,7 @@ func (b *Builder) Resume() error {
 // SubmitBuild submits a generation for building. If the builder is
 // suspended, the generation is only built once resumed, otherwise, it
 // is built immediately.
-func (b *Builder) SubmitBuild(generationUuid string) {
+func (b *Builder) SubmitBuild(ctx context.Context, generationUuid string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -277,16 +276,15 @@ func (b *Builder) SubmitBuild(generationUuid string) {
 		logrus.Infof("builder: build submitted for generation %s while the builder is suspended", generationUuid)
 	} else {
 		// TODO: expose the error in the builder state
-		if err := b.build(generationUuid); err != nil {
+		if err := b.build(ctx, generationUuid); err != nil {
 			logrus.Error(err)
 		}
 	}
 }
 
 // build builds a generation which has been previously evaluated. This is not thread safe.
-func (b *Builder) build(generationUuid string) error {
+func (b *Builder) build(ctx context.Context, generationUuid string) error {
 	logrus.Infof("builder: build of generation %s is starting", generationUuid)
-	ctx := context.TODO()
 	if b.GenerationUuid != "" && generationUuid != b.GenerationUuid {
 		return fmt.Errorf("another generation is evaluating or evaluated")
 	}

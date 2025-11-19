@@ -13,10 +13,10 @@ import (
 func TestFetcher(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	f := NewFetcher(r)
-	f.Start()
+	f.Start(t.Context())
 	var commitId string
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		assert.False(t, f.IsFetching())
 		f.TriggerFetch([]string{"remote"})
 

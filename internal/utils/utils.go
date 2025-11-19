@@ -39,8 +39,8 @@ func ReadMachineIdDarwin() (machineId string, err error) {
 		return "", fmt.Errorf("failed to get hardware UUID on macOS: %s", err)
 	}
 
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
 		if strings.Contains(line, "Hardware UUID:") {
 			parts := strings.Split(line, ":")
 			if len(parts) >= 2 {
