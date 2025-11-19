@@ -2,6 +2,7 @@ package fetcher
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -89,13 +90,7 @@ func (f *Fetcher) Start(ctx context.Context) {
 
 func union(array1, array2 []string) []string {
 	for _, e2 := range array2 {
-		exist := false
-		for _, e1 := range array1 {
-			if e2 == e1 {
-				exist = true
-				break
-			}
-		}
+		exist := slices.Contains(array1, e2)
 		if !exist {
 			array1 = append(array1, e2)
 		}

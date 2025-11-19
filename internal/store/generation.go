@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -157,13 +158,7 @@ func (s *Store) generationsGC() {
 		}
 	}
 	for _, g := range s.data.Generations {
-		keep := false
-		for _, a := range alive {
-			if g == a {
-				keep = true
-				break
-			}
-		}
+		keep := slices.Contains(alive, g)
 		if !keep {
 			logrus.Infof("store: generation %s removed from the store", g.Uuid)
 		}
