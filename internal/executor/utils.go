@@ -46,7 +46,7 @@ func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr
 }
 
 func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
-	commonArgs := []string{"--extra-experimental-features", "nix-command", "--extra-experimental-features", "flakes", "--accept-flake-config"}
+	commonArgs := []string{"--extra-experimental-features", "flakes nix-command", "--accept-flake-config"}
 	args = append(commonArgs, args...)
 	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
 	logrus.Infof("nix: running '%s'", cmdStr)
@@ -85,6 +85,11 @@ func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr s
 		keys = append(keys, key)
 	}
 	drvPath = keys[0]
+	// derivation jsons do not contain store directory anymore since nix 2.32
+	// see https://nix.dev/manual/nix/2.32/release-notes/rl-2.32.html#:~:text=derivation%20json%20format%20now%20uses%20store%20path%20basenames%20only
+	if !strings.HasPrefix(drvPath, "/nix/store/") {
+		drvPath = "/nix/store/" + drvPath
+	}
 	outPath = output[drvPath].Outputs.Out.Path
 	logrus.Infof("nix: the derivation path is %s", drvPath)
 	logrus.Infof("nix: the output path is %s", outPath)

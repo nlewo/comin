@@ -32,11 +32,11 @@ in {
         StandardErrorPath = "/var/log/comin.log";
         StandardOutPath = "/var/log/comin.log";
         EnvironmentVariables = {
-          PATH = lib.makeBinPath [ config.nix.package pkgs.git ];
+          PATH = lib.makeBinPath [ config.nix.package pkgs.git pkgs.ssh ];
         };
       };
     };
-    
+
     system.activationScripts.comin.text = ''
       mkdir -p /var/lib/comin
       chown root:wheel /var/lib/comin
@@ -50,7 +50,7 @@ in {
       if [ -f /Library/LaunchDaemons/com.github.nlewo.comin.plist ]; then
         # Ensure service is loaded but don't restart during activation
         /bin/launchctl load -w /Library/LaunchDaemons/com.github.nlewo.comin.plist 2>/dev/null || true
-        
+
         # Check if the service is actually running, if not start it
         if ! /bin/launchctl list | grep -q "com.github.nlewo.comin"; then
           echo "Comin service not running, starting it..."
