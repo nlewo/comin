@@ -60,7 +60,7 @@ func TestExecStop(t *testing.T) {
 type RunnableError struct{}
 
 func (r *RunnableError) Run(ctx context.Context) error {
-	return fmt.Errorf("An error occured")
+	return fmt.Errorf("An error occurred")
 }
 func TestExecError(t *testing.T) {
 	r := &RunnableError{}
@@ -68,5 +68,5 @@ func TestExecError(t *testing.T) {
 	e.Start(t.Context())
 	e.Wait()
 	assert.True(t, e.finished.Load())
-	assert.ErrorContains(t, e.getErr(), "An error occured")
+	assert.ErrorContains(t, e.getErr(), "An error occurred")
 }
