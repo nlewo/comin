@@ -32,7 +32,7 @@ in {
         StandardErrorPath = "/var/log/comin.log";
         StandardOutPath = "/var/log/comin.log";
         EnvironmentVariables = {
-          PATH = lib.makeBinPath [ config.nix.package pkgs.git pkgs.ssh ];
+          PATH = lib.makeBinPath [ config.nix.package pkgs.git pkgs.openssh ];
         };
       };
     };
