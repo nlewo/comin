@@ -4,25 +4,56 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
+
+	"github.com/nlewo/comin/internal/utils"
 )
 
-type NixLocal struct{}
+type NixLocal struct {
+	configurationAttr string
+}
 
-func NewNixExecutor() (*NixLocal, error) {
-	return &NixLocal{}, nil
+func NewNixExecutor(configurationAttr string) (*NixLocal, error) {
+	return &NixLocal{configurationAttr: configurationAttr}, nil
+}
+
+func (n *NixLocal) ReadMachineId() (string, error) {
+	if n.configurationAttr == "darwinConfigurations" {
+		return utils.ReadMachineIdDarwin()
+	}
+	return utils.ReadMachineIdLinux()
+}
+
+func (n *NixLocal) NeedToReboot() bool {
+	if n.configurationAttr == "darwinConfigurations" {
+		// TODO: Implement proper reboot detection for Darwin
+		// Unlike NixOS which has /run/current-system vs /run/booted-system paths,
+		// Darwin/macOS doesn't have equivalent mechanisms for detecting when
+		// a reboot is needed after nix-darwin configuration changes.
+		// For now, conservatively assume no reboot is needed.
+		return false
+	}
+	return utils.NeedToRebootLinux()
+}
+
+func (n *NixLocal) IsStorePathExist(storePath string) bool {
+	if _, err := os.Stat(storePath); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	return true
 }
 
 func (n *NixLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
-	return showDerivation(ctx, flakeUrl, hostname)
+	return showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
 }
 
 func (n *NixLocal) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
-	drvPath, outPath, err = showDerivation(ctx, flakeUrl, hostname)
+	drvPath, outPath, err = showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
 	if err != nil {
 		return
 	}
-	machineId, err = getExpectedMachineId(flakeUrl, hostname)
+	machineId, err = getExpectedMachineId(ctx, flakeUrl, hostname, n.configurationAttr)
 	return
 }
 
@@ -31,7 +62,7 @@ func (n *NixLocal) Build(ctx context.Context, drvPath string) (err error) {
 }
 
 func (n *NixLocal) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation)
+	return deploy(ctx, outPath, operation, n.configurationAttr)
 }
 
 type Path struct {
@@ -47,7 +78,8 @@ type Derivation struct {
 }
 
 type Show struct {
-	NixosConfigurations map[string]struct{} `json:"nixosConfigurations"`
+	NixosConfigurations  map[string]struct{} `json:"nixosConfigurations"`
+	DarwinConfigurations map[string]struct{} `json:"darwinConfigurations"`
 }
 
 func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
@@ -58,7 +90,7 @@ func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
 		flakeUrl,
 	}
 	var stdout bytes.Buffer
-	err = runNixCommand(args, &stdout, os.Stderr)
+	err = runNixCommand(context.Background(), args, &stdout, os.Stderr)
 	if err != nil {
 		return
 	}
@@ -68,8 +100,16 @@ func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
 	if err != nil {
 		return
 	}
-	hosts = make([]string, 0, len(output.NixosConfigurations))
-	for key := range output.NixosConfigurations {
+
+	var configurations map[string]struct{}
+	if n.configurationAttr == "darwinConfigurations" {
+		configurations = output.DarwinConfigurations
+	} else {
+		configurations = output.NixosConfigurations
+	}
+
+	hosts = make([]string, 0, len(configurations))
+	for key := range configurations {
 		hosts = append(hosts, key)
 	}
 	return

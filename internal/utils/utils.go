@@ -5,21 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
-
-func CominServiceRestart() error {
-	logrus.Infof("The comin.service unit file changed. Comin systemd service is now restarted...")
-	logrus.Infof("Restarting the systemd comin.service: 'systemctl restart --no-block comin.service'")
-	cmd := exec.Command("systemctl", "restart", "--no-block", "comin.service")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("command 'systemctl restart --no-block comin.service' fails with %s", err)
-	}
-	return nil
-}
 
 func FormatCommitMsg(msg string) string {
 	split := strings.Split(msg, "\n")
@@ -37,11 +23,31 @@ func FormatCommitMsg(msg string) string {
 	return formatted
 }
 
-func ReadMachineId() (machineId string, err error) {
+func ReadMachineIdLinux() (machineId string, err error) {
 	machineIdBytes, err := os.ReadFile("/etc/machine-id")
 	machineId = strings.TrimSuffix(string(machineIdBytes), "\n")
 	if err != nil {
 		return "", fmt.Errorf("can not read file '/etc/machine-id': %s", err)
 	}
 	return
+}
+
+func ReadMachineIdDarwin() (machineId string, err error) {
+	cmd := exec.Command("/usr/sbin/system_profiler", "SPHardwareDataType")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get hardware UUID on macOS: %s", err)
+	}
+
+	lines := strings.SplitSeq(string(output), "\n")
+	for line := range lines {
+		if strings.Contains(line, "Hardware UUID:") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				machineId = strings.TrimSpace(parts[1])
+				return machineId, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("could not find Hardware UUID in system_profiler output")
 }

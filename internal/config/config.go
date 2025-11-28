@@ -52,6 +52,9 @@ func Read(path string) (config types.Configuration, err error) {
 	if config.FlakeSubdirectory == "" {
 		config.FlakeSubdirectory = "."
 	}
+	if config.Grpc.UnixSocketPath == "" {
+		config.Grpc.UnixSocketPath = filepath.Join(config.StateDir, "grpc.sock")
+	}
 	logrus.Debugf("Config is '%#v'", config)
 	return
 }

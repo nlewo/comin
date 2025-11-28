@@ -24,7 +24,7 @@ in
 
 buildGoModule rec {
   pname = "comin";
-  version = "0.6.0";
+  version = "0.8.0";
   nativeCheckInputs = [ git ];
   src = lib.fileset.toSource {
     root = ../.;
@@ -36,14 +36,14 @@ buildGoModule rec {
       ../main.go
     ];
   };
-  vendorHash = "sha256-IE2yxFIIqbjjzBamwJg5vS36MMOkD7TJ4A5PKx3CRH4=";
+  vendorHash = "sha256-I4ePkYhuvotmvv8ghLcAm5QWlWHVa/BU2Picbyggy90=";
   ldflags = [
     "-X github.com/nlewo/comin/cmd.version=${version}"
   ];
-  buildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper ];
   postInstall = ''
     # This is because Nix needs Git at runtime by the go-git library
-    wrapProgram $out/bin/comin --set GIT_CONFIG_SYSTEM ${gitConfigFile} --prefix PATH : ${git}/bin
+    wrapProgram $out/bin/comin --set GIT_CONFIG_SYSTEM ${gitConfigFile} --prefix PATH : ${lib.makeBinPath [ git ]}
   '';
 
   meta = {

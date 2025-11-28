@@ -45,14 +45,20 @@ type HttpServer struct {
 	Port          int    `yaml:"port"`
 }
 
+type Grpc struct {
+	UnixSocketPath string `yaml:"unix_socket_path"`
+}
+
 type Configuration struct {
-	Hostname           string     `yaml:"hostname"`
-	StateDir           string     `yaml:"state_dir"`
-	StateFilepath      string     `yaml:"state_filepath"`
-	FlakeSubdirectory  string     `yaml:"flake_subdirectory"`
-	Remotes            []Remote   `yaml:"remotes"`
-	ApiServer          HttpServer `yaml:"api_server"`
-	Exporter           HttpServer `yaml:"exporter"`
-	GpgPublicKeyPaths  []string   `yaml:"gpg_public_key_paths"`
-	AllowForcePushMain bool       `yaml:"allow_force_push_main"`
+	Hostname              string     `yaml:"hostname"`
+	StateDir              string     `yaml:"state_dir"`
+	StateFilepath         string     `yaml:"state_filepath"`
+	FlakeSubdirectory     string     `yaml:"flake_subdirectory"`
+	Remotes               []Remote   `yaml:"remotes"`
+	ApiServer             HttpServer `yaml:"api_server"`
+	Grpc                  Grpc       `yaml:"grpc"`
+	Exporter              HttpServer `yaml:"exporter"`
+	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
+	PostDeploymentCommand string     `yaml:"post_deployment_command"`
+	AllowForcePushMain    bool       `yaml:"allow_force_push_main"`
 }

@@ -1,13 +1,18 @@
 package profile
 
-import "os"
-import "fmt"
-import "github.com/sirupsen/logrus"
-import "os/exec"
-import "path"
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path"
 
-var systemProfilesDir string = "/nix/var/nix/profiles/system-profiles"
-var cominProfileDir string = systemProfilesDir + "/comin"
+	"github.com/sirupsen/logrus"
+)
+
+const (
+	systemProfiles  = "/nix/var/nix/profiles/system-profiles"
+	cominProfileDir = systemProfiles + "/comin"
+)
 
 // setSystemProfile creates a link into the directory
 // /nix/var/nix/profiles/system-profiles/comin to the built system
@@ -18,9 +23,9 @@ var cominProfileDir string = systemProfilesDir + "/comin"
 // and https://github.com/nixos/nixpkgs/blob/df98ab81f908bed57c443a58ec5230f7f7de9bd3/nixos/modules/system/boot/loader/systemd-boot/systemd-boot-builder.py#L247
 func SetSystemProfile(operation string, outPath string, dryRun bool) (profilePath string, err error) {
 	if operation == "switch" || operation == "boot" {
-		err := os.MkdirAll(systemProfilesDir, os.ModeDir)
+		err := os.MkdirAll(systemProfiles, os.ModeDir)
 		if err != nil && !os.IsExist(err) {
-			return profilePath, fmt.Errorf("nix: failed to create the profile directory: %s", systemProfilesDir)
+			return profilePath, fmt.Errorf("nix: failed to create the profile directory: %s", systemProfiles)
 		}
 		cmdStr := fmt.Sprintf("nix-env --profile %s --set %s", cominProfileDir, outPath)
 		logrus.Infof("nix: running '%s'", cmdStr)
@@ -39,7 +44,7 @@ func SetSystemProfile(operation string, outPath string, dryRun bool) (profilePat
 			if err != nil {
 				return profilePath, fmt.Errorf("nix: failed to os.Readlink(%s)", cominProfileDir)
 			}
-			profilePath = path.Join(systemProfilesDir, dst)
+			profilePath = path.Join(systemProfiles, dst)
 			logrus.Infof("nix: the profile %s has been created", profilePath)
 		}
 	}

@@ -25,6 +25,7 @@ in {
       { assertion = package != null; message = "`services.comin.package` cannot be null."; }
       # If the package is null and our `system` isn't supported by the Flake, it's probably safe to show this error message
       { assertion = package == null -> lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake."; }
+      { assertion = cfg.services.comin.hostname != null && cfg.services.comin.hostname != ""; message = "You must set `networking.hostName` or `services.comin.hostname` explicitly in your NixOS configuration. Comin requires an explicit hostname to determine which nixosConfiguration to deploy."; }
     ];
 
     environment.systemPackages = [ package ];
@@ -33,7 +34,7 @@ in {
     services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
-      path = [ config.nix.package ];
+      path = [ config.nix.package config.programs.ssh.package ];
       # The comin service is restarted by comin itself when it
       # detects the unit file changed.
       restartIfChanged = false;

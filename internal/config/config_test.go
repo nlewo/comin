@@ -1,18 +1,20 @@
 package config
 
 import (
+	"testing"
+
 	"github.com/nlewo/comin/internal/types"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestConfig(t *testing.T) {
 	configPath := "./configuration.yaml"
 	expected := types.Configuration{
-		Hostname:          "machine",
-		StateDir:          "/var/lib/comin",
-		StateFilepath:     "/var/lib/comin/state.json",
-		FlakeSubdirectory: ".",
+		Hostname:              "machine",
+		StateDir:              "/var/lib/comin",
+		StateFilepath:         "/var/lib/comin/state.json",
+		PostDeploymentCommand: "/some/path",
+		FlakeSubdirectory:     ".",
 		Remotes: []types.Remote{
 			{
 				Name: "origin",
@@ -40,6 +42,9 @@ func TestConfig(t *testing.T) {
 		Exporter: types.HttpServer{
 			ListenAddress: "0.0.0.0",
 			Port:          4243,
+		},
+		Grpc: types.Grpc{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		},
 	}
 	config, err := Read(configPath)

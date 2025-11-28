@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"context"
+	"runtime"
 
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/sirupsen/logrus"
@@ -13,9 +13,15 @@ var buildCmd = &cobra.Command{
 	Short: "Build a machine configuration",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.TODO()
+		ctx := cmd.Context()
 		hosts := make([]string, 1)
-		executor, _ := executor.NewNixExecutor()
+		var configurationAttr string
+		if runtime.GOOS == "darwin" {
+			configurationAttr = "darwinConfigurations"
+		} else {
+			configurationAttr = "nixosConfigurations"
+		}
+		executor, _ := executor.NewNixExecutor(configurationAttr)
 		if hostname != "" {
 			hosts[0] = hostname
 		} else {

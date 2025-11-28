@@ -69,3 +69,11 @@ of GPG public keys. If `services.comin.gpgPublicKeyPaths != []`, comin **only** 
 by one of these GPG keys. Note only the last commit needs to be signed.
 
 The file containing a GPG public key has to be created with `gpg --armor  --export alice@cyb.org`.
+
+
+## How to deploy a nix-darwin configuration
+
+When comin is running on a Darwin system, it automatically builds and
+deploys a configuration found in the flake output
+`darwinConfigurations.hostname`. So, you only need to set this flake
+output and run comin on the target machine.

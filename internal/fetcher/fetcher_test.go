@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nlewo/comin/internal/repository"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,20 +13,20 @@ import (
 func TestFetcher(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	f := NewFetcher(r)
-	f.Start()
+	f.Start(t.Context())
 	var commitId string
 
-	for i := 0; i < 2; i++ {
-		assert.False(t, f.IsFetching)
+	for i := range 2 {
+		assert.False(t, f.IsFetching())
 		f.TriggerFetch([]string{"remote"})
 
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
-			assert.True(c, f.IsFetching)
+			assert.True(c, f.IsFetching())
 		}, 5*time.Second, 100*time.Millisecond, "fetcher is not fetching")
 
 		// This is to simulate a git fetch
 		commitId = fmt.Sprintf("id-%d", i)
-		r.RsCh <- repository.RepositoryStatus{
+		r.RsCh <- &protobuf.RepositoryStatus{
 			SelectedCommitId: commitId,
 		}
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -34,11 +34,11 @@ func TestFetcher(t *testing.T) {
 			assert.Equal(c, commitId, rs.SelectedCommitId)
 		}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
-		assert.False(t, f.IsFetching)
+		assert.False(t, f.IsFetching())
 	}
 
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id-5",
 	}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -46,10 +46,10 @@ func TestFetcher(t *testing.T) {
 		assert.Equal(c, "id-5", rs.SelectedCommitId)
 	}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id-5",
 	}
-	r.RsCh <- repository.RepositoryStatus{
+	r.RsCh <- &protobuf.RepositoryStatus{
 		SelectedCommitId: "id-6",
 	}
 	rs := <-f.RepositoryStatusCh

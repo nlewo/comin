@@ -1,5 +1,11 @@
-{ config, pkgs, lib, ... }: {
-  options = with lib; with types; {
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}: {
+  options = with lib;
+  with types; {
     services.comin = {
       enable = mkOption {
         type = types.bool;
@@ -8,17 +14,21 @@
           Whether to run the comin service.
         '';
       };
-      package = lib.mkPackageOption pkgs "comin" { nullable = true; } // {
-        defaultText = "pkgs.comin or comin.packages.\${system}.default or null";
-      };
+      package =
+        lib.mkPackageOption pkgs "comin" {nullable = true;}
+        // {
+          defaultText = "pkgs.comin or comin.packages.\${system}.default or null";
+        };
       hostname = mkOption {
         type = str;
         default = config.networking.hostName;
+        defaultText = lib.literalExpression "config.networking.hostName";
         description = ''
-          The name of the NixOS configuration to evaluate and
-          deploy. This value is used by comin to evaluate the
-          flake output
-          nixosConfigurations."<hostname>".config.system.build.toplevel
+          The name of the configuration to evaluate and deploy.
+          This value is used by comin to evaluate the flake output
+          nixosConfigurations."<hostname>" or darwinConfigurations."<hostname>".
+          Defaults to networking.hostName - you MUST set either this option
+          or networking.hostName in your configuration.
         '';
       };
       flakeSubdirectory = mkOption {
@@ -121,6 +131,7 @@
                         name = mkOption {
                           type = str;
                           default = "testing-${config.services.comin.hostname}";
+                          defaultText = lib.literalExpression "testing-\${config.services.comin.hostname}";
                           description = "The name of the testing branch.";
                         };
                       };
@@ -173,6 +184,18 @@
         description = "A list of GPG public key file paths. Each of this file should contains an armored GPG key.";
         type = listOf str;
         default = [];
+      };
+      postDeploymentCommand = mkOption {
+        description = "A path to a script executed after each
+        deployment. comin provides to the script the following
+        environment variables: `COMIN_GIT_SHA`, `COMIN_GIT_REF`,
+        `COMIN_GIT_MSG`, `COMIN_HOSTNAME`, `COMIN_FLAKE_URL`,
+        `COMIN_GENERATION`, `COMIN_STATUS` and `COMIN_ERROR_MSG`.";
+        type = nullOr path;
+        default = null;
+        example = lib.literalExpression ''
+          pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
+        '';
       };
       allowForcePushMain = mkOption {
         description = "Switch to configuration even when a force-push was detected on main.";

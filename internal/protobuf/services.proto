@@ -1,0 +1,140 @@
+// To generate Go code, from the repository root directory, run:
+// protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative internal/protobuf/services.proto 
+
+edition = "2023";
+
+package protobuf;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+option features.field_presence = IMPLICIT;
+option go_package = "github.com/nlewo/comin/internal/protobuf";
+
+service Comin {
+  rpc GetState(google.protobuf.Empty) returns (State) {}
+  rpc Fetch(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Suspend(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc Resume(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+}
+
+// We consider each created genration is legit to be deployed: hard
+// reset is ensured at RepositoryStatus creation.
+message Generation {
+  string uuid = 1;
+
+  string flake_url = 2;
+  string hostname = 3;
+
+  string selected_remote_url = 4;
+  string selected_remote_name = 5;
+  string selected_branch_name = 6;
+  string selected_commit_id = 7;
+  string selected_commit_msg = 8;
+  google.protobuf.BoolValue selected_branch_is_testing = 9;
+
+  string main_commit_id = 10;
+  string main_remote_name = 11;
+  string main_branch_name = 12;
+
+  string eval_status = 13;
+  google.protobuf.Timestamp eval_started_at = 14;
+  google.protobuf.Timestamp eval_ended_at = 15;
+  string eval_err = 16;
+
+  string out_path = 17;
+  string drv_path = 18;
+  string machine_id = 19;
+
+  string build_status = 20;
+  google.protobuf.Timestamp build_started_at = 21;
+  google.protobuf.Timestamp build_ended_at = 22;
+  string build_err = 23;
+}
+
+message Deployment {
+  string uuid = 1;
+  Generation generation = 2;
+
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Timestamp ended_at = 4;
+
+  string error_msg = 5;
+  google.protobuf.BoolValue restart_comin = 6;
+  string profile_path = 7;
+  string status = 8;
+  string operation = 9;
+}
+
+message State {
+  google.protobuf.BoolValue need_to_reboot = 1;
+  google.protobuf.BoolValue is_suspended = 2;
+  Builder builder = 3;
+  Deployer deployer = 4;
+  Fetcher fetcher = 5;
+  Store store = 6;
+}
+
+message Deployer {
+  google.protobuf.BoolValue is_deploying = 1;
+  Deployment deployment = 2;
+  Generation generation_to_deploy = 3;
+  Deployment previous_deployment = 4;
+  google.protobuf.BoolValue is_suspended = 5;
+}
+
+message Builder {
+  google.protobuf.BoolValue is_evaluating = 1;
+  google.protobuf.BoolValue is_building = 2;
+  Generation generation = 3;
+  string generation_uuid = 4;
+  google.protobuf.BoolValue is_suspended = 5;
+  string hostname = 6;
+}
+
+message Fetcher {
+  google.protobuf.BoolValue is_fetching = 1;
+  RepositoryStatus repository_status = 2;
+}
+
+message Branch {
+  string name = 1;
+  string commit_id = 2;
+  string commit_msg = 3;
+  string error_msg = 4;
+  string on_top_of = 5;
+}
+
+message Remote {
+  string name = 1;
+  string url = 2;
+  string fetch_error_msg = 3;
+  Branch main = 4;
+  Branch testing = 5;
+  google.protobuf.Timestamp fetched_at = 6;
+  google.protobuf.BoolValue fetched = 7;
+}
+
+message RepositoryStatus {
+  // This is the deployed Main commit ID. It is used to ensure fast forward
+  string selected_commit_id = 1;
+  string selected_commit_msg = 2;
+  string selected_remote_name = 3;
+  string selected_branch_name = 4;
+  google.protobuf.BoolValue selected_branch_is_testing = 5;
+  google.protobuf.BoolValue selected_commit_signed = 6;
+  string selected_commit_signed_by = 7;
+  // True if public keys were available when the commit has been checked out
+  google.protobuf.BoolValue selected_commit_should_be_signed = 8;
+  string main_commit_id = 9;
+  string main_remote_name = 10;
+  string main_branch_name = 11;
+  repeated Remote remotes = 12;
+  string error_msg = 13;
+}
+
+message Store {
+  repeated Deployment deployments = 1;
+  repeated Generation generations = 2; 
+}

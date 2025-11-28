@@ -748,18 +748,18 @@ func TestUpdateGpg(t *testing.T) {
 	err = r.Update()
 	assert.Nil(t, err)
 	assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
-	assert.True(t, r.RepositoryStatus.SelectedCommitSigned)
+	assert.True(t, r.RepositoryStatus.SelectedCommitSigned.GetValue())
 	assert.Equal(t, "test <test@comin.space>", r.RepositoryStatus.SelectedCommitSignedBy)
-	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned)
+	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue())
 
 	_, _ = commitFile(r1, dir, "main", "file-2")
 	r.Fetch([]string{"r1"})
 	err = r.Update()
 	assert.Nil(t, err)
 	assert.Equal(t, HeadCommitId(r1), r.RepositoryStatus.SelectedCommitId)
-	assert.False(t, r.RepositoryStatus.SelectedCommitSigned)
+	assert.False(t, r.RepositoryStatus.SelectedCommitSigned.GetValue())
 	assert.Equal(t, "", r.RepositoryStatus.SelectedCommitSignedBy)
-	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned)
+	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue())
 
 	// No GPG keys available so commits don't need to be signed
 	gitConfig = types.GitConfig{
@@ -782,7 +782,7 @@ func TestUpdateGpg(t *testing.T) {
 	r.Fetch([]string{"r1"})
 	err = r.Update()
 	assert.Nil(t, err)
-	assert.False(t, r.RepositoryStatus.SelectedCommitSigned)
+	assert.False(t, r.RepositoryStatus.SelectedCommitSigned.GetValue())
 	assert.Equal(t, "", r.RepositoryStatus.SelectedCommitSignedBy)
-	assert.False(t, r.RepositoryStatus.SelectedCommitShouldBeSigned)
+	assert.False(t, r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue())
 }
