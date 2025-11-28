@@ -61,9 +61,10 @@ func Read(path string) (config types.Configuration, err error) {
 
 func MkGitConfig(config types.Configuration) types.GitConfig {
 	return types.GitConfig{
-		Path:              filepath.Join(config.StateDir, "repository"),
-		Dir:               config.FlakeSubdirectory,
-		Remotes:           config.Remotes,
-		GpgPublicKeyPaths: config.GpgPublicKeyPaths,
+		Path:               filepath.Join(config.StateDir, "repository"),
+		Dir:                config.FlakeSubdirectory,
+		Remotes:            config.Remotes,
+		GpgPublicKeyPaths:  config.GpgPublicKeyPaths,
+		AllowForcePushMain: config.AllowForcePushMain,
 	}
 }
