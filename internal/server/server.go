@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/nlewo/comin/internal/manager"
-	pb "github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,12 +17,12 @@ import (
 )
 
 type cominServer struct {
-	pb.CominServer
+	protobuf.CominServer
 	manager        *manager.Manager
 	unixSocketPath string
 }
 
-func (s *cominServer) GetState(ctx context.Context, empty *emptypb.Empty) (*pb.State, error) {
+func (s *cominServer) GetState(ctx context.Context, empty *emptypb.Empty) (*protobuf.State, error) {
 	return s.manager.GetState(), nil
 }
 
@@ -53,6 +53,19 @@ func (s *cominServer) Resume(ctx context.Context, empty *emptypb.Empty) (*emptyp
 	return nil, err
 }
 
+func (s *cominServer) Confirm(ctx context.Context, req *protobuf.ConfirmRequest) (*emptypb.Empty, error) {
+	switch req.For {
+	case "build":
+		s.manager.BuildConfirmer.Confirm(req.GenerationUuid)
+	case "deploy":
+		s.manager.DeployConfirmer.Confirm(req.GenerationUuid)
+	case "all":
+		s.manager.BuildConfirmer.Confirm(req.GenerationUuid)
+		s.manager.DeployConfirmer.Confirm(req.GenerationUuid)
+	}
+	return nil, nil
+}
+
 func (c *cominServer) Start() {
 	go func() {
 		if err := os.RemoveAll(c.unixSocketPath); err != nil {
@@ -68,7 +81,7 @@ func (c *cominServer) Start() {
 		}
 		var opts []grpc.ServerOption
 		grpcServer := grpc.NewServer(opts...)
-		pb.RegisterCominServer(grpcServer, c)
+		protobuf.RegisterCominServer(grpcServer, c)
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("server: failed to serve: %s", err)
 		}

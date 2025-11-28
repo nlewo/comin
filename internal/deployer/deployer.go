@@ -133,6 +133,16 @@ func (d *Deployer) Resume() {
 	}
 }
 
+func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation) bool {
+	previous := d.previousDeployment.Load()
+	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting.GetValue() != previous.Generation.SelectedBranchIsTesting.GetValue() {
+		return false
+	} else {
+		logrus.Infof("deployer: skipping deployment of the generation %s because it is the same than the last deployment", generation.Uuid)
+		return true
+	}
+}
+
 // Submit submits a generation to be deployed. If a deployment is
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
@@ -140,17 +150,15 @@ func (d *Deployer) Resume() {
 func (d *Deployer) Submit(generation *protobuf.Generation) {
 	logrus.Infof("deployer: submitting generation %s", generation.Uuid)
 	d.mu.Lock()
-	previous := d.previousDeployment.Load()
-	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting.GetValue() != previous.Generation.SelectedBranchIsTesting.GetValue() {
+	defer d.mu.Unlock()
+
+	if !d.IsAlreadyDeployed(generation) {
 		d.GenerationToDeploy = generation
 		select {
 		case d.generationAvailableCh <- struct{}{}:
 		default:
 		}
-	} else {
-		logrus.Infof("deployer: skipping deployment of the generation %s because it is the same than the last deployment", generation.Uuid)
 	}
-	d.mu.Unlock()
 }
 
 func (d *Deployer) Run(ctx context.Context) {

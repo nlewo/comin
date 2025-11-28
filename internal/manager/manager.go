@@ -34,29 +34,43 @@ type Manager struct {
 
 	needToReboot bool
 
-	prometheus prometheus.Prometheus
-	storage    *store.Store
-	scheduler  scheduler.Scheduler
-	Fetcher    *fetcher.Fetcher
-	Builder    *builder.Builder
-	deployer   *deployer.Deployer
-	executor   executor.Executor
+	prometheus      prometheus.Prometheus
+	storage         *store.Store
+	scheduler       scheduler.Scheduler
+	Fetcher         *fetcher.Fetcher
+	Builder         *builder.Builder
+	deployer        *deployer.Deployer
+	executor        executor.Executor
+	BuildConfirmer  *Confirmer
+	DeployConfirmer *Confirmer
 
 	isSuspended bool
 }
 
-func New(s *store.Store, p prometheus.Prometheus, sched scheduler.Scheduler, fetcher *fetcher.Fetcher, builder *builder.Builder, deployer *deployer.Deployer, machineId string, executor executor.Executor) *Manager {
+func New(s *store.Store,
+	p prometheus.Prometheus,
+	sched scheduler.Scheduler,
+	fetcher *fetcher.Fetcher,
+	builder *builder.Builder,
+	deployer *deployer.Deployer,
+	machineId string,
+	executor executor.Executor,
+	buildConfirmer *Confirmer,
+	deployConfirmer *Confirmer) *Manager {
+
 	m := &Manager{
-		machineId:      machineId,
-		stateRequestCh: make(chan struct{}),
-		stateResultCh:  make(chan *pb.State),
-		prometheus:     p,
-		storage:        s,
-		scheduler:      sched,
-		Fetcher:        fetcher,
-		Builder:        builder,
-		deployer:       deployer,
-		executor:       executor,
+		machineId:       machineId,
+		stateRequestCh:  make(chan struct{}),
+		stateResultCh:   make(chan *pb.State),
+		prometheus:      p,
+		storage:         s,
+		scheduler:       sched,
+		Fetcher:         fetcher,
+		Builder:         builder,
+		deployer:        deployer,
+		executor:        executor,
+		BuildConfirmer:  buildConfirmer,
+		DeployConfirmer: deployConfirmer,
 	}
 	return m
 }
@@ -68,12 +82,14 @@ func (m *Manager) GetState() *pb.State {
 
 func (m *Manager) toState() *pb.State {
 	return &pb.State{
-		NeedToReboot: wrapperspb.Bool(m.needToReboot),
-		IsSuspended:  wrapperspb.Bool(m.isSuspended),
-		Builder:      m.Builder.State(),
-		Deployer:     m.deployer.State(),
-		Fetcher:      m.Fetcher.GetState(),
-		Store:        m.storage.GetState(),
+		NeedToReboot:    wrapperspb.Bool(m.needToReboot),
+		IsSuspended:     wrapperspb.Bool(m.isSuspended),
+		Builder:         m.Builder.State(),
+		Deployer:        m.deployer.State(),
+		Fetcher:         m.Fetcher.GetState(),
+		Store:           m.storage.GetState(),
+		BuildConfirmer:  m.BuildConfirmer.status(),
+		DeployConfirmer: m.DeployConfirmer.status(),
 	}
 }
 
@@ -131,8 +147,11 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					logrus.Infof("manager: the comin.machineId %s is not the host machine-id %s", generation.MachineId, m.machineId)
 				} else {
 					logrus.Infof("manager: the build of the generation %s is submitted", generation.Uuid)
-					m.Builder.SubmitBuild(ctx, generationUUID)
+					m.BuildConfirmer.Submit(generationUUID)
 				}
+			case generationUUID := <-m.BuildConfirmer.confirmed:
+				m.Builder.SubmitBuild(ctx, generationUUID)
+
 			case generationUUID := <-m.Builder.BuildDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
 				if err != nil {
@@ -141,11 +160,19 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 				}
 				if generation.BuildErr == "" {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					m.deployer.Submit(&generation)
+					if !m.deployer.IsAlreadyDeployed(&generation) {
+						m.DeployConfirmer.Submit(generationUUID)
+					}
 				}
+			case generationUUID := <-m.DeployConfirmer.confirmed:
+				generation, err := m.storage.GenerationGet(generationUUID)
+				if err != nil {
+					logrus.Error(err)
+					continue
+				}
+				m.deployer.Submit(&generation)
 			}
 		}
-
 	}()
 }
 

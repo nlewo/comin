@@ -189,6 +189,60 @@
           pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
         '';
       };
+      buildConfirmer = mkOption {
+        description = "The confirmer options for the build.";
+        default = {};
+        type = submodule {
+          options = {
+            mode = mkOption {
+              type = enum [ "without" "auto" "manual" ];
+              default = "without";
+              description = ''
+                The confirmer mode. "without" immediately confirms
+                without any user interaction. "manual" requires a user
+                confirmation. "auto" automatically confirms after
+                waiting for the autoconfirm_duration.
+              '';           
+            };
+            autoconfirm_duration = mkOption {
+              type = int;
+              default = 120;
+              description = ''
+                The autoconfirm timer duration in seconds. After this
+                duration, the action is automatically confirmed.
+              '';           
+            };
+
+          };
+        };
+      };
+      deployConfirmer = mkOption {
+        description = "The confirmer options for the deployment.";
+        default = {};
+        type = submodule {
+          options = {
+            mode = mkOption {
+              type = enum [ "without" "auto" "manual" ];
+              default = "without";
+              description = ''
+                The confirmer mode. "without" immediately confirms
+                without any user interaction. "manual" requires a user
+                confirmation. "auto" automatically confirms after
+                waiting for the autoconfirm_duration.
+              '';           
+            };
+            autoconfirm_duration = mkOption {
+              type = int;
+              default = 120;
+              description = ''
+                The autoconfirm timer duration in seconds. After this
+                duration, the action is automatically confirmed.
+              '';           
+            };
+
+          };
+        };
+      };
     };
   };
 }
