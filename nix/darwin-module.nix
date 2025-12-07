@@ -18,14 +18,14 @@ in {
     environment.systemPackages = [ package ];
     services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     launchd.daemons.comin = {
+      command = lib.concatStringsSep " " ([
+        (lib.getExe package)
+      ] ++ (lib.optionals cfg.services.comin.debug [ "--debug" ]) ++ [
+        "run"
+        "--config"
+        "${cominConfigYaml}"
+      ]);
       serviceConfig = {
-        ProgramArguments = [
-          (lib.getExe package)
-        ] ++ (lib.optionals cfg.services.comin.debug [ "--debug" ]) ++ [
-          "run"
-          "--config"
-          "${cominConfigYaml}"
-        ];
         Label = "com.github.nlewo.comin";
         KeepAlive = true;
         RunAtLoad = true;
