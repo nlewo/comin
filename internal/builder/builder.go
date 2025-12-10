@@ -216,9 +216,6 @@ func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error
 
 		b.isEvaluating.Store(false)
 		if b.executor.IsStorePathExist(evaluator.outPath) {
-			if err := b.store.GenerationBuildStart(g.Uuid); err != nil {
-				logrus.Errorf("builder: %s", err)
-			}
 			if err := b.store.GenerationBuildFinished(g.Uuid, nil); err != nil {
 				logrus.Errorf("builder: %s", err)
 			}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -34,9 +35,11 @@ type Store struct {
 	lastEvalFinished  *protobuf.Generation
 	lastBuildStarted  *protobuf.Generation
 	lastBuildFinished *protobuf.Generation
+
+	broker *broker.Broker
 }
 
-func New(filename, gcRootsDir string, capacityMain, capacityTesting int) (*Store, error) {
+func New(broker *broker.Broker, filename, gcRootsDir string, capacityMain, capacityTesting int) (*Store, error) {
 	data := &protobuf.Store{
 		Deployments: make([]*protobuf.Deployment, 0),
 		Generations: make([]*protobuf.Generation, 0),
@@ -47,6 +50,7 @@ func New(filename, gcRootsDir string, capacityMain, capacityTesting int) (*Store
 		capacityMain:     capacityMain,
 		capacityTesting:  capacityTesting,
 		data:             data,
+		broker:           broker,
 	}
 	if err := os.MkdirAll(gcRootsDir, os.ModeDir); err != nil {
 		return nil, err

@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/manager"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
@@ -19,7 +20,22 @@ import (
 type cominServer struct {
 	protobuf.CominServer
 	manager        *manager.Manager
+	broker         *broker.Broker
 	unixSocketPath string
+}
+
+func (s *cominServer) Events(_ *emptypb.Empty, stream grpc.ServerStreamingServer[protobuf.Event]) error {
+	logrus.Infof("server: start to stream events")
+
+	subscriber := s.broker.Subscribe()
+	for {
+		event := <-subscriber
+		if err := stream.Send(event); err != nil {
+			logrus.Infof("server: failed to send stream: ", err)
+			s.broker.Unsubscribe(subscriber)
+			return err
+		}
+	}
 }
 
 func (s *cominServer) GetState(ctx context.Context, empty *emptypb.Empty) (*protobuf.State, error) {
@@ -88,9 +104,10 @@ func (c *cominServer) Start() {
 	}()
 }
 
-func New(manager *manager.Manager, unixSocketPath string) *cominServer {
+func New(broker *broker.Broker, manager *manager.Manager, unixSocketPath string) *cominServer {
 	return &cominServer{
 		manager:        manager,
 		unixSocketPath: unixSocketPath,
+		broker:         broker,
 	}
 }

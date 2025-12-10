@@ -10,12 +10,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
+	"github.com/nlewo/comin/internal/protobuf"
 	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
@@ -45,6 +47,8 @@ type Manager struct {
 	DeployConfirmer *Confirmer
 
 	isSuspended bool
+
+	broker *broker.Broker
 }
 
 func New(s *store.Store,
@@ -56,7 +60,8 @@ func New(s *store.Store,
 	machineId string,
 	executor executor.Executor,
 	buildConfirmer *Confirmer,
-	deployConfirmer *Confirmer) *Manager {
+	deployConfirmer *Confirmer,
+	broker *broker.Broker) *Manager {
 
 	m := &Manager{
 		machineId:       machineId,
@@ -71,6 +76,7 @@ func New(s *store.Store,
 		executor:        executor,
 		BuildConfirmer:  buildConfirmer,
 		DeployConfirmer: deployConfirmer,
+		broker:          broker,
 	}
 	return m
 }
@@ -102,6 +108,7 @@ func (m *Manager) Suspend() error {
 	}
 	m.deployer.Suspend()
 	m.isSuspended = true
+	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}})
 	return nil
 }
 
@@ -114,6 +121,7 @@ func (m *Manager) Resume(ctx context.Context) error {
 	}
 	m.deployer.Resume()
 	m.isSuspended = false
+	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}})
 	return nil
 }
 

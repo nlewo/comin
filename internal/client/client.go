@@ -3,8 +3,11 @@ package client
 import (
 	"context"
 	"fmt"
+	"io"
+	"time"
 
 	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -37,6 +40,31 @@ func (c Client) Close() {
 
 func (c Client) GetManagerState() (state *protobuf.State, err error) {
 	return c.cominClient.GetState(context.Background(), &emptypb.Empty{})
+}
+
+func (c Client) Events(handler func(*protobuf.Event) error) error {
+	for {
+		stream, err := c.cominClient.Events(context.Background(), &emptypb.Empty{})
+		if err != nil {
+			logrus.Infof("failed to connect to the stream: %s", err)
+			time.Sleep(time.Second)
+			continue
+		}
+		for {
+			event, err := stream.Recv()
+			if err == io.EOF {
+				logrus.Infof("server closed stream: %s", err)
+				break
+			}
+			if err != nil {
+				logrus.Infof("failed to receive from the stream: %s", err)
+				break
+			}
+			if err := handler(event); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func (c Client) Fetch() {

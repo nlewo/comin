@@ -83,6 +83,8 @@ func (s *Store) DeploymentStarted(uuid string) error {
 	}
 	d.StartedAt = timestamppb.New(time.Now().UTC())
 	d.Status = StatusToString(Running)
+	e := &protobuf.Event_DeploymentStarted{Deployment: d}
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentStartedType{DeploymentStartedType: e}})
 	return nil
 }
 
@@ -103,5 +105,7 @@ func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRe
 	d.Status = StatusToString(Done)
 	d.RestartComin = wrapperspb.Bool(cominNeedRestart)
 	d.ProfilePath = profilePath
+	e := &protobuf.Event_DeploymentFinished{Deployment: d}
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: e}})
 	return nil
 }
