@@ -2,8 +2,12 @@
   description = "Comin - GitOps for NixOS Machines";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs";
+  inputs.flake-compat = {
+    url = "github:NixOS/flake-compat";
+    flake = false;
+  };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, flake-compat }:
   let
     systems = [ "aarch64-linux" "x86_64-linux" "aarch64-darwin" "x86_64-darwin" ];
     forAllSystems = nixpkgs.lib.genAttrs systems;
