@@ -11,8 +11,11 @@ var fetchCmd = &cobra.Command{
 	Short: "Trigger a fetch of all Git remotes",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		if unixSocketPath == "" {
+			unixSocketPath = "/var/lib/comin/grpc.sock"
+		}
 		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
+			UnixSocketPath: unixSocketPath,
 		}
 		c, err := client.New(opts)
 		if err != nil {
@@ -24,4 +27,5 @@ var fetchCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(fetchCmd)
+	fetchCmd.PersistentFlags().StringVarP(&unixSocketPath, "unix-socket-path", "", "", "the GRPC Unix path (default to /var/lib/comin/grpc.sock)")
 }
