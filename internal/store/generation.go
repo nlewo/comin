@@ -91,10 +91,12 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir string, rs *protobuf.RepositoryStatus) (g protobuf.Generation) {
+func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir, configurationAttr string, rs *protobuf.RepositoryStatus) (g protobuf.Generation) {
 	g = protobuf.Generation{
 		Uuid:                    uuid.New().String(),
-		FlakeUrl:                fmt.Sprintf("git+file://%s?dir=%s&rev=%s", repositoryPath, repositoryDir, rs.SelectedCommitId),
+		RepositoryPath:          repositoryPath,
+		RepositorySubdir:        repositoryDir,
+		ConfigurationAttr:       configurationAttr,
 		Hostname:                hostname,
 		SelectedRemoteName:      rs.SelectedRemoteName,
 		SelectedBranchName:      rs.SelectedBranchName,

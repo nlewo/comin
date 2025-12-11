@@ -24,13 +24,14 @@ import (
 )
 
 type Builder struct {
-	store          *store.Store
-	executor       executor.Executor
-	hostname       string
-	repositoryPath string
-	repositoryDir  string
-	evalTimeout    time.Duration
-	buildTimeout   time.Duration
+	store             *store.Store
+	executor          executor.Executor
+	hostname          string
+	repositoryPath    string
+	repositoryDir     string
+	configurationAttr string
+	evalTimeout       time.Duration
+	buildTimeout      time.Duration
 
 	mu           sync.Mutex
 	isEvaluating atomic.Bool
@@ -134,8 +135,11 @@ func (b *Builder) Stop() {
 }
 
 type Evaluator struct {
-	flakeUrl string
-	hostname string
+	repositoryPath    string
+	repostorySubdir   string
+	configurationAttr string
+	commitId          string
+	hostname          string
 
 	evalFunc executor.EvalFunc
 
@@ -145,7 +149,7 @@ type Evaluator struct {
 }
 
 func (r *Evaluator) Run(ctx context.Context) (err error) {
-	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.flakeUrl, r.hostname)
+	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.repositoryPath, r.repostorySubdir, r.commitId, r.configurationAttr, r.hostname)
 	return err
 }
 
@@ -173,15 +177,19 @@ func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error
 	defer b.mu.Unlock()
 	b.isEvaluating.Store(true)
 
-	g := b.store.NewGeneration(b.hostname, b.repositoryPath, b.repositoryDir, rs)
+	g := b.store.NewGeneration(b.hostname, b.repositoryPath, b.repositoryDir, b.configurationAttr, rs)
 	if err := b.store.GenerationEvalStarted(g.Uuid); err != nil {
 		return err
 	}
 	b.GenerationUuid = g.Uuid
 
 	evaluator := &Evaluator{
-		hostname: b.hostname,
-		flakeUrl: g.FlakeUrl,
+		hostname:          b.hostname,
+		repositoryPath:    g.RepositoryPath,
+		repostorySubdir:   g.RepositorySubdir,
+		configurationAttr: g.ConfigurationAttr,
+
+		commitId: g.SelectedCommitId,
 		evalFunc: b.executor.Eval,
 	}
 	b.evaluator = NewExec(evaluator, b.evalTimeout)

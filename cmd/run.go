@@ -52,15 +52,18 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		executor, err := executorPkg.NewNixOS()
-		if runtime.GOOS == "darwin" {
-			executor, err = executorPkg.NewNixDarwin()
+		var executor executorPkg.Executor
+		switch cfg.RepositoryType {
+		case "flake":
+			executor, err = executorPkg.NewNixOS()
+			if runtime.GOOS == "darwin" {
+				executor, err = executorPkg.NewNixDarwin()
+			}
+			if err != nil {
+				logrus.Errorf("Failed to create the executor: %s", err)
+				return
+			}
 		}
-		if err != nil {
-			logrus.Errorf("Failed to create the executor: %s", err)
-			return
-		}
-
 		machineId, err := executor.ReadMachineId()
 		if err != nil {
 			logrus.Error(err)

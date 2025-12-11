@@ -26,7 +26,7 @@ func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr
 		"--json",
 	}
 	var stdout bytes.Buffer
-	err = runNixCommand(ctx, args, &stdout, os.Stderr)
+	err = runNixFlakeCommand(ctx, args, &stdout, os.Stderr)
 	if err != nil {
 		return
 	}
@@ -45,7 +45,7 @@ func getExpectedMachineId(ctx context.Context, path, hostname, configurationAttr
 	return
 }
 
-func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
+func runNixFlakeCommand(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
 	commonArgs := []string{"--extra-experimental-features", "flakes nix-command", "--accept-flake-config"}
 	args = append(commonArgs, args...)
 	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
@@ -60,7 +60,7 @@ func runNixCommand(ctx context.Context, args []string, stdout, stderr io.Writer)
 	return nil
 }
 
-func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr string) (drvPath string, outPath string, err error) {
+func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, configurationAttr string) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#%s.\"%s\".config.system.build.toplevel", flakeUrl, configurationAttr, hostname)
 	args := []string{
 		"derivation",
@@ -70,7 +70,7 @@ func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr s
 		"--show-trace",
 	}
 	var stdout bytes.Buffer
-	err = runNixCommand(ctx, args, &stdout, os.Stderr)
+	err = runNixFlakeCommand(ctx, args, &stdout, os.Stderr)
 	if err != nil {
 		return
 	}
@@ -101,13 +101,13 @@ func showDerivation(ctx context.Context, flakeUrl, hostname, configurationAttr s
 	return
 }
 
-func build(ctx context.Context, drvPath string) (err error) {
+func buildWithFlake(ctx context.Context, drvPath string) (err error) {
 	args := []string{
 		"build",
 		fmt.Sprintf("%s^*", drvPath),
 		"-L",
 		"--no-link"}
-	err = runNixCommand(ctx, args, os.Stdout, os.Stderr)
+	err = runNixFlakeCommand(ctx, args, os.Stdout, os.Stderr)
 	if err != nil {
 		return
 	}

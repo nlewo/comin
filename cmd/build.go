@@ -21,7 +21,7 @@ var buildCmd = &cobra.Command{
 		} else {
 			configurationAttr = "nixosConfigurations"
 		}
-		executor, _ := executor.NewNixExecutor(configurationAttr)
+		executor, _ := executor.NewNixFlakeExecutor(configurationAttr)
 		if hostname != "" {
 			hosts[0] = hostname
 		} else {

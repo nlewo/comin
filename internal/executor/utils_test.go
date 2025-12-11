@@ -73,7 +73,7 @@ func TestShowDerivation(t *testing.T) {
 			ctx := context.Background()
 
 			// Test that the function doesn't panic and handles the parameters correctly
-			_, _, err := showDerivation(ctx, tt.flakeUrl, tt.hostname, tt.configurationAttr)
+			_, _, err := showDerivationWithFlake(ctx, tt.flakeUrl, tt.hostname, tt.configurationAttr)
 
 			// This will error in test environment because nix command will fail,
 			// but we're testing the code path and parameter handling

@@ -84,7 +84,9 @@ func (x *ConfirmRequest) GetFor() string {
 type Generation struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	Uuid                    string                 `protobuf:"bytes,1,opt,name=uuid" json:"uuid,omitempty"`
-	FlakeUrl                string                 `protobuf:"bytes,2,opt,name=flake_url,json=flakeUrl" json:"flake_url,omitempty"`
+	RepositoryPath          string                 `protobuf:"bytes,24,opt,name=repository_path,json=repositoryPath" json:"repository_path,omitempty"`
+	RepositorySubdir        string                 `protobuf:"bytes,25,opt,name=repository_subdir,json=repositorySubdir" json:"repository_subdir,omitempty"`
+	ConfigurationAttr       string                 `protobuf:"bytes,26,opt,name=configuration_attr,json=configurationAttr" json:"configuration_attr,omitempty"`
 	Hostname                string                 `protobuf:"bytes,3,opt,name=hostname" json:"hostname,omitempty"`
 	SelectedRemoteUrl       string                 `protobuf:"bytes,4,opt,name=selected_remote_url,json=selectedRemoteUrl" json:"selected_remote_url,omitempty"`
 	SelectedRemoteName      string                 `protobuf:"bytes,5,opt,name=selected_remote_name,json=selectedRemoteName" json:"selected_remote_name,omitempty"`
@@ -147,9 +149,23 @@ func (x *Generation) GetUuid() string {
 	return ""
 }
 
-func (x *Generation) GetFlakeUrl() string {
+func (x *Generation) GetRepositoryPath() string {
 	if x != nil {
-		return x.FlakeUrl
+		return x.RepositoryPath
+	}
+	return ""
+}
+
+func (x *Generation) GetRepositorySubdir() string {
+	if x != nil {
+		return x.RepositorySubdir
+	}
+	return ""
+}
+
+func (x *Generation) GetConfigurationAttr() string {
+	if x != nil {
+		return x.ConfigurationAttr
 	}
 	return ""
 }
@@ -1174,11 +1190,13 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	" internal/protobuf/services.proto\x12\bprotobuf\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"J\n" +
 	"\x0eConfirmRequest\x12&\n" +
 	"\x0egenerationUuid\x18\x01 \x01(\tR\x0egenerationUuid\x12\x10\n" +
-	"\x03for\x18\x02 \x01(\tR\x03for\"\xfb\a\n" +
+	"\x03for\x18\x02 \x01(\tR\x03for\"\xe3\b\n" +
 	"\n" +
 	"Generation\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1b\n" +
-	"\tflake_url\x18\x02 \x01(\tR\bflakeUrl\x12\x1a\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12'\n" +
+	"\x0frepository_path\x18\x18 \x01(\tR\x0erepositoryPath\x12+\n" +
+	"\x11repository_subdir\x18\x19 \x01(\tR\x10repositorySubdir\x12-\n" +
+	"\x12configuration_attr\x18\x1a \x01(\tR\x11configurationAttr\x12\x1a\n" +
 	"\bhostname\x18\x03 \x01(\tR\bhostname\x12.\n" +
 	"\x13selected_remote_url\x18\x04 \x01(\tR\x11selectedRemoteUrl\x120\n" +
 	"\x14selected_remote_name\x18\x05 \x01(\tR\x12selectedRemoteName\x120\n" +

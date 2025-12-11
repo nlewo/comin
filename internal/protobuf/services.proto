@@ -30,7 +30,9 @@ message ConfirmRequest {
 message Generation {
   string uuid = 1;
 
-  string flake_url = 2;
+  string repository_path = 24;
+  string repository_subdir = 25;
+  string configuration_attr = 26;
   string hostname = 3;
 
   string selected_remote_url = 4;
