@@ -13,13 +13,13 @@ var listCmd = &cobra.Command{
 	Short: "List hosts of the local repository",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		var configurationAttr string
+		var systemAttr string
 		if runtime.GOOS == "darwin" {
-			configurationAttr = "darwinConfigurations"
+			systemAttr = "darwinConfigurations"
 		} else {
-			configurationAttr = "nixosConfigurations"
+			systemAttr = "nixosConfigurations"
 		}
-		executor, _ := executor.NewNixFlakeExecutor(configurationAttr)
+		executor, _ := executor.NewNixFlakeExecutor(systemAttr)
 		hosts, _ := executor.List(flakeUrl)
 		for _, host := range hosts {
 			fmt.Println(host)

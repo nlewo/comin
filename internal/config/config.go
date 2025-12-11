@@ -54,7 +54,7 @@ func Read(path string) (config types.Configuration, err error) {
 	if config.RepositorySubdir == "" {
 		config.RepositorySubdir = "."
 	}
-	supportedRepositoryTypes := []string{"flake"}
+	supportedRepositoryTypes := []string{"flake", "nix"}
 	if !slices.Contains(supportedRepositoryTypes, config.RepositoryType) {
 		return config, fmt.Errorf("config: repository type is '%s' while it be one of '%s'", config.RepositoryType, supportedRepositoryTypes)
 	}

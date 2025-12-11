@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type EvalFunc func(ctx context.Context, repositoryPath, repositorySubdir, commitId, configurationAttr, hostname string) (drvPath string, outPath string, machineId string, err error)
+type EvalFunc func(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error)
 type BuildFunc func(ctx context.Context, drvPath string) error
 
 // Executor contains the function used by comin to actually do actions
@@ -15,7 +15,7 @@ type BuildFunc func(ctx context.Context, drvPath string) error
 // Garnix implementation (such as proposed in
 // https://github.com/nlewo/comin/pull/74)
 type Executor interface {
-	Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, configurationAttr, hostname string) (drvPath string, outPath string, machineId string, err error)
+	Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error)
 	Build(ctx context.Context, drvPath string) (err error)
 	Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error)
 	NeedToReboot() bool
@@ -33,5 +33,11 @@ func NewNixOSFlake() (e Executor, err error) {
 func NewNixDarwinFlake() (e Executor, err error) {
 	logrus.Info("executor: creating a nix-darwin flake executor")
 	e, err = NewNixFlakeExecutor("darwinConfigurations")
+	return
+}
+
+func NewNixOSNix() (e Executor, err error) {
+	logrus.Info("executor: creating a NixOS executor")
+	e, err = NewNixExecutor()
 	return
 }

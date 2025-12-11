@@ -91,12 +91,12 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir, configurationAttr string, rs *protobuf.RepositoryStatus) (g protobuf.Generation) {
+func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir, systemAttr string, rs *protobuf.RepositoryStatus) (g protobuf.Generation) {
 	g = protobuf.Generation{
 		Uuid:                    uuid.New().String(),
 		RepositoryPath:          repositoryPath,
 		RepositorySubdir:        repositoryDir,
-		ConfigurationAttr:       configurationAttr,
+		SystemAttr:              systemAttr,
 		Hostname:                hostname,
 		SelectedRemoteName:      rs.SelectedRemoteName,
 		SelectedBranchName:      rs.SelectedBranchName,

@@ -32,7 +32,7 @@ message Generation {
 
   string repository_path = 24;
   string repository_subdir = 25;
-  string configuration_attr = 26;
+  string system_attr = 26;
   string hostname = 3;
 
   string selected_remote_url = 4;

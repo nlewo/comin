@@ -24,14 +24,14 @@ import (
 )
 
 type Builder struct {
-	store             *store.Store
-	executor          executor.Executor
-	hostname          string
-	repositoryPath    string
-	repositoryDir     string
-	configurationAttr string
-	evalTimeout       time.Duration
-	buildTimeout      time.Duration
+	store          *store.Store
+	executor       executor.Executor
+	hostname       string
+	repositoryPath string
+	repositoryDir  string
+	systemAttr     string
+	evalTimeout    time.Duration
+	buildTimeout   time.Duration
 
 	mu           sync.Mutex
 	isEvaluating atomic.Bool
@@ -57,14 +57,15 @@ type Builder struct {
 	isSuspended bool
 }
 
-func New(store *store.Store, executor executor.Executor, repositoryPath, repositoryDir, hostname string, evalTimeout time.Duration, buildTimeout time.Duration) *Builder {
-	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, hostname=%s, evalTimeout=%fs, buildTimeout=%fs, )",
-		repositoryPath, repositoryDir, hostname, evalTimeout.Seconds(), buildTimeout.Seconds())
+func New(store *store.Store, executor executor.Executor, repositoryPath, repositoryDir, systemAttr, hostname string, evalTimeout time.Duration, buildTimeout time.Duration) *Builder {
+	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, evalTimeout=%fs, buildTimeout=%fs, )",
+		repositoryPath, repositoryDir, systemAttr, hostname, evalTimeout.Seconds(), buildTimeout.Seconds())
 	return &Builder{
 		store:          store,
 		executor:       executor,
 		repositoryPath: repositoryPath,
 		repositoryDir:  repositoryDir,
+		systemAttr:     systemAttr,
 		hostname:       hostname,
 		evalTimeout:    evalTimeout,
 		buildTimeout:   buildTimeout,
@@ -135,11 +136,11 @@ func (b *Builder) Stop() {
 }
 
 type Evaluator struct {
-	repositoryPath    string
-	repostorySubdir   string
-	configurationAttr string
-	commitId          string
-	hostname          string
+	repositoryPath  string
+	repostorySubdir string
+	systemAttr      string
+	commitId        string
+	hostname        string
 
 	evalFunc executor.EvalFunc
 
@@ -149,7 +150,7 @@ type Evaluator struct {
 }
 
 func (r *Evaluator) Run(ctx context.Context) (err error) {
-	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.repositoryPath, r.repostorySubdir, r.commitId, r.configurationAttr, r.hostname)
+	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.repositoryPath, r.repostorySubdir, r.commitId, r.systemAttr, r.hostname)
 	return err
 }
 
@@ -177,17 +178,17 @@ func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error
 	defer b.mu.Unlock()
 	b.isEvaluating.Store(true)
 
-	g := b.store.NewGeneration(b.hostname, b.repositoryPath, b.repositoryDir, b.configurationAttr, rs)
+	g := b.store.NewGeneration(b.hostname, b.repositoryPath, b.repositoryDir, b.systemAttr, rs)
 	if err := b.store.GenerationEvalStarted(g.Uuid); err != nil {
 		return err
 	}
 	b.GenerationUuid = g.Uuid
 
 	evaluator := &Evaluator{
-		hostname:          b.hostname,
-		repositoryPath:    g.RepositoryPath,
-		repostorySubdir:   g.RepositorySubdir,
-		configurationAttr: g.ConfigurationAttr,
+		hostname:        b.hostname,
+		repositoryPath:  g.RepositoryPath,
+		repostorySubdir: g.RepositorySubdir,
+		systemAttr:      g.SystemAttr,
 
 		commitId: g.SelectedCommitId,
 		evalFunc: b.executor.Eval,

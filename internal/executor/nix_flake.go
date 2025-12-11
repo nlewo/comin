@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 
@@ -12,22 +11,22 @@ import (
 )
 
 type NixFlakeLocal struct {
-	configurationAttr string
+	systemAttr string
 }
 
-func NewNixFlakeExecutor(configurationAttr string) (*NixFlakeLocal, error) {
-	return &NixFlakeLocal{configurationAttr: configurationAttr}, nil
+func NewNixFlakeExecutor(systemAttr string) (*NixFlakeLocal, error) {
+	return &NixFlakeLocal{systemAttr: systemAttr}, nil
 }
 
 func (n *NixFlakeLocal) ReadMachineId() (string, error) {
-	if n.configurationAttr == "darwinConfigurations" {
+	if n.systemAttr == "darwinConfigurations" {
 		return utils.ReadMachineIdDarwin()
 	}
 	return utils.ReadMachineIdLinux()
 }
 
 func (n *NixFlakeLocal) NeedToReboot() bool {
-	if n.configurationAttr == "darwinConfigurations" {
+	if n.systemAttr == "darwinConfigurations" {
 		// TODO: Implement proper reboot detection for Darwin
 		// Unlike NixOS which has /run/current-system vs /run/booted-system paths,
 		// Darwin/macOS doesn't have equivalent mechanisms for detecting when
@@ -39,23 +38,20 @@ func (n *NixFlakeLocal) NeedToReboot() bool {
 }
 
 func (n *NixFlakeLocal) IsStorePathExist(storePath string) bool {
-	if _, err := os.Stat(storePath); errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-	return true
+	return isStorePathExist(storePath)
 }
 
 func (n *NixFlakeLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
-	return showDerivationWithFlake(ctx, flakeUrl, hostname, n.configurationAttr)
+	return showDerivationWithFlake(ctx, flakeUrl, hostname, n.systemAttr)
 }
 
-func (n *NixFlakeLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, configurationAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
+func (n *NixFlakeLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
 	flakeUrl := fmt.Sprintf("git+file://%s?dir=%s&rev=%s", repositoryPath, repositorySubdir, commitId)
-	drvPath, outPath, err = showDerivationWithFlake(ctx, flakeUrl, hostname, n.configurationAttr)
+	drvPath, outPath, err = showDerivationWithFlake(ctx, flakeUrl, hostname, n.systemAttr)
 	if err != nil {
 		return
 	}
-	machineId, err = getExpectedMachineId(ctx, flakeUrl, hostname, n.configurationAttr)
+	machineId, err = getExpectedMachineId(ctx, flakeUrl, hostname, n.systemAttr)
 	return
 }
 
@@ -64,7 +60,7 @@ func (n *NixFlakeLocal) Build(ctx context.Context, drvPath string) (err error) {
 }
 
 func (n *NixFlakeLocal) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation, n.configurationAttr)
+	return deploy(ctx, outPath, operation, n.systemAttr)
 }
 
 type Path struct {
@@ -104,7 +100,7 @@ func (n *NixFlakeLocal) List(flakeUrl string) (hosts []string, err error) {
 	}
 
 	var configurations map[string]struct{}
-	if n.configurationAttr == "darwinConfigurations" {
+	if n.systemAttr == "darwinConfigurations" {
 		configurations = output.DarwinConfigurations
 	} else {
 		configurations = output.NixosConfigurations

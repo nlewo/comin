@@ -32,7 +32,7 @@ func (n ExecutorMock) IsStorePathExist(storePath string) bool {
 func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
 	return false, "", nil
 }
-func (n ExecutorMock) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
+func (n ExecutorMock) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
 	select {
 	case <-ctx.Done():
 		return "", "", "", ctx.Err()
@@ -65,7 +65,7 @@ func TestBuilderBuild(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, "", "", "my-machine", 2*time.Second, 2*time.Second)
+	b := New(s, eMock, "", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	ctx := t.Context()
 
 	// Run the evaluator
@@ -126,7 +126,7 @@ func TestEval(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
+	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(t.Context(), &protobuf.RepositoryStatus{})
 	assert.True(t, b.isEvaluating.Load())
 	eMock.evalDone <- struct{}{}
@@ -146,7 +146,7 @@ func TestEvalAlreadyBuilt(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(true)
-	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
+	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(t.Context(), &protobuf.RepositoryStatus{})
 	assert.True(t, b.IsEvaluating())
 
@@ -167,7 +167,7 @@ func TestBuilderPreemption(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
+	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(t.Context(), &protobuf.RepositoryStatus{SelectedCommitId: "commit-1"})
 	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -188,7 +188,7 @@ func TestBuilderStop(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, "", "", "", 5*time.Second, 5*time.Second)
+	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
 	_ = b.Eval(t.Context(), &protobuf.RepositoryStatus{})
 	assert.True(t, b.isEvaluating.Load())
 	b.Stop()
@@ -203,7 +203,7 @@ func TestBuilderTimeout(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, "", "", "", 1*time.Second, 5*time.Second)
+	b := New(s, eMock, "", "", "", "", 1*time.Second, 5*time.Second)
 	_ = b.Eval(t.Context(), &protobuf.RepositoryStatus{})
 	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -217,7 +217,7 @@ func TestBuilderSuspend(t *testing.T) {
 	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, "", "", "", 1*time.Second, 5*time.Second)
+	b := New(s, eMock, "", "", "", "", 1*time.Second, 5*time.Second)
 	_ = b.Suspend()
 	assert.True(t, b.isSuspended)
 	_ = b.Eval(t.Context(), &protobuf.RepositoryStatus{})

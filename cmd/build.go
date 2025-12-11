@@ -15,13 +15,13 @@ var buildCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := cmd.Context()
 		hosts := make([]string, 1)
-		var configurationAttr string
+		var systemAttr string
 		if runtime.GOOS == "darwin" {
-			configurationAttr = "darwinConfigurations"
+			systemAttr = "darwinConfigurations"
 		} else {
-			configurationAttr = "nixosConfigurations"
+			systemAttr = "nixosConfigurations"
 		}
-		executor, _ := executor.NewNixFlakeExecutor(configurationAttr)
+		executor, _ := executor.NewNixFlakeExecutor(systemAttr)
 		if hostname != "" {
 			hosts[0] = hostname
 		} else {
