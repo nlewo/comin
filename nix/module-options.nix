@@ -1,6 +1,15 @@
-{ config, pkgs, lib, ... }: {
+{ config, pkgs, lib, ... }:
+let
+  cfg = config.services.comin;
+in {
   imports = [
     (lib.mkRenamedOptionModule [ "services" "comin" "flakeSubdirectory" ] [ "services" "comin" "repositorySubdir" ])
+    ({assertions = [
+      { assertion = cfg.hostname != null && cfg.hostname != ""; message = "You must set `networking.hostName` or `services.comin.hostname` explicitly in your NixOS configuration."; }
+      { assertion = cfg.repositoryType == "nix" || cfg.repositoryType == "flake" && cfg.systemAttr == null; message = "When the `services.comin.repositoryType` is `flake`, the configuration attribute `services.comin.systemAttr` must not be set."; }
+      { assertion = cfg.repositoryType == "flake" || cfg.repositoryType == "nix" && cfg.systemAttr != null; message = "When the `services.comin.repositoryType` is `nix`, the the configuration attribute `services.comin.systemAttr` must be set."; }
+      ];
+     })
   ];
   options = with lib; with types; {
     services.comin = {
@@ -41,8 +50,8 @@
         '';
       };
       systemAttr = mkOption {
-        type = str;
-        default = "";
+        type = nullOr str;
+        default = null;
         description = ''
           This is the attribute containing the machine toplevel
           attribute. Note this is only used when the repositoryType is
