@@ -3,6 +3,7 @@ package store
 import (
 	"testing"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/stretchr/testify/assert"
 )
@@ -10,11 +11,13 @@ import (
 func TestDeploymentCommitAndLoad(t *testing.T) {
 	tmp := t.TempDir()
 	filename := tmp + "/state.json"
-	s, _ := New(filename, tmp+"/gcroots", 2, 2)
+	bk := broker.New()
+	bk.Start()
+	s, _ := New(bk, filename, tmp+"/gcroots", 2, 2)
 	err := s.Commit()
 	assert.Nil(t, err)
 
-	s1, _ := New(filename, tmp+"/gcroots", 2, 2)
+	s1, _ := New(bk, filename, tmp+"/gcroots", 2, 2)
 	err = s1.Load()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(s.data.Deployments))
@@ -23,7 +26,7 @@ func TestDeploymentCommitAndLoad(t *testing.T) {
 	_ = s.Commit()
 	assert.Nil(t, err)
 
-	s1, _ = New(filename, tmp+"/gcroots", 2, 2)
+	s1, _ = New(bk, filename, tmp+"/gcroots", 2, 2)
 	err = s1.Load()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(s.data.Deployments))
@@ -31,7 +34,9 @@ func TestDeploymentCommitAndLoad(t *testing.T) {
 
 func TestLastDeployment(t *testing.T) {
 	tmp := t.TempDir()
-	s, _ := New("state.json", tmp+"/gcroots", 2, 2)
+	bk := broker.New()
+	bk.Start()
+	s, _ := New(bk, "state.json", tmp+"/gcroots", 2, 2)
 	ok, _ := s.LastDeployment()
 	assert.False(t, ok)
 	s.DeploymentInsert(&protobuf.Deployment{Uuid: "1", Operation: "switch"})
@@ -43,7 +48,9 @@ func TestLastDeployment(t *testing.T) {
 
 func TestDeploymentInsert(t *testing.T) {
 	tmp := t.TempDir()
-	s, _ := New("state.json", tmp+"/gcroots", 2, 2)
+	bk := broker.New()
+	bk.Start()
+	s, _ := New(bk, "state.json", tmp+"/gcroots", 2, 2)
 	var hasEvicted bool
 	var evicted *protobuf.Deployment
 	hasEvicted, _ = s.DeploymentInsert(&protobuf.Deployment{Uuid: "1", Operation: "switch"})
@@ -84,6 +91,8 @@ func TestDeploymentInsert(t *testing.T) {
 
 func TestNewGeneration(t *testing.T) {
 	tmp := t.TempDir()
-	s, _ := New(tmp+"/filename", tmp+"/gcroots", 2, 2)
+	bk := broker.New()
+	bk.Start()
+	s, _ := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2)
 	s.NewGeneration("hostname", "repositoryPath", "repositoryDir", "systemAttr", &protobuf.RepositoryStatus{})
 }

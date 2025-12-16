@@ -18,7 +18,6 @@ import (
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/protobuf"
-	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
@@ -32,7 +31,7 @@ type Manager struct {
 	machineId string
 
 	stateRequestCh chan struct{}
-	stateResultCh  chan *pb.State
+	stateResultCh  chan *protobuf.State
 
 	needToReboot bool
 
@@ -66,7 +65,7 @@ func New(s *store.Store,
 	m := &Manager{
 		machineId:       machineId,
 		stateRequestCh:  make(chan struct{}),
-		stateResultCh:   make(chan *pb.State),
+		stateResultCh:   make(chan *protobuf.State),
 		prometheus:      p,
 		storage:         s,
 		scheduler:       sched,
@@ -81,13 +80,13 @@ func New(s *store.Store,
 	return m
 }
 
-func (m *Manager) GetState() *pb.State {
+func (m *Manager) GetState() *protobuf.State {
 	m.stateRequestCh <- struct{}{}
 	return <-m.stateResultCh
 }
 
-func (m *Manager) toState() *pb.State {
-	return &pb.State{
+func (m *Manager) toState() *protobuf.State {
+	return &protobuf.State{
 		NeedToReboot:    wrapperspb.Bool(m.needToReboot),
 		IsSuspended:     wrapperspb.Bool(m.isSuspended),
 		Builder:         m.Builder.State(),

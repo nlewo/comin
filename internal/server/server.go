@@ -31,7 +31,7 @@ func (s *cominServer) Events(_ *emptypb.Empty, stream grpc.ServerStreamingServer
 	for {
 		event := <-subscriber
 		if err := stream.Send(event); err != nil {
-			logrus.Infof("server: failed to send stream: ", err)
+			logrus.Infof("server: failed to send stream: %s", err)
 			s.broker.Unsubscribe(subscriber)
 			return err
 		}
