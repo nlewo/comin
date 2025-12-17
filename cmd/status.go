@@ -16,6 +16,7 @@ import (
 
 var statusOneline bool
 var statusJson bool
+var unixSocketPath string
 
 func longStatus(status *pb.State) {
 	fmt.Printf("Status of the machine %s\n", status.Builder.Hostname)
@@ -109,8 +110,11 @@ var statusCmd = &cobra.Command{
 	Short: "Get the status of the local machine",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		if unixSocketPath == "" {
+			unixSocketPath = "/var/lib/comin/grpc.sock"
+		}
 		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
+			UnixSocketPath: unixSocketPath,
 		}
 		c, err := client.New(opts)
 		if err != nil {
@@ -133,5 +137,6 @@ var statusCmd = &cobra.Command{
 func init() {
 	statusCmd.PersistentFlags().BoolVarP(&statusOneline, "oneline", "", false, "oneline")
 	statusCmd.PersistentFlags().BoolVarP(&statusJson, "json", "", false, "json")
+	statusCmd.PersistentFlags().StringVarP(&unixSocketPath, "unix-socket-path", "", "", "the GRPC Unix path (default to /var/lib/comin/grpc.sock)")
 	rootCmd.AddCommand(statusCmd)
 }

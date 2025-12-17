@@ -1,116 +1,89 @@
 package executor
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
+	"fmt"
 	"os"
+	"path"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/internal/utils"
+	"github.com/sirupsen/logrus"
 )
 
-type NixLocal struct {
-	configurationAttr string
-}
+type NixLocal struct{}
 
-func NewNixExecutor(configurationAttr string) (*NixLocal, error) {
-	return &NixLocal{configurationAttr: configurationAttr}, nil
+func NewNixExecutor() (*NixLocal, error) {
+	return &NixLocal{}, nil
 }
 
 func (n *NixLocal) ReadMachineId() (string, error) {
-	if n.configurationAttr == "darwinConfigurations" {
-		return utils.ReadMachineIdDarwin()
-	}
 	return utils.ReadMachineIdLinux()
 }
 
+func (n *NixLocal) IsStorePathExist(storePath string) bool {
+	return isStorePathExist(storePath)
+}
+
 func (n *NixLocal) NeedToReboot() bool {
-	if n.configurationAttr == "darwinConfigurations" {
-		// TODO: Implement proper reboot detection for Darwin
-		// Unlike NixOS which has /run/current-system vs /run/booted-system paths,
-		// Darwin/macOS doesn't have equivalent mechanisms for detecting when
-		// a reboot is needed after nix-darwin configuration changes.
-		// For now, conservatively assume no reboot is needed.
-		return false
-	}
 	return utils.NeedToRebootLinux()
 }
 
-func (n *NixLocal) IsStorePathExist(storePath string) bool {
-	if _, err := os.Stat(storePath); errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-	return true
-}
-
-func (n *NixLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, err error) {
-	return showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
-}
-
-func (n *NixLocal) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
-	drvPath, outPath, err = showDerivation(ctx, flakeUrl, hostname, n.configurationAttr)
+func (n *NixLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
+	tempDir, err := cloneRepoToTemp(repositoryPath, commitId)
+	defer os.RemoveAll(tempDir) // nolint: errcheck
 	if err != nil {
 		return
 	}
-	machineId, err = getExpectedMachineId(ctx, flakeUrl, hostname, n.configurationAttr)
-	return
+	logrus.Debugf("nix: temporary cloned into %s", tempDir)
+	nixDir := path.Join(tempDir, repositorySubdir)
+	return showDerivationWithNix(ctx, nixDir, systemAttr)
 }
 
 func (n *NixLocal) Build(ctx context.Context, drvPath string) (err error) {
-	return build(ctx, drvPath)
+	return buildWithNix(ctx, drvPath)
 }
 
 func (n *NixLocal) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation, n.configurationAttr)
+	return deployLinux(ctx, outPath, operation)
 }
 
-type Path struct {
-	Path string `json:"path"`
-}
-
-type Output struct {
-	Out Path `json:"out"`
-}
-
-type Derivation struct {
-	Outputs Output `json:"outputs"`
-}
-
-type Show struct {
-	NixosConfigurations  map[string]struct{} `json:"nixosConfigurations"`
-	DarwinConfigurations map[string]struct{} `json:"darwinConfigurations"`
-}
-
-func (n *NixLocal) List(flakeUrl string) (hosts []string, err error) {
-	args := []string{
-		"flake",
-		"show",
-		"--json",
-		flakeUrl,
-	}
-	var stdout bytes.Buffer
-	err = runNixCommand(context.Background(), args, &stdout, os.Stderr)
+func cloneRepoToTemp(remoteDir string, commitId string) (string, error) {
+	dir, err := os.MkdirTemp("", "comin-git-clone-*")
 	if err != nil {
-		return
+		return "", err
 	}
-
-	var output Show
-	err = json.Unmarshal(stdout.Bytes(), &output)
+	logrus.Debugf("nix: cloning %s into temporary directory '%s'", remoteDir, dir)
+	remoteRepo, err := git.PlainOpen(remoteDir)
 	if err != nil {
-		return
+		return "", fmt.Errorf("nix: failed to open the repository '%s': %s", remoteDir, err)
 	}
 
-	var configurations map[string]struct{}
-	if n.configurationAttr == "darwinConfigurations" {
-		configurations = output.DarwinConfigurations
-	} else {
-		configurations = output.NixosConfigurations
+	// We need to create this reference otherwise the checkout fails with "object not found".
+	branchName := plumbing.NewBranchReferenceName("archive")
+	ref := plumbing.NewHashReference(branchName, plumbing.NewHash(commitId))
+	err = remoteRepo.Storer.SetReference(ref)
+	if err != nil {
+		return "", fmt.Errorf("nix: failed to set reference 'archive' to '%s' in %s: %s", commitId, remoteDir, err)
 	}
 
-	hosts = make([]string, 0, len(configurations))
-	for key := range configurations {
-		hosts = append(hosts, key)
+	r, err := git.PlainClone(dir, false, &git.CloneOptions{
+		URL: remoteDir,
+	})
+	if err != nil {
+		return "", fmt.Errorf("nix: failed to clone '%s': %s", dir, err)
 	}
-	return
+	w, err := r.Worktree()
+	if err != nil {
+		return "", err
+	}
+	err = w.Checkout(&git.CheckoutOptions{
+		Hash:  plumbing.NewHash(commitId),
+		Force: true,
+	})
+	if err != nil {
+		return "", fmt.Errorf("nix: failed to checkout the commit '%s' in '%s': %s", commitId, dir, err)
+	}
+	return dir, nil
 }

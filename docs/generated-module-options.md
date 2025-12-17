@@ -1,3 +1,10 @@
+## assertions
+
+*Type:*
+anything
+
+
+
 ## services\.comin\.enable
 
 
@@ -35,6 +42,8 @@ null or package
 
 
 ## services\.comin\.buildConfirmer
+
+
 
 The confirmer options for the build\.
 
@@ -235,24 +244,6 @@ signed integer
 
 *Default:*
 ` 4243 `
-
-
-
-## services\.comin\.flakeSubdirectory
-
-
-
-Subdirectory in the repository, containing flake\.nix\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-` "." `
 
 
 
@@ -569,5 +560,62 @@ The URL of the repository\.
 
 *Type:*
 string
+
+
+
+## services\.comin\.repositorySubdir
+
+
+
+Subdirectory in the repository, containing a default\.nix or a flake\.nix file\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "." `
+
+
+
+## services\.comin\.repositoryType
+
+
+
+The type of the repository to fetch\. It can either contains a flake or a classical Nix expression\.
+
+
+
+*Type:*
+one of “flake”, “nix”
+
+
+
+*Default:*
+` "flake" `
+
+
+
+## services\.comin\.systemAttr
+
+
+
+This is the attribute containing the machine toplevel
+attribute\. Note this is only used when the repositoryType is
+‘nix’\. When the repository type is ‘flake’, the attribute is
+derived from the hostname\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+` null `
 
 

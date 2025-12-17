@@ -6,7 +6,9 @@ in rec {
   cominConfig = {
     hostname = cfg.services.comin.hostname;
     state_dir = "/var/lib/comin";
-    flake_subdirectory = cfg.services.comin.flakeSubdirectory;
+    repository_type = cfg.services.comin.repositoryType;
+    repository_subdir = cfg.services.comin.repositorySubdir;
+    system_attr = cfg.services.comin.systemAttr;
     remotes = cfg.services.comin.remotes;
     exporter = {
       listen_address = cfg.services.comin.exporter.listen_address;

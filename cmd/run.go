@@ -52,9 +52,15 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		executor, err := executorPkg.NewNixOS()
-		if runtime.GOOS == "darwin" {
-			executor, err = executorPkg.NewNixDarwin()
+		var executor executorPkg.Executor
+		switch cfg.RepositoryType {
+		case "flake":
+			executor, err = executorPkg.NewNixOSFlake()
+			if runtime.GOOS == "darwin" {
+				executor, err = executorPkg.NewNixDarwinFlake()
+			}
+		case "nix":
+			executor, err = executorPkg.NewNixOSNix()
 		}
 		if err != nil {
 			logrus.Errorf("Failed to create the executor: %s", err)
@@ -100,7 +106,7 @@ var runCmd = &cobra.Command{
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
-		builder := builder.New(store, executor, gitConfig.Path, gitConfig.Dir, cfg.Hostname, 30*time.Minute, 30*time.Minute)
+		builder := builder.New(store, executor, gitConfig.Path, gitConfig.Dir, cfg.SystemAttr, cfg.Hostname, 30*time.Minute, 30*time.Minute)
 		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
 
 		mode, err := manager.ParseMode(cfg.BuildConfirmer.Mode)

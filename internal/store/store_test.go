@@ -85,5 +85,5 @@ func TestDeploymentInsert(t *testing.T) {
 func TestNewGeneration(t *testing.T) {
 	tmp := t.TempDir()
 	s, _ := New(tmp+"/filename", tmp+"/gcroots", 2, 2)
-	s.NewGeneration("hostname", "repositoryPath", "repositoryDir", &protobuf.RepositoryStatus{})
+	s.NewGeneration("hostname", "repositoryPath", "repositoryDir", "systemAttr", &protobuf.RepositoryStatus{})
 }

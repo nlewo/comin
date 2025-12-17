@@ -39,10 +39,6 @@ func envCominErrorMessage(d *pb.Deployment) string {
 	return d.ErrorMsg
 }
 
-func envCominFlakeUrl(d *pb.Deployment) string {
-	return d.Generation.FlakeUrl
-}
-
 func runPostDeploymentCommand(command string, d *pb.Deployment) (string, error) {
 
 	cmd := exec.Command(command)
@@ -52,7 +48,6 @@ func runPostDeploymentCommand(command string, d *pb.Deployment) (string, error) 
 		"COMIN_GIT_REF="+envGitRef(d),
 		"COMIN_GIT_MSG="+envGitMessage(d),
 		"COMIN_HOSTNAME="+envCominHostname(d),
-		"COMIN_FLAKE_URL="+envCominFlakeUrl(d),
 		"COMIN_GENERATION="+envCominGeneration(d),
 		"COMIN_STATUS="+envCominStatus(d),
 		"COMIN_ERROR_MSG="+envCominErrorMessage(d),

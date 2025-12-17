@@ -47,7 +47,7 @@ func (n ExecutorMock) IsStorePathExist(storePath string) bool {
 func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
 	return false, "", nil
 }
-func (n ExecutorMock) Eval(ctx context.Context, flakeUrl, hostname string) (drvPath string, outPath string, machineId string, err error) {
+func (n ExecutorMock) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
 	ok := <-n.evalOk
 	if ok {
 		return "drv-path", "out-path", n.machineId, nil
@@ -82,12 +82,12 @@ func TestBuild(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	f.Start(t.Context())
 	eMock := NewExecutorMock("")
-	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
+	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "")
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixOSFlake()
 	bc := NewConfirmer(Without, 0)
 	bc.Start()
 	dc := NewConfirmer(Without, 0)
@@ -193,12 +193,12 @@ func TestDeploy(t *testing.T) {
 	eMock := NewExecutorMock("")
 	eMock.evalOk <- true
 	eMock.buildOk <- true
-	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
+	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	var deployFunc = func(context.Context, string, string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "")
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixOSFlake()
 	bc := NewConfirmer(Without, 0)
 	bc.Start()
 	dc := NewConfirmer(Without, 0)
@@ -223,9 +223,9 @@ func TestIncorrectMachineId(t *testing.T) {
 	tmp := t.TempDir()
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	eMock := NewExecutorMock("invalid-machine-id")
-	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
+	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixOSFlake()
 	bc := NewConfirmer(Without, 0)
 	bc.Start()
 	dc := NewConfirmer(Without, 0)
@@ -252,9 +252,9 @@ func TestCorrectMachineId(t *testing.T) {
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	eMock := NewExecutorMock("the-test-machine-id")
 	eMock.evalOk <- true
-	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
+	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
-	e, _ := executor.NewNixOS()
+	e, _ := executor.NewNixOSFlake()
 	bc := NewConfirmer(Without, 0)
 	bc.Start()
 	dc := NewConfirmer(Without, 0)
@@ -279,11 +279,11 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	eMock := NewExecutorMock("")
 	eMock.buildOk <- true
 	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
-	b := builder.New(s, eMock, "repoPath", "", "my-machine", 2*time.Second, 2*time.Second)
+	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
 
 	// Test with Darwin configuration
-	e, _ := executor.NewNixDarwin()
+	e, _ := executor.NewNixDarwinFlake()
 	bc := NewConfirmer(Without, 0)
 	bc.Start()
 	dc := NewConfirmer(Without, 0)

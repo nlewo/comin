@@ -27,19 +27,19 @@ Long Body
 
 func TestReadMachineId(t *testing.T) {
 	tests := []struct {
-		name              string
-		configurationAttr string
-		expectedBehavior  string
+		name             string
+		systemAttr       string
+		expectedBehavior string
 	}{
 		{
-			name:              "Linux configuration",
-			configurationAttr: "nixosConfigurations",
-			expectedBehavior:  "should call readMachineIdLinux",
+			name:             "Linux configuration",
+			systemAttr:       "nixosConfigurations",
+			expectedBehavior: "should call readMachineIdLinux",
 		},
 		{
-			name:              "Darwin configuration",
-			configurationAttr: "darwinConfigurations",
-			expectedBehavior:  "should call readMachineIdDarwin",
+			name:             "Darwin configuration",
+			systemAttr:       "darwinConfigurations",
+			expectedBehavior: "should call readMachineIdDarwin",
 		},
 	}
 
@@ -50,26 +50,26 @@ func TestReadMachineId(t *testing.T) {
 			_, err := ReadMachineIdLinux()
 			// On most systems, this will error because we don't have the expected files/commands,
 			// but that's okay - we're testing the code path selection
-			t.Logf("ReadMachineId with %s returned error: %v (expected on test systems)", tt.configurationAttr, err)
+			t.Logf("ReadMachineId with %s returned error: %v (expected on test systems)", tt.systemAttr, err)
 		})
 	}
 }
 
 func TestNeedToReboot(t *testing.T) {
 	tests := []struct {
-		name              string
-		configurationAttr string
-		expectedBehavior  string
+		name             string
+		systemAttr       string
+		expectedBehavior string
 	}{
 		{
-			name:              "Linux reboot check",
-			configurationAttr: "nixosConfigurations",
-			expectedBehavior:  "should call needToRebootLinux",
+			name:             "Linux reboot check",
+			systemAttr:       "nixosConfigurations",
+			expectedBehavior: "should call needToRebootLinux",
 		},
 		{
-			name:              "Darwin reboot check",
-			configurationAttr: "darwinConfigurations",
-			expectedBehavior:  "should call needToRebootDarwin",
+			name:             "Darwin reboot check",
+			systemAttr:       "darwinConfigurations",
+			expectedBehavior: "should call needToRebootDarwin",
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestNeedToReboot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test that the function doesn't panic and follows the right code path
 			result := NeedToRebootLinux()
-			t.Logf("NeedToReboot with %s returned: %v", tt.configurationAttr, result)
+			t.Logf("NeedToReboot with %s returned: %v", tt.systemAttr, result)
 			// The function should return a boolean without panicking
 			assert.IsType(t, false, result)
 		})

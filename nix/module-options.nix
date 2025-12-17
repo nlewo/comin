@@ -1,4 +1,16 @@
-{ config, pkgs, lib, ... }: {
+{ config, pkgs, lib, ... }:
+let
+  cfg = config.services.comin;
+in {
+  imports = [
+    (lib.mkRenamedOptionModule [ "services" "comin" "flakeSubdirectory" ] [ "services" "comin" "repositorySubdir" ])
+    ({assertions = [
+      { assertion = cfg.hostname != null && cfg.hostname != ""; message = "You must set `networking.hostName` or `services.comin.hostname` explicitly in your NixOS configuration."; }
+      { assertion = cfg.repositoryType == "nix" || cfg.repositoryType == "flake" && cfg.systemAttr == null; message = "When the `services.comin.repositoryType` is `flake`, the configuration attribute `services.comin.systemAttr` must not be set."; }
+      { assertion = cfg.repositoryType == "flake" || cfg.repositoryType == "nix" && cfg.systemAttr != null; message = "When the `services.comin.repositoryType` is `nix`, the the configuration attribute `services.comin.systemAttr` must be set."; }
+      ];
+     })
+  ];
   options = with lib; with types; {
     services.comin = {
       enable = mkOption {
@@ -23,11 +35,28 @@
           or networking.hostName in your configuration.
         '';
       };
-      flakeSubdirectory = mkOption {
+      repositoryType = mkOption {
+        type = enum ["flake" "nix"];
+        default = "flake";
+        description = ''
+          The type of the repository to fetch. It can either contains a flake or a classical Nix expression.
+        '';
+      };
+      repositorySubdir = mkOption {
         type = str;
         default = ".";
         description = ''
-          Subdirectory in the repository, containing flake.nix.
+          Subdirectory in the repository, containing a default.nix or a flake.nix file.
+        '';
+      };
+      systemAttr = mkOption {
+        type = nullOr str;
+        default = null;
+        description = ''
+          This is the attribute containing the machine toplevel
+          attribute. Note this is only used when the repositoryType is
+          'nix'. When the repository type is 'flake', the attribute is
+          derived from the hostname.
         '';
       };
       exporter = mkOption {
