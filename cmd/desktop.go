@@ -17,6 +17,8 @@ var desktopCmd = &cobra.Command{
 	Short: "Send desktop notifications ",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		unixSocketPath, _ := cmd.Flags().GetString("unix-socket-path")
+		title, _ := cmd.Flags().GetString("title")
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
@@ -90,8 +92,7 @@ var desktopCmd = &cobra.Command{
 }
 
 func init() {
-	desktopCmd.PersistentFlags().BoolVarP(&debug, "debug", "", false, "debug")
-	desktopCmd.PersistentFlags().StringVarP(&title, "title", "", "comin", "the notification title")
-	desktopCmd.PersistentFlags().StringVarP(&unixSocketPath, "unix-socket-path", "", "/var/lib/comin/grpc.sock", "the GRPC Unix socket path")
+	desktopCmd.Flags().StringVarP(&title, "title", "", "comin", "the notification title")
+	desktopCmd.Flags().StringP("unix-socket-path", "", "/var/lib/comin/grpc.sock", "the GRPC Unix socket path")
 	rootCmd.AddCommand(desktopCmd)
 }

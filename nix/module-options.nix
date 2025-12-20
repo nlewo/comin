@@ -272,6 +272,9 @@ in {
           };
         };
       };
+      desktop = {
+        enable = mkEnableOption "Whether to run the comin desktop service. This user service send notifications over DBus.";
+      };
     };
   };
 }

@@ -15,6 +15,14 @@ in {
       { assertion = package == null -> lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake."; }
     ];
 
+    systemd.user.services.comin-desktop = lib.mkIf cfg.services.comin.desktop.enable {
+      wantedBy = [ "graphical-session.target" ];
+      path = [ pkgs.libnotify ];
+      serviceConfig = {
+        ExecStart = "${lib.getExe package} desktop";
+      };
+    };
+
     environment.systemPackages = [ package ];
     networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
     # Use package from overlay first, then Flake package if available

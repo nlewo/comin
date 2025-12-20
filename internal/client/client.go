@@ -24,6 +24,7 @@ type ClientOpts struct {
 
 func New(clientOpts ClientOpts) (c Client, err error) {
 	serverAddr := fmt.Sprintf("unix://%s", clientOpts.UnixSocketPath)
+	logrus.Infof("client: connection to %s", serverAddr)
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	c.conn, err = grpc.NewClient(serverAddr, opts...)
