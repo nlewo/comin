@@ -4,12 +4,13 @@ let
 in {
   imports = [
     (lib.mkRenamedOptionModule [ "services" "comin" "flakeSubdirectory" ] [ "services" "comin" "repositorySubdir" ])
-    ({assertions = [
-      { assertion = cfg.hostname != null && cfg.hostname != ""; message = "You must set `networking.hostName` or `services.comin.hostname` explicitly in your NixOS configuration."; }
-      { assertion = cfg.repositoryType == "nix" || cfg.repositoryType == "flake" && cfg.systemAttr == null; message = "When the `services.comin.repositoryType` is `flake`, the configuration attribute `services.comin.systemAttr` must not be set."; }
-      { assertion = cfg.repositoryType == "flake" || cfg.repositoryType == "nix" && cfg.systemAttr != null; message = "When the `services.comin.repositoryType` is `nix`, the the configuration attribute `services.comin.systemAttr` must be set."; }
+    (lib.mkIf cfg.enable {
+      assertions = [
+        { assertion = cfg.hostname != null && cfg.hostname != ""; message = "You must set `networking.hostName` or `services.comin.hostname` explicitly in your NixOS configuration."; }
+        { assertion = cfg.repositoryType == "nix" || cfg.repositoryType == "flake" && cfg.systemAttr == null; message = "When the `services.comin.repositoryType` is `flake`, the configuration attribute `services.comin.systemAttr` must not be set."; }
+        { assertion = cfg.repositoryType == "flake" || cfg.repositoryType == "nix" && cfg.systemAttr != null; message = "When the `services.comin.repositoryType` is `nix`, the the configuration attribute `services.comin.systemAttr` must be set."; }
       ];
-     })
+    })
   ];
   options = with lib; with types; {
     services.comin = {
@@ -231,7 +232,7 @@ in {
                 without any user interaction. "manual" requires a user
                 confirmation. "auto" automatically confirms after
                 waiting for the autoconfirm_duration.
-              '';           
+              '';
             };
             autoconfirm_duration = mkOption {
               type = int;
@@ -239,7 +240,7 @@ in {
               description = ''
                 The autoconfirm timer duration in seconds. After this
                 duration, the action is automatically confirmed.
-              '';           
+              '';
             };
 
           };
@@ -258,7 +259,7 @@ in {
                 without any user interaction. "manual" requires a user
                 confirmation. "auto" automatically confirms after
                 waiting for the autoconfirm_duration.
-              '';           
+              '';
             };
             autoconfirm_duration = mkOption {
               type = int;
@@ -266,7 +267,7 @@ in {
               description = ''
                 The autoconfirm timer duration in seconds. After this
                 duration, the action is automatically confirmed.
-              '';           
+              '';
             };
 
           };
