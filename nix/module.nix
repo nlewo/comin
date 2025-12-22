@@ -19,7 +19,7 @@ in {
       wantedBy = [ "graphical-session.target" ];
       path = [ pkgs.libnotify ];
       serviceConfig = {
-        ExecStart = "${lib.getExe package} desktop";
+        ExecStart = ''${lib.getExe package} desktop --title "${cfg.services.comin.desktop.title}"'';
       };
     };
 
