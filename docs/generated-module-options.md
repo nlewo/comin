@@ -175,6 +175,47 @@ one of “without”, “auto”, “manual”
 
 
 
+## services\.comin\.desktop\.enable
+
+
+
+Whether to enable Whether to run the comin desktop service\. This user service send notifications over DBus…
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+` false `
+
+
+
+*Example:*
+` true `
+
+
+
+## services\.comin\.desktop\.title
+
+
+
+The notification title\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "comin" `
+
+
+
 ## services\.comin\.exporter
 
 
