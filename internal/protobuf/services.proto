@@ -17,7 +17,57 @@ service Comin {
   rpc Fetch(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Suspend(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Resume(google.protobuf.Empty) returns (google.protobuf.Empty) {}
-  rpc Confirm(ConfirmRequest) returns (google.protobuf.Empty);
+  rpc Confirm(ConfirmRequest) returns (google.protobuf.Empty) {}
+  rpc Events(google.protobuf.Empty) returns (stream Event);
+}
+
+message Event {
+  message EvalStarted {
+    Generation generation = 1;
+  }
+  message EvalFinished {
+    Generation generation = 1;
+  }
+  message BuildStarted {
+    Generation generation = 1;
+  }
+  message BuildFinished {
+    Generation generation = 1;
+  }
+  message ConfirmationSubmitted {
+    string mode = 1;
+    string uuid = 2;
+  }
+  message ConfirmationCancelled {
+    string uuid = 1;
+  }
+  message ConfirmationConfirmed {
+    string origin = 1; 
+    string uuid = 2;
+  }
+  message Resume {
+  }
+  message Suspend {
+  }
+  message DeploymentStarted {
+    Deployment deployment = 1;
+  }
+  message DeploymentFinished {
+    Deployment deployment = 1;
+  }
+  oneof Type {
+    EvalStarted evalStartedType = 1;
+    EvalFinished evalFinishedType = 2;
+    BuildStarted buildStartedType = 3;
+    BuildFinished buildFinishedType = 4;
+    ConfirmationSubmitted confirmationSubmittedType = 5;
+    ConfirmationCancelled confirmationCancelledType = 6;
+    ConfirmationConfirmed confirmationConfirmedType = 7;
+    Resume resume = 8;
+    Suspend suspend = 9;
+    DeploymentStarted deploymentStartedType = 10;
+    DeploymentFinished deploymentFinishedType = 11;
+  }
 }
 
 message ConfirmRequest {

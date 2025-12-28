@@ -10,13 +10,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
-	pb "github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
@@ -30,7 +31,7 @@ type Manager struct {
 	machineId string
 
 	stateRequestCh chan struct{}
-	stateResultCh  chan *pb.State
+	stateResultCh  chan *protobuf.State
 
 	needToReboot bool
 
@@ -45,6 +46,8 @@ type Manager struct {
 	DeployConfirmer *Confirmer
 
 	isSuspended bool
+
+	broker *broker.Broker
 }
 
 func New(s *store.Store,
@@ -56,12 +59,13 @@ func New(s *store.Store,
 	machineId string,
 	executor executor.Executor,
 	buildConfirmer *Confirmer,
-	deployConfirmer *Confirmer) *Manager {
+	deployConfirmer *Confirmer,
+	broker *broker.Broker) *Manager {
 
 	m := &Manager{
 		machineId:       machineId,
 		stateRequestCh:  make(chan struct{}),
-		stateResultCh:   make(chan *pb.State),
+		stateResultCh:   make(chan *protobuf.State),
 		prometheus:      p,
 		storage:         s,
 		scheduler:       sched,
@@ -71,17 +75,18 @@ func New(s *store.Store,
 		executor:        executor,
 		BuildConfirmer:  buildConfirmer,
 		DeployConfirmer: deployConfirmer,
+		broker:          broker,
 	}
 	return m
 }
 
-func (m *Manager) GetState() *pb.State {
+func (m *Manager) GetState() *protobuf.State {
 	m.stateRequestCh <- struct{}{}
 	return <-m.stateResultCh
 }
 
-func (m *Manager) toState() *pb.State {
-	return &pb.State{
+func (m *Manager) toState() *protobuf.State {
+	return &protobuf.State{
 		NeedToReboot:    wrapperspb.Bool(m.needToReboot),
 		IsSuspended:     wrapperspb.Bool(m.isSuspended),
 		Builder:         m.Builder.State(),
@@ -102,6 +107,7 @@ func (m *Manager) Suspend() error {
 	}
 	m.deployer.Suspend()
 	m.isSuspended = true
+	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}})
 	return nil
 }
 
@@ -114,6 +120,7 @@ func (m *Manager) Resume(ctx context.Context) error {
 	}
 	m.deployer.Resume()
 	m.isSuspended = false
+	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}})
 	return nil
 }
 

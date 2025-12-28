@@ -28,6 +28,7 @@ const (
 	Comin_Suspend_FullMethodName  = "/protobuf.Comin/Suspend"
 	Comin_Resume_FullMethodName   = "/protobuf.Comin/Resume"
 	Comin_Confirm_FullMethodName  = "/protobuf.Comin/Confirm"
+	Comin_Events_FullMethodName   = "/protobuf.Comin/Events"
 )
 
 // CominClient is the client API for Comin service.
@@ -39,6 +40,7 @@ type CominClient interface {
 	Suspend(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Resume(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Confirm(ctx context.Context, in *ConfirmRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	Events(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Event], error)
 }
 
 type cominClient struct {
@@ -99,6 +101,25 @@ func (c *cominClient) Confirm(ctx context.Context, in *ConfirmRequest, opts ...g
 	return out, nil
 }
 
+func (c *cominClient) Events(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Event], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Comin_ServiceDesc.Streams[0], Comin_Events_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[emptypb.Empty, Event]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Comin_EventsClient = grpc.ServerStreamingClient[Event]
+
 // CominServer is the server API for Comin service.
 // All implementations must embed UnimplementedCominServer
 // for forward compatibility.
@@ -108,6 +129,7 @@ type CominServer interface {
 	Suspend(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	Resume(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	Confirm(context.Context, *ConfirmRequest) (*emptypb.Empty, error)
+	Events(*emptypb.Empty, grpc.ServerStreamingServer[Event]) error
 	mustEmbedUnimplementedCominServer()
 }
 
@@ -132,6 +154,9 @@ func (UnimplementedCominServer) Resume(context.Context, *emptypb.Empty) (*emptyp
 }
 func (UnimplementedCominServer) Confirm(context.Context, *ConfirmRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Confirm not implemented")
+}
+func (UnimplementedCominServer) Events(*emptypb.Empty, grpc.ServerStreamingServer[Event]) error {
+	return status.Errorf(codes.Unimplemented, "method Events not implemented")
 }
 func (UnimplementedCominServer) mustEmbedUnimplementedCominServer() {}
 func (UnimplementedCominServer) testEmbeddedByValue()               {}
@@ -244,6 +269,17 @@ func _Comin_Confirm_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Comin_Events_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(emptypb.Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(CominServer).Events(m, &grpc.GenericServerStream[emptypb.Empty, Event]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Comin_EventsServer = grpc.ServerStreamingServer[Event]
+
 // Comin_ServiceDesc is the grpc.ServiceDesc for Comin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -272,6 +308,12 @@ var Comin_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Comin_Confirm_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Events",
+			Handler:       _Comin_Events_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "internal/protobuf/services.proto",
 }

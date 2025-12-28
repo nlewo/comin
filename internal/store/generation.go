@@ -179,6 +179,8 @@ func (s *Store) GenerationEvalStarted(uuid string) error {
 	g.EvalStatus = Evaluating.String()
 	s.lastEvalStarted = g
 	s.generationsGC()
+	e := &protobuf.Event_EvalStarted{Generation: g}
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_EvalStartedType{EvalStartedType: e}})
 	return nil
 }
 
@@ -201,6 +203,8 @@ func (s *Store) GenerationEvalFinished(uuid string, drvPath, outPath, machineId 
 	g.EvalEndedAt = timestamppb.New(time.Now().UTC())
 	s.lastEvalFinished = g
 	s.generationsGC()
+	e := &protobuf.Event_EvalFinished{Generation: g}
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_EvalFinishedType{EvalFinishedType: e}})
 	return nil
 }
 
@@ -215,6 +219,8 @@ func (s *Store) GenerationBuildStart(uuid string) error {
 	g.BuildStatus = Building.String()
 	s.lastBuildStarted = g
 	s.generationsGC()
+	e := &protobuf.Event_BuildStarted{Generation: g}
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_BuildStartedType{BuildStartedType: e}})
 	return nil
 }
 
@@ -246,6 +252,8 @@ func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 	}
 	s.lastBuildFinished = g
 	s.generationsGC()
+	e := &protobuf.Event_BuildFinished{Generation: g}
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_BuildFinishedType{BuildFinishedType: e}})
 	return nil
 }
 

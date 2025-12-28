@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/executor"
@@ -24,7 +25,10 @@ var mkDeployerMock = func(t *testing.T) *deployer.Deployer {
 		return false, "", nil
 	}
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	return deployer.New(s, deployFunc, nil, "")
 }
@@ -79,7 +83,9 @@ func TestBuild(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	f := fetcher.NewFetcher(r)
 	tmp := t.TempDir()
-	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	f.Start(t.Context())
 	eMock := NewExecutorMock("")
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
@@ -88,11 +94,11 @@ func TestBuild(t *testing.T) {
 	}
 	d := deployer.New(s, deployFunc, nil, "")
 	e, _ := executor.NewNixOSFlake()
-	bc := NewConfirmer(Without, 0)
+	bc := NewConfirmer(bk, Without, 0, "")
 	bc.Start()
-	dc := NewConfirmer(Without, 0)
+	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e, bc, dc)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e, bc, dc, bk)
 	go m.Run(t.Context())
 	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
 	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
@@ -189,7 +195,10 @@ func TestDeploy(t *testing.T) {
 	f := fetcher.NewFetcher(r)
 	f.Start(t.Context())
 	tmp := t.TempDir()
-	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	eMock := NewExecutorMock("")
 	eMock.evalOk <- true
 	eMock.buildOk <- true
@@ -199,11 +208,11 @@ func TestDeploy(t *testing.T) {
 	}
 	d := deployer.New(s, deployFunc, nil, "")
 	e, _ := executor.NewNixOSFlake()
-	bc := NewConfirmer(Without, 0)
+	bc := NewConfirmer(bk, Without, 0, "")
 	bc.Start()
-	dc := NewConfirmer(Without, 0)
+	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e, bc, dc)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e, bc, dc, bk)
 	go m.Run(t.Context())
 	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
 	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
@@ -221,16 +230,19 @@ func TestIncorrectMachineId(t *testing.T) {
 	f := fetcher.NewFetcher(r)
 	f.Start(t.Context())
 	tmp := t.TempDir()
-	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	eMock := NewExecutorMock("invalid-machine-id")
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
 	e, _ := executor.NewNixOSFlake()
-	bc := NewConfirmer(Without, 0)
+	bc := NewConfirmer(bk, Without, 0, "")
 	bc.Start()
-	dc := NewConfirmer(Without, 0)
+	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e, bc, dc)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e, bc, dc, bk)
 	go m.Run(t.Context())
 
 	f.TriggerFetch([]string{"remote"})
@@ -249,17 +261,20 @@ func TestCorrectMachineId(t *testing.T) {
 	f := fetcher.NewFetcher(r)
 	f.Start(t.Context())
 	tmp := t.TempDir()
-	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	eMock := NewExecutorMock("the-test-machine-id")
 	eMock.evalOk <- true
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
 	e, _ := executor.NewNixOSFlake()
-	bc := NewConfirmer(Without, 0)
+	bc := NewConfirmer(bk, Without, 0, "")
 	bc.Start()
-	dc := NewConfirmer(Without, 0)
+	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e, bc, dc)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e, bc, dc, bk)
 	go m.Run(t.Context())
 
 	f.TriggerFetch([]string{"remote"})
@@ -278,17 +293,20 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	tmp := t.TempDir()
 	eMock := NewExecutorMock("")
 	eMock.buildOk <- true
-	s, _ := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
 	d := mkDeployerMock(t)
 
 	// Test with Darwin configuration
 	e, _ := executor.NewNixDarwinFlake()
-	bc := NewConfirmer(Without, 0)
+	bc := NewConfirmer(bk, Without, 0, "")
 	bc.Start()
-	dc := NewConfirmer(Without, 0)
+	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", e, bc, dc)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", e, bc, dc, bk)
 
 	// Verify the manager was created with the correct configuration attribute
 	assert.Equal(t, "darwin-machine-id", m.machineId)

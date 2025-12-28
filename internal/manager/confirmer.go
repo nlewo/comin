@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
@@ -47,9 +48,12 @@ type Confirmer struct {
 	command    chan Command
 	statusResp chan *protobuf.Confirmer
 	statusReq  chan struct{}
+
+	broker *broker.Broker
+	reason string
 }
 
-func NewConfirmer(mode Mode, duration time.Duration) *Confirmer {
+func NewConfirmer(broker *broker.Broker, mode Mode, duration time.Duration, reason string) *Confirmer {
 	return &Confirmer{
 		state: &protobuf.Confirmer{
 			AutoconfirmDuration: int64(duration.Seconds()),
@@ -59,6 +63,8 @@ func NewConfirmer(mode Mode, duration time.Duration) *Confirmer {
 		statusReq:  make(chan struct{}),
 		statusResp: make(chan *protobuf.Confirmer),
 		command:    make(chan Command),
+		broker:     broker,
+		reason:     reason,
 	}
 }
 
@@ -127,6 +133,8 @@ func (c *Confirmer) start() {
 			case "confirm":
 				logrus.Infof("confirmer: generation %s has been confirmed", command.uuid)
 				c.state.Confirmed = command.uuid
+				e := &protobuf.Event_ConfirmationConfirmed{Uuid: command.uuid}
+				c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationConfirmedType{ConfirmationConfirmedType: e}})
 			case "cancel":
 				logrus.Infof("confirmer: confirmation of generation %s has been cancelled", command.uuid)
 				c.state.Confirmed = ""
@@ -134,6 +142,8 @@ func (c *Confirmer) start() {
 				if c.timer != nil {
 					c.timer.Stop()
 				}
+				e := &protobuf.Event_ConfirmationCancelled{Uuid: command.uuid}
+				c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationCancelledType{ConfirmationCancelledType: e}})
 			}
 		case <-timer:
 			logrus.Infof("confirmer: timer confirmed generation %s", c.state.Submitted)

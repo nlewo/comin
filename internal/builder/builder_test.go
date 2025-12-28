@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/stretchr/testify/assert"
@@ -62,7 +63,10 @@ func TestBuilderBuild(t *testing.T) {
 	}()
 
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "my-machine", 2*time.Second, 2*time.Second)
@@ -123,7 +127,10 @@ func TestBuilderBuild(t *testing.T) {
 
 func TestEval(t *testing.T) {
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
@@ -143,7 +150,9 @@ func TestEval(t *testing.T) {
 // TestEvalAlreadyBuilt tests the evaluation when the storepath has been already built.
 func TestEvalAlreadyBuilt(t *testing.T) {
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(true)
 	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
@@ -164,7 +173,10 @@ func TestEvalAlreadyBuilt(t *testing.T) {
 
 func TestBuilderPreemption(t *testing.T) {
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
@@ -185,7 +197,9 @@ func TestBuilderPreemption(t *testing.T) {
 
 func TestBuilderStop(t *testing.T) {
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", 5*time.Second, 5*time.Second)
@@ -200,7 +214,10 @@ func TestBuilderStop(t *testing.T) {
 
 func TestBuilderTimeout(t *testing.T) {
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", 1*time.Second, 5*time.Second)
@@ -214,7 +231,10 @@ func TestBuilderTimeout(t *testing.T) {
 
 func TestBuilderSuspend(t *testing.T) {
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", 1*time.Second, 5*time.Second)

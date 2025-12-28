@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
@@ -19,7 +20,10 @@ func TestDeployerBasic(t *testing.T) {
 	}
 
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
 	d.Run(t.Context())
@@ -52,7 +56,10 @@ func TestDeployerSubmit(t *testing.T) {
 	}
 
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
 	d.Run(t.Context())
@@ -92,7 +99,10 @@ func TestDeployerSuspend(t *testing.T) {
 	}
 
 	tmp := t.TempDir()
-	s, err := store.New(tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
 	d.Run(t.Context())

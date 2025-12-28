@@ -5,11 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestConfirmerSubmit(t *testing.T) {
-	c := NewConfirmer(Manual, time.Second)
+	bk := broker.New()
+	bk.Start()
+	c := NewConfirmer(bk, Manual, time.Second, "")
 	c.Start()
 	assert.EventuallyWithT(t, func(ct *assert.CollectT) {
 		assert.Equal(ct, "", c.status().Submitted)
@@ -22,7 +25,9 @@ func TestConfirmerSubmit(t *testing.T) {
 }
 
 func TestConfirmerManual(t *testing.T) {
-	c := NewConfirmer(Manual, time.Second)
+	bk := broker.New()
+	bk.Start()
+	c := NewConfirmer(bk, Manual, time.Second, "")
 	go func() {
 		<-c.confirmed
 	}()
@@ -39,7 +44,9 @@ func TestConfirmerManual(t *testing.T) {
 }
 
 func TestConfirmerWithout(t *testing.T) {
-	c := NewConfirmer(Without, 0)
+	bk := broker.New()
+	bk.Start()
+	c := NewConfirmer(bk, Without, 0, "")
 	var expectedUuid atomic.Bool
 	go func() {
 		t := <-c.confirmed
@@ -59,7 +66,9 @@ func TestConfirmerWithout(t *testing.T) {
 }
 
 func TestConfirmerAuto(t *testing.T) {
-	c := NewConfirmer(Auto, 2*time.Second)
+	bk := broker.New()
+	bk.Start()
+	c := NewConfirmer(bk, Auto, 2*time.Second, "")
 	var expectedUuid atomic.Bool
 	go func() {
 		t := <-c.confirmed
@@ -84,7 +93,9 @@ func TestConfirmerAuto(t *testing.T) {
 }
 
 func TestConfirmerAutoCancel(t *testing.T) {
-	c := NewConfirmer(Auto, 2*time.Second)
+	bk := broker.New()
+	bk.Start()
+	c := NewConfirmer(bk, Auto, 2*time.Second, "")
 	go func() {
 		<-c.confirmed
 	}()
@@ -106,7 +117,9 @@ func TestConfirmerAutoCancel(t *testing.T) {
 }
 
 func TestConfirmerResubmit(t *testing.T) {
-	c := NewConfirmer(Auto, 3*time.Second)
+	bk := broker.New()
+	bk.Start()
+	c := NewConfirmer(bk, Auto, 3*time.Second, "")
 	var expectedUuid atomic.Bool
 	go func() {
 		t := <-c.confirmed
@@ -138,7 +151,9 @@ func TestConfirmerResubmit(t *testing.T) {
 }
 
 func TestConfirmerConfirmBeforeSubmit(t *testing.T) {
-	c := NewConfirmer(Auto, 3*time.Second)
+	bk := broker.New()
+	bk.Start()
+	c := NewConfirmer(bk, Auto, 3*time.Second, "")
 	var expectedUuid atomic.Bool
 	go func() {
 		t := <-c.confirmed

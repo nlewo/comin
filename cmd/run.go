@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"time"
 
+	brokerPkg "github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/config"
 	"github.com/nlewo/comin/internal/deployer"
@@ -76,7 +77,9 @@ var runCmd = &cobra.Command{
 		metrics := prometheus.New()
 		storeFilename := path.Join(cfg.StateDir, "store.json")
 		gcRootsDir := path.Join(cfg.StateDir, "gcroots")
-		store, err := storePkg.New(storeFilename, gcRootsDir, 10, 10)
+		broker := brokerPkg.New()
+		broker.Start()
+		store, err := storePkg.New(broker, storeFilename, gcRootsDir, 10, 10)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
@@ -114,22 +117,22 @@ var runCmd = &cobra.Command{
 			logrus.Error(err)
 			os.Exit(1)
 		}
-		buildConfirmer := manager.NewConfirmer(mode, time.Duration(cfg.BuildConfirmer.AutoDuration)*time.Second)
+		buildConfirmer := manager.NewConfirmer(broker, mode, time.Duration(cfg.BuildConfirmer.AutoDuration)*time.Second, "build")
 		buildConfirmer.Start()
 		mode, err = manager.ParseMode(cfg.DeployConfirmer.Mode)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
 		}
-		deployConfirmer := manager.NewConfirmer(mode, time.Duration(cfg.DeployConfirmer.AutoDuration)*time.Second)
+		deployConfirmer := manager.NewConfirmer(broker, mode, time.Duration(cfg.DeployConfirmer.AutoDuration)*time.Second, "deploy")
 		deployConfirmer.Start()
-		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor, buildConfirmer, deployConfirmer)
+		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor, buildConfirmer, deployConfirmer, broker)
 
 		http.Serve(manager,
 			metrics,
 			cfg.ApiServer.ListenAddress, cfg.ApiServer.Port,
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
-		srv := server.New(manager, cfg.Grpc.UnixSocketPath)
+		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath)
 		srv.Start()
 		manager.Run(cmd.Context())
 	},
