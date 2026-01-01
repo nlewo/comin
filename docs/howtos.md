@@ -77,3 +77,20 @@ When comin is running on a Darwin system, it automatically builds and
 deploys a configuration found in the flake output
 `darwinConfigurations.hostname`. So, you only need to set this flake
 output and run comin on the target machine.
+
+
+## How to use comin without Nix flake
+
+comin supports deploying configuration from a repository that doesn't
+use Nix flake. Here is a configuration example:
+
+```nix
+services.comin = {
+  repositoryType = "nix";
+  systemAttr = "your.nixos.configuration.attribute";
+  ...
+  ...
+}
+```
+
+Please note this is currently not supported by for nix-darwin configurations.

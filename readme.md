@@ -7,6 +7,7 @@ NixOS configuration associated to the machine.
 ## Features
 
 - :snowflake: Git push to deploy NixOS configurations (or [nix-darwin](./docs/howtos.md#how-to-deploy-a-nix-darwin-configuration))
+- :handshake: Support flake and [non-flake](./docs/howtos.md#how-to-use-comin-without-nix-flake) repositories
 - :construction: Support testing branches to [try changes](./docs/howtos.md#how-to-test-a-nixos-configuration-change)
 - :rocket: Poll [multiple Git remotes](./docs/generated-module-options.md#servicescominremotes) to avoid SPOF
 - :postbox: Support [machines migrations](./docs/howtos.md#how-to-migrate-a-configuration-from-a-machine-to-another-one)
@@ -34,7 +35,7 @@ This is a basic `flake.nix` example:
         system = "x86_64-linux";
         modules = [
           comin.nixosModules.comin
-          ({...}: {
+          ({
             services.comin = {
               enable = true;
               remotes = [{
@@ -59,6 +60,9 @@ deploys the NixOS configuration corresponding to the machine hostname
 A new commit in the `main` branch of the repository
 `https://gitlab.com/your/infra.git` is then deployed in the next 60
 seconds.
+
+Comin exposes much more options which are described in the [generated
+documentation](https://github.com/nlewo/comin/blob/main/docs/generated-module-options.md).
 
 ## Documentation
 
