@@ -24,7 +24,7 @@ in
 
 buildGoModule rec {
   pname = "comin";
-  version = "0.8.0";
+  version = "0.10.0";
   nativeCheckInputs = [ git ];
   # FIXME: remove this
   doCheck = false;
