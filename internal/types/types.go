@@ -31,7 +31,8 @@ type Auth struct {
 type Branch struct {
 	Name string `yaml:"name"`
 	// TODO: use it
-	Protected bool `yaml:"protected"`
+	Protected bool   `yaml:"protected"`
+	Operation string `yaml:"operation"`
 }
 
 type Branches struct {

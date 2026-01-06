@@ -27,7 +27,9 @@ type Deployer struct {
 	previousDeployment atomic.Pointer[protobuf.Deployment]
 	isDeploying        atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
-	GenerationToDeploy    *protobuf.Generation
+	GenerationToDeploy *protobuf.Generation
+	// The operation to use for the next deployment
+	Operation             string
 	generationAvailableCh chan struct{}
 	postDeploymentCommand string
 
@@ -45,6 +47,7 @@ func (d *Deployer) State() *protobuf.Deployer {
 	return &protobuf.Deployer{
 		IsDeploying:        wrapperspb.Bool(d.isDeploying.Load()),
 		GenerationToDeploy: d.GenerationToDeploy,
+		Operation:          d.Operation,
 		Deployment:         d.deployment.Load(),
 		PreviousDeployment: d.previousDeployment.Load(),
 		IsSuspended:        wrapperspb.Bool(d.isSuspended.Load()),
@@ -147,13 +150,14 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation) bool {
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
 // of the last deployment, this generation is skipped.
-func (d *Deployer) Submit(generation *protobuf.Generation) {
-	logrus.Infof("deployer: submitting generation %s", generation.Uuid)
+func (d *Deployer) Submit(generation *protobuf.Generation, operation string) {
+	logrus.Infof("deployer: submitting generation %s with operation %s", generation.Uuid, operation)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if !d.IsAlreadyDeployed(generation) {
 		d.GenerationToDeploy = generation
+		d.Operation = operation
 		select {
 		case d.generationAvailableCh <- struct{}{}:
 		default:
@@ -178,15 +182,12 @@ func (d *Deployer) Run(ctx context.Context) {
 			d.mu.Unlock()
 			logrus.Infof("deployer: deploying generation %s", g.Uuid)
 
-			operation := "switch"
-			if g.SelectedBranchIsTesting.GetValue() {
-				operation = "test"
-			}
-			dpl := d.store.NewDeployment(g, operation)
+			dpl := d.store.NewDeployment(g, d.Operation)
 			d.mu.Lock()
 			d.previousDeployment.Swap(d.Deployment())
 			d.deployment.Store(dpl)
 			d.isDeploying.Store(true)
+			operation := d.Operation
 			d.mu.Unlock()
 			if err := d.store.DeploymentStarted(dpl.Uuid); err != nil {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)

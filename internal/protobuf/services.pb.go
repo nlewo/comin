@@ -756,6 +756,7 @@ type Deployer struct {
 	IsDeploying        *wrapperspb.BoolValue  `protobuf:"bytes,1,opt,name=is_deploying,json=isDeploying" json:"is_deploying,omitempty"`
 	Deployment         *Deployment            `protobuf:"bytes,2,opt,name=deployment" json:"deployment,omitempty"`
 	GenerationToDeploy *Generation            `protobuf:"bytes,3,opt,name=generation_to_deploy,json=generationToDeploy" json:"generation_to_deploy,omitempty"`
+	Operation          string                 `protobuf:"bytes,6,opt,name=operation" json:"operation,omitempty"`
 	PreviousDeployment *Deployment            `protobuf:"bytes,4,opt,name=previous_deployment,json=previousDeployment" json:"previous_deployment,omitempty"`
 	IsSuspended        *wrapperspb.BoolValue  `protobuf:"bytes,5,opt,name=is_suspended,json=isSuspended" json:"is_suspended,omitempty"`
 	unknownFields      protoimpl.UnknownFields
@@ -811,6 +812,13 @@ func (x *Deployer) GetGenerationToDeploy() *Generation {
 		return x.GenerationToDeploy
 	}
 	return nil
+}
+
+func (x *Deployer) GetOperation() string {
+	if x != nil {
+		return x.Operation
+	}
+	return ""
 }
 
 func (x *Deployer) GetPreviousDeployment() *Deployment {
@@ -2002,13 +2010,14 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\afetcher\x18\x05 \x01(\v2\x11.protobuf.FetcherR\afetcher\x12%\n" +
 	"\x05store\x18\x06 \x01(\v2\x0f.protobuf.StoreR\x05store\x12<\n" +
 	"\x0fbuild_confirmer\x18\a \x01(\v2\x13.protobuf.ConfirmerR\x0ebuildConfirmer\x12>\n" +
-	"\x10deploy_confirmer\x18\b \x01(\v2\x13.protobuf.ConfirmerR\x0fdeployConfirmer\"\xcd\x02\n" +
+	"\x10deploy_confirmer\x18\b \x01(\v2\x13.protobuf.ConfirmerR\x0fdeployConfirmer\"\xeb\x02\n" +
 	"\bDeployer\x12=\n" +
 	"\fis_deploying\x18\x01 \x01(\v2\x1a.google.protobuf.BoolValueR\visDeploying\x124\n" +
 	"\n" +
 	"deployment\x18\x02 \x01(\v2\x14.protobuf.DeploymentR\n" +
 	"deployment\x12F\n" +
-	"\x14generation_to_deploy\x18\x03 \x01(\v2\x14.protobuf.GenerationR\x12generationToDeploy\x12E\n" +
+	"\x14generation_to_deploy\x18\x03 \x01(\v2\x14.protobuf.GenerationR\x12generationToDeploy\x12\x1c\n" +
+	"\toperation\x18\x06 \x01(\tR\toperation\x12E\n" +
 	"\x13previous_deployment\x18\x04 \x01(\v2\x14.protobuf.DeploymentR\x12previousDeployment\x12=\n" +
 	"\fis_suspended\x18\x05 \x01(\v2\x1a.google.protobuf.BoolValueR\visSuspended\"\xc1\x02\n" +
 	"\aBuilder\x12?\n" +

@@ -45,6 +45,8 @@ type Manager struct {
 	BuildConfirmer  *Confirmer
 	DeployConfirmer *Confirmer
 
+	configurationOperations ConfigurationOperations
+
 	isSuspended bool
 
 	broker *broker.Broker
@@ -60,22 +62,25 @@ func New(s *store.Store,
 	executor executor.Executor,
 	buildConfirmer *Confirmer,
 	deployConfirmer *Confirmer,
-	broker *broker.Broker) *Manager {
+	broker *broker.Broker,
+	configurationOperations ConfigurationOperations,
+) *Manager {
 
 	m := &Manager{
-		machineId:       machineId,
-		stateRequestCh:  make(chan struct{}),
-		stateResultCh:   make(chan *protobuf.State),
-		prometheus:      p,
-		storage:         s,
-		scheduler:       sched,
-		Fetcher:         fetcher,
-		Builder:         builder,
-		deployer:        deployer,
-		executor:        executor,
-		BuildConfirmer:  buildConfirmer,
-		DeployConfirmer: deployConfirmer,
-		broker:          broker,
+		machineId:               machineId,
+		stateRequestCh:          make(chan struct{}),
+		stateResultCh:           make(chan *protobuf.State),
+		prometheus:              p,
+		storage:                 s,
+		scheduler:               sched,
+		Fetcher:                 fetcher,
+		Builder:                 builder,
+		deployer:                deployer,
+		executor:                executor,
+		BuildConfirmer:          buildConfirmer,
+		DeployConfirmer:         deployConfirmer,
+		broker:                  broker,
+		configurationOperations: configurationOperations,
 	}
 	return m
 }
@@ -177,15 +182,39 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					logrus.Error(err)
 					continue
 				}
-				m.deployer.Submit(&generation)
+				operation := m.getOperationFromConfigurationOperations(generation.SelectedRemoteName, generation.SelectedBranchName)
+				m.deployer.Submit(&generation, operation)
 			}
 		}
 	}()
 }
 
+// ConfigurationOperations is a map describing the operation associated
+// to each remote/branch. It is a map looking such as:
+// { origin: { main: switch, testing: test }, local { main: switch }
+type ConfigurationOperations map[string](map[string]string)
+
+func (m *Manager) getOperationFromConfigurationOperations(remote, branch string) (operation string) {
+	operation = "test"
+	branches, ok := m.configurationOperations[remote]
+	if !ok {
+		logrus.Errorf("manager: could not get the remote %s. Assuming 'test' operation", remote)
+		return
+	}
+	operation, ok = branches[branch]
+	if !ok {
+		logrus.Errorf("manager: could not get the operation for the branch %s/%s. Assuming test operation", remote, branch)
+		return
+	}
+	return
+}
+
 func (m *Manager) Run(ctx context.Context) {
 	logrus.Infof("manager: starting with machineId=%s", m.machineId)
-	m.needToReboot = m.executor.NeedToReboot()
+	lastDpl := m.deployer.State().Deployment
+	if lastDpl != nil {
+		m.needToReboot = m.executor.NeedToReboot(lastDpl.Generation.OutPath, lastDpl.Operation)
+	}
 	m.prometheus.SetHostInfo(m.needToReboot)
 
 	m.FetchAndBuild(ctx)
@@ -213,7 +242,7 @@ func (m *Manager) Run(ctx context.Context) {
 					_ = profile.RemoveProfilePath(evicted.ProfilePath)
 				}
 			}
-			m.needToReboot = m.executor.NeedToReboot()
+			m.needToReboot = m.executor.NeedToReboot(dpl.Generation.OutPath, dpl.Operation)
 			m.prometheus.SetHostInfo(m.needToReboot)
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts

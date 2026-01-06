@@ -25,7 +25,7 @@ func (n *NixFlakeLocal) ReadMachineId() (string, error) {
 	return utils.ReadMachineIdLinux()
 }
 
-func (n *NixFlakeLocal) NeedToReboot() bool {
+func (n *NixFlakeLocal) NeedToReboot(outPath, operation string) bool {
 	if n.systemAttr == "darwinConfigurations" {
 		// TODO: Implement proper reboot detection for Darwin
 		// Unlike NixOS which has /run/current-system vs /run/booted-system paths,
@@ -34,7 +34,7 @@ func (n *NixFlakeLocal) NeedToReboot() bool {
 		// For now, conservatively assume no reboot is needed.
 		return false
 	}
-	return utils.NeedToRebootLinux()
+	return utils.NeedToRebootLinux(outPath, operation)
 }
 
 func (n *NixFlakeLocal) IsStorePathExist(storePath string) bool {

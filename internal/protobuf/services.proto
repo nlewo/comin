@@ -140,6 +140,7 @@ message Deployer {
   google.protobuf.BoolValue is_deploying = 1;
   Deployment deployment = 2;
   Generation generation_to_deploy = 3;
+  string operation = 6;
   Deployment previous_deployment = 4;
   google.protobuf.BoolValue is_suspended = 5;
 }
