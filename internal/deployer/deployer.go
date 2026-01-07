@@ -178,16 +178,16 @@ func (d *Deployer) Run(ctx context.Context) {
 
 			d.mu.Lock()
 			g := d.GenerationToDeploy
+			operation := d.Operation
 			d.GenerationToDeploy = nil
 			d.mu.Unlock()
-			logrus.Infof("deployer: deploying generation %s", g.Uuid)
+			logrus.Infof("deployer: deploying generation %s with operation %s", g.Uuid, operation)
 
 			dpl := d.store.NewDeployment(g, d.Operation)
 			d.mu.Lock()
 			d.previousDeployment.Swap(d.Deployment())
 			d.deployment.Store(dpl)
 			d.isDeploying.Store(true)
-			operation := d.Operation
 			d.mu.Unlock()
 			if err := d.store.DeploymentStarted(dpl.Uuid); err != nil {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)

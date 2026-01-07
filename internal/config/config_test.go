@@ -25,6 +25,10 @@ func TestConfig(t *testing.T) {
 					AccessTokenPath: "./secret",
 				},
 				Timeout: 300,
+				Branches: types.Branches{
+					Main:    types.Branch{Operation: "switch"},
+					Testing: types.Branch{Operation: "test"},
+				},
 			},
 			{
 				Name: "local",
@@ -34,6 +38,10 @@ func TestConfig(t *testing.T) {
 					AccessTokenPath: "",
 				},
 				Timeout: 300,
+				Branches: types.Branches{
+					Main:    types.Branch{Operation: "switch"},
+					Testing: types.Branch{Operation: "test"},
+				},
 			},
 		},
 		ApiServer: types.HttpServer{
