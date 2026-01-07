@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/nlewo/comin/internal/client"
@@ -52,6 +53,11 @@ var deploymentSwitchLatestCmd = &cobra.Command{
 }
 
 func deploymentList(dpls []*protobuf.Deployment) {
+	endedAtCmp := func(a, b *protobuf.Deployment) int {
+		return a.EndedAt.AsTime().Compare(b.EndedAt.AsTime())
+	}
+	slices.SortFunc(dpls, endedAtCmp)
+
 	for _, dpl := range dpls {
 		fmt.Printf("%s\n", dpl.Uuid)
 		fmt.Printf("  ended at          %s\n", dpl.EndedAt.AsTime().Format(time.DateTime))
