@@ -23,12 +23,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Comin_GetState_FullMethodName = "/protobuf.Comin/GetState"
-	Comin_Fetch_FullMethodName    = "/protobuf.Comin/Fetch"
-	Comin_Suspend_FullMethodName  = "/protobuf.Comin/Suspend"
-	Comin_Resume_FullMethodName   = "/protobuf.Comin/Resume"
-	Comin_Confirm_FullMethodName  = "/protobuf.Comin/Confirm"
-	Comin_Events_FullMethodName   = "/protobuf.Comin/Events"
+	Comin_GetState_FullMethodName               = "/protobuf.Comin/GetState"
+	Comin_Fetch_FullMethodName                  = "/protobuf.Comin/Fetch"
+	Comin_Suspend_FullMethodName                = "/protobuf.Comin/Suspend"
+	Comin_Resume_FullMethodName                 = "/protobuf.Comin/Resume"
+	Comin_Confirm_FullMethodName                = "/protobuf.Comin/Confirm"
+	Comin_Events_FullMethodName                 = "/protobuf.Comin/Events"
+	Comin_SwitchDeploymentLatest_FullMethodName = "/protobuf.Comin/SwitchDeploymentLatest"
 )
 
 // CominClient is the client API for Comin service.
@@ -41,6 +42,7 @@ type CominClient interface {
 	Resume(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Confirm(ctx context.Context, in *ConfirmRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Events(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Event], error)
+	SwitchDeploymentLatest(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type cominClient struct {
@@ -120,6 +122,16 @@ func (c *cominClient) Events(ctx context.Context, in *emptypb.Empty, opts ...grp
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Comin_EventsClient = grpc.ServerStreamingClient[Event]
 
+func (c *cominClient) SwitchDeploymentLatest(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, Comin_SwitchDeploymentLatest_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CominServer is the server API for Comin service.
 // All implementations must embed UnimplementedCominServer
 // for forward compatibility.
@@ -130,6 +142,7 @@ type CominServer interface {
 	Resume(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	Confirm(context.Context, *ConfirmRequest) (*emptypb.Empty, error)
 	Events(*emptypb.Empty, grpc.ServerStreamingServer[Event]) error
+	SwitchDeploymentLatest(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCominServer()
 }
 
@@ -157,6 +170,9 @@ func (UnimplementedCominServer) Confirm(context.Context, *ConfirmRequest) (*empt
 }
 func (UnimplementedCominServer) Events(*emptypb.Empty, grpc.ServerStreamingServer[Event]) error {
 	return status.Errorf(codes.Unimplemented, "method Events not implemented")
+}
+func (UnimplementedCominServer) SwitchDeploymentLatest(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SwitchDeploymentLatest not implemented")
 }
 func (UnimplementedCominServer) mustEmbedUnimplementedCominServer() {}
 func (UnimplementedCominServer) testEmbeddedByValue()               {}
@@ -280,6 +296,24 @@ func _Comin_Events_Handler(srv interface{}, stream grpc.ServerStream) error {
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Comin_EventsServer = grpc.ServerStreamingServer[Event]
 
+func _Comin_SwitchDeploymentLatest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CominServer).SwitchDeploymentLatest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Comin_SwitchDeploymentLatest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CominServer).SwitchDeploymentLatest(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Comin_ServiceDesc is the grpc.ServiceDesc for Comin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -306,6 +340,10 @@ var Comin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Confirm",
 			Handler:    _Comin_Confirm_Handler,
+		},
+		{
+			MethodName: "SwitchDeploymentLatest",
+			Handler:    _Comin_SwitchDeploymentLatest_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -52,6 +52,15 @@ func (s *cominServer) Fetch(ctx context.Context, empty *emptypb.Empty) (*emptypb
 	return nil, nil
 }
 
+func (s *cominServer) SwitchDeploymentLatest(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
+	err := s.manager.SwitchDeploymentLatest()
+	if err != nil {
+		st := status.New(codes.Aborted, err.Error())
+		err = st.Err()
+	}
+	return nil, err
+}
+
 func (s *cominServer) Suspend(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
 	err := s.manager.Suspend()
 	if err != nil {

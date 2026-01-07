@@ -33,6 +33,24 @@ var deploymentListCmd = &cobra.Command{
 	},
 }
 
+var deploymentSwitchLatestCmd = &cobra.Command{
+	Use:  "switch-latest",
+	Args: cobra.MinimumNArgs(0),
+	Run: func(cmd *cobra.Command, args []string) {
+		opts := client.ClientOpts{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
+		}
+		c, err := client.New(opts)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		err = c.SwitchDeploymentLatest()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+	},
+}
+
 func deploymentList(dpls []*protobuf.Deployment) {
 	for _, dpl := range dpls {
 		fmt.Printf("%s\n", dpl.Uuid)
@@ -51,4 +69,5 @@ func deploymentList(dpls []*protobuf.Deployment) {
 func init() {
 	rootCmd.AddCommand(deploymentCmd)
 	deploymentCmd.AddCommand(deploymentListCmd)
+	deploymentCmd.AddCommand(deploymentSwitchLatestCmd)
 }
