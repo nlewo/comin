@@ -126,7 +126,14 @@ var runCmd = &cobra.Command{
 		}
 		deployConfirmer := manager.NewConfirmer(broker, mode, time.Duration(cfg.DeployConfirmer.AutoDuration)*time.Second, "deploy")
 		deployConfirmer.Start()
-		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor, buildConfirmer, deployConfirmer, broker)
+
+		configurationOperations := manager.ConfigurationOperations{}
+		for _, r := range cfg.Remotes {
+			configurationOperations[r.Name] = make(map[string]string)
+			configurationOperations[r.Name][r.Branches.Main.Name] = r.Branches.Main.Operation
+			configurationOperations[r.Name][r.Branches.Testing.Name] = r.Branches.Testing.Operation
+		}
+		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor, buildConfirmer, deployConfirmer, broker, configurationOperations)
 
 		http.Serve(manager,
 			metrics,

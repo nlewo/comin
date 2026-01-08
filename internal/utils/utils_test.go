@@ -76,7 +76,7 @@ func TestNeedToReboot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test that the function doesn't panic and follows the right code path
-			result := NeedToRebootLinux()
+			result := NeedToRebootLinux("", "")
 			t.Logf("NeedToReboot with %s returned: %v", tt.systemAttr, result)
 			// The function should return a boolean without panicking
 			assert.IsType(t, false, result)

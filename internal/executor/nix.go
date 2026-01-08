@@ -26,8 +26,8 @@ func (n *NixLocal) IsStorePathExist(storePath string) bool {
 	return isStorePathExist(storePath)
 }
 
-func (n *NixLocal) NeedToReboot() bool {
-	return utils.NeedToRebootLinux()
+func (n *NixLocal) NeedToReboot(outPath, operation string) bool {
+	return utils.NeedToRebootLinux(outPath, operation)
 }
 
 func (n *NixLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {

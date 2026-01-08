@@ -142,6 +142,11 @@ in {
                           default = "main";
                           description = "The name of the main branch.";
                         };
+                        operation = mkOption {
+                          type = enum ["switch" "test" "boot"];
+                          default = "switch";
+                          description = "The switch-to-configuration operation to do on this branch.";
+                        };
                       };
                     };
                   };
@@ -155,6 +160,11 @@ in {
                           default = "testing-${config.services.comin.hostname}";
                           defaultText = lib.literalExpression "testing-\${config.services.comin.hostname}";
                           description = "The name of the testing branch.";
+                        };
+                        operation = mkOption {
+                          type = enum ["switch" "test" "boot"];
+                          default = "test";
+                          description = "The switch-to-configuration operation to do on this branch.";
                         };
                       };
                     };

@@ -24,7 +24,7 @@ type ExecutorMock struct {
 func (n ExecutorMock) ReadMachineId() (string, error) {
 	return "", nil
 }
-func (n ExecutorMock) NeedToReboot() bool {
+func (n ExecutorMock) NeedToReboot(_, _ string) bool {
 	return false
 }
 func (n ExecutorMock) IsStorePathExist(storePath string) bool {

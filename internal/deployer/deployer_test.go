@@ -30,7 +30,7 @@ func TestDeployerBasic(t *testing.T) {
 	assert.False(t, d.IsDeploying())
 
 	g := &protobuf.Generation{SelectedCommitId: "commit-1"}
-	d.Submit(g)
+	d.Submit(g, "test")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, d.IsDeploying())
 	}, 5*time.Second, 100*time.Millisecond)
@@ -65,14 +65,14 @@ func TestDeployerSubmit(t *testing.T) {
 	d.Run(t.Context())
 	assert.False(t, d.IsDeploying())
 
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"})
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"}, "test")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, d.IsDeploying())
 		assert.Nil(c, d.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-2"})
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-3"})
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-2"}, "test")
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-3"}, "test")
 	assert.NotNil(t, d.GenerationToDeploy)
 
 	// To simulate the end of 2 deployments (commit-1 and commit-3)
@@ -112,7 +112,7 @@ func TestDeployerSuspend(t *testing.T) {
 	assert.False(t, d.IsDeploying())
 	assert.False(t, d.RunnerIsSuspended())
 
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"})
+	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"}, "test")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(t, d.RunnerIsSuspended())
 	}, 3*time.Second, 100*time.Millisecond)

@@ -34,6 +34,13 @@ func Read(path string) (config types.Configuration, err error) {
 		if remote.Timeout == 0 {
 			config.Remotes[i].Timeout = 300
 		}
+		if remote.Branches.Main.Operation == "" {
+			config.Remotes[i].Branches.Main.Operation = "switch"
+		}
+		if remote.Branches.Testing.Operation == "" {
+			config.Remotes[i].Branches.Testing.Operation = "test"
+		}
+
 	}
 
 	if config.ApiServer.ListenAddress == "" {

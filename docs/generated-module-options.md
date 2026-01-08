@@ -488,6 +488,24 @@ string
 
 
 
+## services\.comin\.remotes\.\*\.branches\.main\.operation
+
+
+
+The switch-to-configuration operation to do on this branch\.
+
+
+
+*Type:*
+one of “switch”, “test”, “boot”
+
+
+
+*Default:*
+` "switch" `
+
+
+
 ## services\.comin\.remotes\.\*\.branches\.testing
 
 
@@ -521,6 +539,24 @@ string
 
 *Default:*
 ` testing-${config.services.comin.hostname} `
+
+
+
+## services\.comin\.remotes\.\*\.branches\.testing\.operation
+
+
+
+The switch-to-configuration operation to do on this branch\.
+
+
+
+*Type:*
+one of “switch”, “test”, “boot”
+
+
+
+*Default:*
+` "test" `
 
 
 
