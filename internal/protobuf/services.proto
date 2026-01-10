@@ -19,6 +19,7 @@ service Comin {
   rpc Resume(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Confirm(ConfirmRequest) returns (google.protobuf.Empty) {}
   rpc Events(google.protobuf.Empty) returns (stream Event);
+  rpc SwitchDeploymentLatest(google.protobuf.Empty) returns (google.protobuf.Empty) {}
 }
 
 message Event {

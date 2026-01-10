@@ -79,6 +79,10 @@ func (c Client) Resume() error {
 	_, err := c.cominClient.Resume(context.Background(), &emptypb.Empty{})
 	return err
 }
+func (c Client) SwitchDeploymentLatest() error {
+	_, err := c.cominClient.SwitchDeploymentLatest(context.Background(), &emptypb.Empty{})
+	return err
+}
 
 func (c Client) Confirm(generationUUID, for_ string) error {
 	_, err := c.cominClient.Confirm(context.Background(), &protobuf.ConfirmRequest{

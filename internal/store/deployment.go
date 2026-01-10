@@ -74,6 +74,17 @@ func (s *Store) deploymentGet(uuid string) (g *protobuf.Deployment, err error) {
 	return nil, fmt.Errorf("store: no deployment with uuid %s has been found", uuid)
 }
 
+func (s *Store) GetDeploymentLastest() (latest *protobuf.Deployment) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, d := range s.data.Deployments {
+		if latest == nil || d.EndedAt != nil && d.EndedAt.AsTime().After(latest.EndedAt.AsTime()) {
+			latest = d
+		}
+	}
+	return
+}
+
 func (s *Store) DeploymentStarted(uuid string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

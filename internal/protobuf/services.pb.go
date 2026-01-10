@@ -2074,14 +2074,15 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\terror_msg\x18\r \x01(\tR\berrorMsg\"w\n" +
 	"\x05Store\x126\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x14.protobuf.DeploymentR\vdeployments\x126\n" +
-	"\vgenerations\x18\x02 \x03(\v2\x14.protobuf.GenerationR\vgenerations2\xe6\x02\n" +
+	"\vgenerations\x18\x02 \x03(\v2\x14.protobuf.GenerationR\vgenerations2\xb2\x03\n" +
 	"\x05Comin\x125\n" +
 	"\bGetState\x12\x16.google.protobuf.Empty\x1a\x0f.protobuf.State\"\x00\x129\n" +
 	"\x05Fetch\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12;\n" +
 	"\aSuspend\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12:\n" +
 	"\x06Resume\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12=\n" +
 	"\aConfirm\x12\x18.protobuf.ConfirmRequest\x1a\x16.google.protobuf.Empty\"\x00\x123\n" +
-	"\x06Events\x12\x16.google.protobuf.Empty\x1a\x0f.protobuf.Event0\x01B/Z(github.com/nlewo/comin/internal/protobuf\x92\x03\x02\b\x02b\beditionsp\xe8\a"
+	"\x06Events\x12\x16.google.protobuf.Empty\x1a\x0f.protobuf.Event0\x01\x12J\n" +
+	"\x16SwitchDeploymentLatest\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00B/Z(github.com/nlewo/comin/internal/protobuf\x92\x03\x02\b\x02b\beditionsp\xe8\a"
 
 var (
 	file_internal_protobuf_services_proto_rawDescOnce sync.Once
@@ -2189,14 +2190,16 @@ var file_internal_protobuf_services_proto_depIdxs = []int32{
 	26, // 60: protobuf.Comin.Resume:input_type -> google.protobuf.Empty
 	1,  // 61: protobuf.Comin.Confirm:input_type -> protobuf.ConfirmRequest
 	26, // 62: protobuf.Comin.Events:input_type -> google.protobuf.Empty
-	4,  // 63: protobuf.Comin.GetState:output_type -> protobuf.State
-	26, // 64: protobuf.Comin.Fetch:output_type -> google.protobuf.Empty
-	26, // 65: protobuf.Comin.Suspend:output_type -> google.protobuf.Empty
-	26, // 66: protobuf.Comin.Resume:output_type -> google.protobuf.Empty
-	26, // 67: protobuf.Comin.Confirm:output_type -> google.protobuf.Empty
-	0,  // 68: protobuf.Comin.Events:output_type -> protobuf.Event
-	63, // [63:69] is the sub-list for method output_type
-	57, // [57:63] is the sub-list for method input_type
+	26, // 63: protobuf.Comin.SwitchDeploymentLatest:input_type -> google.protobuf.Empty
+	4,  // 64: protobuf.Comin.GetState:output_type -> protobuf.State
+	26, // 65: protobuf.Comin.Fetch:output_type -> google.protobuf.Empty
+	26, // 66: protobuf.Comin.Suspend:output_type -> google.protobuf.Empty
+	26, // 67: protobuf.Comin.Resume:output_type -> google.protobuf.Empty
+	26, // 68: protobuf.Comin.Confirm:output_type -> google.protobuf.Empty
+	0,  // 69: protobuf.Comin.Events:output_type -> protobuf.Event
+	26, // 70: protobuf.Comin.SwitchDeploymentLatest:output_type -> google.protobuf.Empty
+	64, // [64:71] is the sub-list for method output_type
+	57, // [57:64] is the sub-list for method input_type
 	57, // [57:57] is the sub-list for extension type_name
 	57, // [57:57] is the sub-list for extension extendee
 	0,  // [0:57] is the sub-list for field type_name

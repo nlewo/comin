@@ -103,6 +103,15 @@ func (m *Manager) toState() *protobuf.State {
 	}
 }
 
+func (m *Manager) SwitchDeploymentLatest() error {
+	latest := m.storage.GetDeploymentLastest()
+	if latest == nil {
+		return fmt.Errorf("manager: no previous deployment")
+	}
+	m.deployer.Submit(latest.Generation, "switch")
+	return nil
+}
+
 func (m *Manager) Suspend() error {
 	if m.isSuspended {
 		return fmt.Errorf("the manager is already suspended")
