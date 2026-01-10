@@ -16,6 +16,11 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+const (
+	ReasonDeploymentBuilder = "builder"
+	ReasonDeploymentManual  = "manual"
+)
+
 type DeployFunc func(context.Context, string, string) (bool, string, error)
 
 type Deployer struct {
@@ -29,7 +34,9 @@ type Deployer struct {
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy *protobuf.Generation
 	// The operation to use for the next deployment
-	Operation             string
+	Operation string
+	// Reason is the reason of the next deployment
+	Reason                string
 	generationAvailableCh chan struct{}
 	postDeploymentCommand string
 
@@ -183,7 +190,7 @@ func (d *Deployer) Run(ctx context.Context) {
 			d.mu.Unlock()
 			logrus.Infof("deployer: deploying generation %s with operation %s", g.Uuid, operation)
 
-			dpl := d.store.NewDeployment(g, d.Operation)
+			dpl := d.store.NewDeployment(g, d.Operation, d.Reason)
 			d.mu.Lock()
 			d.previousDeployment.Swap(d.Deployment())
 			d.deployment.Store(dpl)
