@@ -283,14 +283,14 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) 
 	return nil
 }
 
-func deploy(ctx context.Context, outPath, operation, systemAttr string) (needToRestartComin bool, profilePath string, err error) {
+func deploy(ctx context.Context, outPath, operation, systemAttr string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
 	if systemAttr == "darwinConfigurations" {
-		return deployDarwin(ctx, outPath, operation)
+		return deployDarwin(ctx, outPath, operation, profilePaths)
 	}
-	return deployLinux(ctx, outPath, operation)
+	return deployLinux(ctx, outPath, operation, profilePaths)
 }
 
-func deployLinux(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func deployLinux(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
 	// FIXME: this check doesn't have to be here. It should be
 	// done by the manager.
 	beforeCominUnitFileHash := cominUnitFileHashLinux()
@@ -300,6 +300,8 @@ func deployLinux(ctx context.Context, outPath, operation string) (needToRestartC
 	if profilePath, err = profile.SetSystemProfile(operation, outPath, false); err != nil {
 		return
 	}
+	// We append the new profile path to the list of profile to preserve
+	profile.RemoveProfiles(append(profilePaths, profilePath))
 
 	if err = switchToConfigurationLinux(operation, outPath, false); err != nil {
 		return
@@ -316,7 +318,7 @@ func deployLinux(ctx context.Context, outPath, operation string) (needToRestartC
 	return
 }
 
-func deployDarwin(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func deployDarwin(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
 	// FIXME: this check doesn't have to be here. It should be
 	// done by the manager.
 	beforeCominUnitFileHash := cominUnitFileHashDarwin()
@@ -326,6 +328,8 @@ func deployDarwin(ctx context.Context, outPath, operation string) (needToRestart
 	if profilePath, err = profile.SetSystemProfile(operation, outPath, false); err != nil {
 		return
 	}
+	// We append the new profile path to the list of profile to preserve
+	profile.RemoveProfiles(append(profilePaths, profilePath))
 
 	if err = switchToConfigurationDarwin(operation, outPath, false); err != nil {
 		return
