@@ -23,6 +23,11 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
+const (
+	BuildReasonAlreadyBuilt = "already built"
+	BuildReasonNeedBuild    = "need to be built"
+)
+
 type Builder struct {
 	store          *store.Store
 	executor       executor.Executor
@@ -216,7 +221,7 @@ func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error
 
 		b.isEvaluating.Store(false)
 		if b.executor.IsStorePathExist(evaluator.outPath) {
-			if err := b.store.GenerationBuildStart(g.Uuid); err != nil {
+			if err := b.store.GenerationBuildStart(g.Uuid, BuildReasonAlreadyBuilt); err != nil {
 				logrus.Errorf("builder: %s", err)
 			}
 			if err := b.store.GenerationBuildFinished(g.Uuid, nil); err != nil {
@@ -312,7 +317,7 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 		return fmt.Errorf("the generation is already built")
 	}
 
-	if err := b.store.GenerationBuildStart(generationUuid); err != nil {
+	if err := b.store.GenerationBuildStart(generationUuid, BuildReasonNeedBuild); err != nil {
 		return err
 	}
 	b.isBuilding.Store(true)

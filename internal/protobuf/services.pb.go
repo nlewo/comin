@@ -42,6 +42,7 @@ type Event struct {
 	//	*Event_Suspend_
 	//	*Event_DeploymentStartedType
 	//	*Event_DeploymentFinishedType
+	//	*Event_RebootRequired_
 	Type          isEvent_Type `protobuf_oneof:"Type"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -183,6 +184,15 @@ func (x *Event) GetDeploymentFinishedType() *Event_DeploymentFinished {
 	return nil
 }
 
+func (x *Event) GetRebootRequired() *Event_RebootRequired {
+	if x != nil {
+		if x, ok := x.Type.(*Event_RebootRequired_); ok {
+			return x.RebootRequired
+		}
+	}
+	return nil
+}
+
 type isEvent_Type interface {
 	isEvent_Type()
 }
@@ -231,6 +241,10 @@ type Event_DeploymentFinishedType struct {
 	DeploymentFinishedType *Event_DeploymentFinished `protobuf:"bytes,11,opt,name=deploymentFinishedType,oneof"`
 }
 
+type Event_RebootRequired_ struct {
+	RebootRequired *Event_RebootRequired `protobuf:"bytes,12,opt,name=rebootRequired,oneof"`
+}
+
 func (*Event_EvalStartedType) isEvent_Type() {}
 
 func (*Event_EvalFinishedType) isEvent_Type() {}
@@ -252,6 +266,8 @@ func (*Event_Suspend_) isEvent_Type() {}
 func (*Event_DeploymentStartedType) isEvent_Type() {}
 
 func (*Event_DeploymentFinishedType) isEvent_Type() {}
+
+func (*Event_RebootRequired_) isEvent_Type() {}
 
 type ConfirmRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -331,6 +347,7 @@ type Generation struct {
 	DrvPath                 string                 `protobuf:"bytes,18,opt,name=drv_path,json=drvPath" json:"drv_path,omitempty"`
 	MachineId               string                 `protobuf:"bytes,19,opt,name=machine_id,json=machineId" json:"machine_id,omitempty"`
 	BuildStatus             string                 `protobuf:"bytes,20,opt,name=build_status,json=buildStatus" json:"build_status,omitempty"`
+	BuildReason             string                 `protobuf:"bytes,27,opt,name=build_reason,json=buildReason" json:"build_reason,omitempty"`
 	BuildStartedAt          *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=build_started_at,json=buildStartedAt" json:"build_started_at,omitempty"`
 	BuildEndedAt            *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=build_ended_at,json=buildEndedAt" json:"build_ended_at,omitempty"`
 	BuildErr                string                 `protobuf:"bytes,23,opt,name=build_err,json=buildErr" json:"build_err,omitempty"`
@@ -522,6 +539,13 @@ func (x *Generation) GetBuildStatus() string {
 	return ""
 }
 
+func (x *Generation) GetBuildReason() string {
+	if x != nil {
+		return x.BuildReason
+	}
+	return ""
+}
+
 func (x *Generation) GetBuildStartedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.BuildStartedAt
@@ -546,6 +570,7 @@ func (x *Generation) GetBuildErr() string {
 type Deployment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid" json:"uuid,omitempty"`
+	Reason        string                 `protobuf:"bytes,10,opt,name=reason" json:"reason,omitempty"`
 	Generation    *Generation            `protobuf:"bytes,2,opt,name=generation" json:"generation,omitempty"`
 	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt" json:"started_at,omitempty"`
 	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ended_at,json=endedAt" json:"ended_at,omitempty"`
@@ -591,6 +616,13 @@ func (*Deployment) Descriptor() ([]byte, []int) {
 func (x *Deployment) GetUuid() string {
 	if x != nil {
 		return x.Uuid
+	}
+	return ""
+}
+
+func (x *Deployment) GetReason() string {
+	if x != nil {
+		return x.Reason
 	}
 	return ""
 }
@@ -1901,11 +1933,55 @@ func (x *Event_DeploymentFinished) GetDeployment() *Deployment {
 	return nil
 }
 
+type Event_RebootRequired struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deployment    *Deployment            `protobuf:"bytes,1,opt,name=deployment" json:"deployment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Event_RebootRequired) Reset() {
+	*x = Event_RebootRequired{}
+	mi := &file_internal_protobuf_services_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Event_RebootRequired) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Event_RebootRequired) ProtoMessage() {}
+
+func (x *Event_RebootRequired) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_protobuf_services_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Event_RebootRequired.ProtoReflect.Descriptor instead.
+func (*Event_RebootRequired) Descriptor() ([]byte, []int) {
+	return file_internal_protobuf_services_proto_rawDescGZIP(), []int{0, 11}
+}
+
+func (x *Event_RebootRequired) GetDeployment() *Deployment {
+	if x != nil {
+		return x.Deployment
+	}
+	return nil
+}
+
 var File_internal_protobuf_services_proto protoreflect.FileDescriptor
 
 const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\n" +
-	" internal/protobuf/services.proto\x12\bprotobuf\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\x8b\f\n" +
+	" internal/protobuf/services.proto\x12\bprotobuf\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\x9d\r\n" +
 	"\x05Event\x12G\n" +
 	"\x0fevalStartedType\x18\x01 \x01(\v2\x1b.protobuf.Event.EvalStartedH\x00R\x0fevalStartedType\x12J\n" +
 	"\x10evalFinishedType\x18\x02 \x01(\v2\x1c.protobuf.Event.EvalFinishedH\x00R\x10evalFinishedType\x12J\n" +
@@ -1918,7 +1994,8 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\asuspend\x18\t \x01(\v2\x17.protobuf.Event.SuspendH\x00R\asuspend\x12Y\n" +
 	"\x15deploymentStartedType\x18\n" +
 	" \x01(\v2!.protobuf.Event.DeploymentStartedH\x00R\x15deploymentStartedType\x12\\\n" +
-	"\x16deploymentFinishedType\x18\v \x01(\v2\".protobuf.Event.DeploymentFinishedH\x00R\x16deploymentFinishedType\x1aC\n" +
+	"\x16deploymentFinishedType\x18\v \x01(\v2\".protobuf.Event.DeploymentFinishedH\x00R\x16deploymentFinishedType\x12H\n" +
+	"\x0erebootRequired\x18\f \x01(\v2\x1e.protobuf.Event.RebootRequiredH\x00R\x0erebootRequired\x1aC\n" +
 	"\vEvalStarted\x124\n" +
 	"\n" +
 	"generation\x18\x01 \x01(\v2\x14.protobuf.GenerationR\n" +
@@ -1952,11 +2029,15 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\x12DeploymentFinished\x124\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x14.protobuf.DeploymentR\n" +
+	"deployment\x1aF\n" +
+	"\x0eRebootRequired\x124\n" +
+	"\n" +
+	"deployment\x18\x01 \x01(\v2\x14.protobuf.DeploymentR\n" +
 	"deploymentB\x06\n" +
 	"\x04Type\"J\n" +
 	"\x0eConfirmRequest\x12&\n" +
 	"\x0egenerationUuid\x18\x01 \x01(\tR\x0egenerationUuid\x12\x10\n" +
-	"\x03for\x18\x02 \x01(\tR\x03for\"\xd5\b\n" +
+	"\x03for\x18\x02 \x01(\tR\x03for\"\xf8\b\n" +
 	"\n" +
 	"Generation\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12'\n" +
@@ -1984,13 +2065,16 @@ const file_internal_protobuf_services_proto_rawDesc = "" +
 	"\bdrv_path\x18\x12 \x01(\tR\adrvPath\x12\x1d\n" +
 	"\n" +
 	"machine_id\x18\x13 \x01(\tR\tmachineId\x12!\n" +
-	"\fbuild_status\x18\x14 \x01(\tR\vbuildStatus\x12D\n" +
+	"\fbuild_status\x18\x14 \x01(\tR\vbuildStatus\x12!\n" +
+	"\fbuild_reason\x18\x1b \x01(\tR\vbuildReason\x12D\n" +
 	"\x10build_started_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\x0ebuildStartedAt\x12@\n" +
 	"\x0ebuild_ended_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\fbuildEndedAt\x12\x1b\n" +
-	"\tbuild_err\x18\x17 \x01(\tR\bbuildErr\"\xff\x02\n" +
+	"\tbuild_err\x18\x17 \x01(\tR\bbuildErr\"\x97\x03\n" +
 	"\n" +
 	"Deployment\x12\x12\n" +
-	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x124\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x16\n" +
+	"\x06reason\x18\n" +
+	" \x01(\tR\x06reason\x124\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\v2\x14.protobuf.GenerationR\n" +
 	"generation\x129\n" +
@@ -2096,7 +2180,7 @@ func file_internal_protobuf_services_proto_rawDescGZIP() []byte {
 	return file_internal_protobuf_services_proto_rawDescData
 }
 
-var file_internal_protobuf_services_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_internal_protobuf_services_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_internal_protobuf_services_proto_goTypes = []any{
 	(*Event)(nil),                       // 0: protobuf.Event
 	(*ConfirmRequest)(nil),              // 1: protobuf.ConfirmRequest
@@ -2122,9 +2206,10 @@ var file_internal_protobuf_services_proto_goTypes = []any{
 	(*Event_Suspend)(nil),               // 21: protobuf.Event.Suspend
 	(*Event_DeploymentStarted)(nil),     // 22: protobuf.Event.DeploymentStarted
 	(*Event_DeploymentFinished)(nil),    // 23: protobuf.Event.DeploymentFinished
-	(*wrapperspb.BoolValue)(nil),        // 24: google.protobuf.BoolValue
-	(*timestamppb.Timestamp)(nil),       // 25: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),               // 26: google.protobuf.Empty
+	(*Event_RebootRequired)(nil),        // 24: protobuf.Event.RebootRequired
+	(*wrapperspb.BoolValue)(nil),        // 25: google.protobuf.BoolValue
+	(*timestamppb.Timestamp)(nil),       // 26: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),               // 27: google.protobuf.Empty
 }
 var file_internal_protobuf_services_proto_depIdxs = []int32{
 	13, // 0: protobuf.Event.evalStartedType:type_name -> protobuf.Event.EvalStarted
@@ -2138,71 +2223,73 @@ var file_internal_protobuf_services_proto_depIdxs = []int32{
 	21, // 8: protobuf.Event.suspend:type_name -> protobuf.Event.Suspend
 	22, // 9: protobuf.Event.deploymentStartedType:type_name -> protobuf.Event.DeploymentStarted
 	23, // 10: protobuf.Event.deploymentFinishedType:type_name -> protobuf.Event.DeploymentFinished
-	24, // 11: protobuf.Generation.selected_branch_is_testing:type_name -> google.protobuf.BoolValue
-	25, // 12: protobuf.Generation.eval_started_at:type_name -> google.protobuf.Timestamp
-	25, // 13: protobuf.Generation.eval_ended_at:type_name -> google.protobuf.Timestamp
-	25, // 14: protobuf.Generation.build_started_at:type_name -> google.protobuf.Timestamp
-	25, // 15: protobuf.Generation.build_ended_at:type_name -> google.protobuf.Timestamp
-	2,  // 16: protobuf.Deployment.generation:type_name -> protobuf.Generation
-	25, // 17: protobuf.Deployment.started_at:type_name -> google.protobuf.Timestamp
-	25, // 18: protobuf.Deployment.ended_at:type_name -> google.protobuf.Timestamp
-	24, // 19: protobuf.Deployment.restart_comin:type_name -> google.protobuf.BoolValue
-	24, // 20: protobuf.State.need_to_reboot:type_name -> google.protobuf.BoolValue
-	24, // 21: protobuf.State.is_suspended:type_name -> google.protobuf.BoolValue
-	6,  // 22: protobuf.State.builder:type_name -> protobuf.Builder
-	5,  // 23: protobuf.State.deployer:type_name -> protobuf.Deployer
-	8,  // 24: protobuf.State.fetcher:type_name -> protobuf.Fetcher
-	12, // 25: protobuf.State.store:type_name -> protobuf.Store
-	7,  // 26: protobuf.State.build_confirmer:type_name -> protobuf.Confirmer
-	7,  // 27: protobuf.State.deploy_confirmer:type_name -> protobuf.Confirmer
-	24, // 28: protobuf.Deployer.is_deploying:type_name -> google.protobuf.BoolValue
-	3,  // 29: protobuf.Deployer.deployment:type_name -> protobuf.Deployment
-	2,  // 30: protobuf.Deployer.generation_to_deploy:type_name -> protobuf.Generation
-	3,  // 31: protobuf.Deployer.previous_deployment:type_name -> protobuf.Deployment
-	24, // 32: protobuf.Deployer.is_suspended:type_name -> google.protobuf.BoolValue
-	24, // 33: protobuf.Builder.is_evaluating:type_name -> google.protobuf.BoolValue
-	24, // 34: protobuf.Builder.is_building:type_name -> google.protobuf.BoolValue
-	2,  // 35: protobuf.Builder.generation:type_name -> protobuf.Generation
-	24, // 36: protobuf.Builder.is_suspended:type_name -> google.protobuf.BoolValue
-	25, // 37: protobuf.Confirmer.autoconfirm_started_at:type_name -> google.protobuf.Timestamp
-	24, // 38: protobuf.Confirmer.autoconfirm_started:type_name -> google.protobuf.BoolValue
-	24, // 39: protobuf.Fetcher.is_fetching:type_name -> google.protobuf.BoolValue
-	11, // 40: protobuf.Fetcher.repository_status:type_name -> protobuf.RepositoryStatus
-	9,  // 41: protobuf.Remote.main:type_name -> protobuf.Branch
-	9,  // 42: protobuf.Remote.testing:type_name -> protobuf.Branch
-	25, // 43: protobuf.Remote.fetched_at:type_name -> google.protobuf.Timestamp
-	24, // 44: protobuf.Remote.fetched:type_name -> google.protobuf.BoolValue
-	24, // 45: protobuf.RepositoryStatus.selected_branch_is_testing:type_name -> google.protobuf.BoolValue
-	24, // 46: protobuf.RepositoryStatus.selected_commit_signed:type_name -> google.protobuf.BoolValue
-	24, // 47: protobuf.RepositoryStatus.selected_commit_should_be_signed:type_name -> google.protobuf.BoolValue
-	10, // 48: protobuf.RepositoryStatus.remotes:type_name -> protobuf.Remote
-	3,  // 49: protobuf.Store.deployments:type_name -> protobuf.Deployment
-	2,  // 50: protobuf.Store.generations:type_name -> protobuf.Generation
-	2,  // 51: protobuf.Event.EvalStarted.generation:type_name -> protobuf.Generation
-	2,  // 52: protobuf.Event.EvalFinished.generation:type_name -> protobuf.Generation
-	2,  // 53: protobuf.Event.BuildStarted.generation:type_name -> protobuf.Generation
-	2,  // 54: protobuf.Event.BuildFinished.generation:type_name -> protobuf.Generation
-	3,  // 55: protobuf.Event.DeploymentStarted.deployment:type_name -> protobuf.Deployment
-	3,  // 56: protobuf.Event.DeploymentFinished.deployment:type_name -> protobuf.Deployment
-	26, // 57: protobuf.Comin.GetState:input_type -> google.protobuf.Empty
-	26, // 58: protobuf.Comin.Fetch:input_type -> google.protobuf.Empty
-	26, // 59: protobuf.Comin.Suspend:input_type -> google.protobuf.Empty
-	26, // 60: protobuf.Comin.Resume:input_type -> google.protobuf.Empty
-	1,  // 61: protobuf.Comin.Confirm:input_type -> protobuf.ConfirmRequest
-	26, // 62: protobuf.Comin.Events:input_type -> google.protobuf.Empty
-	26, // 63: protobuf.Comin.SwitchDeploymentLatest:input_type -> google.protobuf.Empty
-	4,  // 64: protobuf.Comin.GetState:output_type -> protobuf.State
-	26, // 65: protobuf.Comin.Fetch:output_type -> google.protobuf.Empty
-	26, // 66: protobuf.Comin.Suspend:output_type -> google.protobuf.Empty
-	26, // 67: protobuf.Comin.Resume:output_type -> google.protobuf.Empty
-	26, // 68: protobuf.Comin.Confirm:output_type -> google.protobuf.Empty
-	0,  // 69: protobuf.Comin.Events:output_type -> protobuf.Event
-	26, // 70: protobuf.Comin.SwitchDeploymentLatest:output_type -> google.protobuf.Empty
-	64, // [64:71] is the sub-list for method output_type
-	57, // [57:64] is the sub-list for method input_type
-	57, // [57:57] is the sub-list for extension type_name
-	57, // [57:57] is the sub-list for extension extendee
-	0,  // [0:57] is the sub-list for field type_name
+	24, // 11: protobuf.Event.rebootRequired:type_name -> protobuf.Event.RebootRequired
+	25, // 12: protobuf.Generation.selected_branch_is_testing:type_name -> google.protobuf.BoolValue
+	26, // 13: protobuf.Generation.eval_started_at:type_name -> google.protobuf.Timestamp
+	26, // 14: protobuf.Generation.eval_ended_at:type_name -> google.protobuf.Timestamp
+	26, // 15: protobuf.Generation.build_started_at:type_name -> google.protobuf.Timestamp
+	26, // 16: protobuf.Generation.build_ended_at:type_name -> google.protobuf.Timestamp
+	2,  // 17: protobuf.Deployment.generation:type_name -> protobuf.Generation
+	26, // 18: protobuf.Deployment.started_at:type_name -> google.protobuf.Timestamp
+	26, // 19: protobuf.Deployment.ended_at:type_name -> google.protobuf.Timestamp
+	25, // 20: protobuf.Deployment.restart_comin:type_name -> google.protobuf.BoolValue
+	25, // 21: protobuf.State.need_to_reboot:type_name -> google.protobuf.BoolValue
+	25, // 22: protobuf.State.is_suspended:type_name -> google.protobuf.BoolValue
+	6,  // 23: protobuf.State.builder:type_name -> protobuf.Builder
+	5,  // 24: protobuf.State.deployer:type_name -> protobuf.Deployer
+	8,  // 25: protobuf.State.fetcher:type_name -> protobuf.Fetcher
+	12, // 26: protobuf.State.store:type_name -> protobuf.Store
+	7,  // 27: protobuf.State.build_confirmer:type_name -> protobuf.Confirmer
+	7,  // 28: protobuf.State.deploy_confirmer:type_name -> protobuf.Confirmer
+	25, // 29: protobuf.Deployer.is_deploying:type_name -> google.protobuf.BoolValue
+	3,  // 30: protobuf.Deployer.deployment:type_name -> protobuf.Deployment
+	2,  // 31: protobuf.Deployer.generation_to_deploy:type_name -> protobuf.Generation
+	3,  // 32: protobuf.Deployer.previous_deployment:type_name -> protobuf.Deployment
+	25, // 33: protobuf.Deployer.is_suspended:type_name -> google.protobuf.BoolValue
+	25, // 34: protobuf.Builder.is_evaluating:type_name -> google.protobuf.BoolValue
+	25, // 35: protobuf.Builder.is_building:type_name -> google.protobuf.BoolValue
+	2,  // 36: protobuf.Builder.generation:type_name -> protobuf.Generation
+	25, // 37: protobuf.Builder.is_suspended:type_name -> google.protobuf.BoolValue
+	26, // 38: protobuf.Confirmer.autoconfirm_started_at:type_name -> google.protobuf.Timestamp
+	25, // 39: protobuf.Confirmer.autoconfirm_started:type_name -> google.protobuf.BoolValue
+	25, // 40: protobuf.Fetcher.is_fetching:type_name -> google.protobuf.BoolValue
+	11, // 41: protobuf.Fetcher.repository_status:type_name -> protobuf.RepositoryStatus
+	9,  // 42: protobuf.Remote.main:type_name -> protobuf.Branch
+	9,  // 43: protobuf.Remote.testing:type_name -> protobuf.Branch
+	26, // 44: protobuf.Remote.fetched_at:type_name -> google.protobuf.Timestamp
+	25, // 45: protobuf.Remote.fetched:type_name -> google.protobuf.BoolValue
+	25, // 46: protobuf.RepositoryStatus.selected_branch_is_testing:type_name -> google.protobuf.BoolValue
+	25, // 47: protobuf.RepositoryStatus.selected_commit_signed:type_name -> google.protobuf.BoolValue
+	25, // 48: protobuf.RepositoryStatus.selected_commit_should_be_signed:type_name -> google.protobuf.BoolValue
+	10, // 49: protobuf.RepositoryStatus.remotes:type_name -> protobuf.Remote
+	3,  // 50: protobuf.Store.deployments:type_name -> protobuf.Deployment
+	2,  // 51: protobuf.Store.generations:type_name -> protobuf.Generation
+	2,  // 52: protobuf.Event.EvalStarted.generation:type_name -> protobuf.Generation
+	2,  // 53: protobuf.Event.EvalFinished.generation:type_name -> protobuf.Generation
+	2,  // 54: protobuf.Event.BuildStarted.generation:type_name -> protobuf.Generation
+	2,  // 55: protobuf.Event.BuildFinished.generation:type_name -> protobuf.Generation
+	3,  // 56: protobuf.Event.DeploymentStarted.deployment:type_name -> protobuf.Deployment
+	3,  // 57: protobuf.Event.DeploymentFinished.deployment:type_name -> protobuf.Deployment
+	3,  // 58: protobuf.Event.RebootRequired.deployment:type_name -> protobuf.Deployment
+	27, // 59: protobuf.Comin.GetState:input_type -> google.protobuf.Empty
+	27, // 60: protobuf.Comin.Fetch:input_type -> google.protobuf.Empty
+	27, // 61: protobuf.Comin.Suspend:input_type -> google.protobuf.Empty
+	27, // 62: protobuf.Comin.Resume:input_type -> google.protobuf.Empty
+	1,  // 63: protobuf.Comin.Confirm:input_type -> protobuf.ConfirmRequest
+	27, // 64: protobuf.Comin.Events:input_type -> google.protobuf.Empty
+	27, // 65: protobuf.Comin.SwitchDeploymentLatest:input_type -> google.protobuf.Empty
+	4,  // 66: protobuf.Comin.GetState:output_type -> protobuf.State
+	27, // 67: protobuf.Comin.Fetch:output_type -> google.protobuf.Empty
+	27, // 68: protobuf.Comin.Suspend:output_type -> google.protobuf.Empty
+	27, // 69: protobuf.Comin.Resume:output_type -> google.protobuf.Empty
+	27, // 70: protobuf.Comin.Confirm:output_type -> google.protobuf.Empty
+	0,  // 71: protobuf.Comin.Events:output_type -> protobuf.Event
+	27, // 72: protobuf.Comin.SwitchDeploymentLatest:output_type -> google.protobuf.Empty
+	66, // [66:73] is the sub-list for method output_type
+	59, // [59:66] is the sub-list for method input_type
+	59, // [59:59] is the sub-list for extension type_name
+	59, // [59:59] is the sub-list for extension extendee
+	0,  // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_internal_protobuf_services_proto_init() }
@@ -2222,6 +2309,7 @@ func file_internal_protobuf_services_proto_init() {
 		(*Event_Suspend_)(nil),
 		(*Event_DeploymentStartedType)(nil),
 		(*Event_DeploymentFinishedType)(nil),
+		(*Event_RebootRequired_)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2229,7 +2317,7 @@ func file_internal_protobuf_services_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_protobuf_services_proto_rawDesc), len(file_internal_protobuf_services_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

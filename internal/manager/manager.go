@@ -252,6 +252,10 @@ func (m *Manager) Run(ctx context.Context) {
 				}
 			}
 			m.needToReboot = m.executor.NeedToReboot(dpl.Generation.OutPath, dpl.Operation)
+			if m.needToReboot {
+				e := &protobuf.Event_RebootRequired{Deployment: dpl}
+				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}})
+			}
 			m.prometheus.SetHostInfo(m.needToReboot)
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
