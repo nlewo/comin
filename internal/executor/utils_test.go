@@ -250,7 +250,7 @@ func TestDeployFunctions(t *testing.T) {
 			ctx := context.Background()
 
 			// Test that deploy function delegates correctly without panicking
-			_, _, err := deploy(ctx, tt.outPath, tt.operation, tt.systemAttr)
+			_, _, err := deploy(ctx, tt.outPath, tt.operation, tt.systemAttr, []string{})
 
 			// Will likely error in test environment, but shouldn't panic
 			t.Logf("deploy with %s returned error: %v (expected in test environment)", tt.systemAttr, err)

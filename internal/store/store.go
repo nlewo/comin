@@ -11,25 +11,21 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-type State struct {
-	Deployments []*protobuf.Deployment `json:"deployments"`
-	Generations []*protobuf.Generation `json:"generations"`
-}
-
 type Data struct {
 	Version string `json:"version"`
 	// Deployments are order from the most recent to older
-	Deployments []*protobuf.Deployment `json:"deployments"`
-	Generations []*protobuf.Generation `json:"generations"`
+	Deployments      []*protobuf.Deployment `json:"deployments"`
+	Generations      []*protobuf.Generation `json:"generations"`
+	RetentionReasons map[string]string      `json:"retention_reasons"`
 }
 
 type Store struct {
-	data             *protobuf.Store
-	mu               sync.Mutex
-	filename         string
-	generationGcRoot string
-	capacityMain     int
-	capacityTesting  int
+	data                *protobuf.Store
+	mu                  sync.Mutex
+	filename            string
+	generationGcRoot    string
+	numberOfBootentries int
+	numberOfDeployment  int
 
 	lastEvalStarted   *protobuf.Generation
 	lastEvalFinished  *protobuf.Generation
@@ -39,18 +35,18 @@ type Store struct {
 	broker *broker.Broker
 }
 
-func New(broker *broker.Broker, filename, gcRootsDir string, capacityMain, capacityTesting int) (*Store, error) {
+func New(broker *broker.Broker, filename, gcRootsDir string, numberOfBootentries, numberOfDeployment int) (*Store, error) {
 	data := &protobuf.Store{
 		Deployments: make([]*protobuf.Deployment, 0),
 		Generations: make([]*protobuf.Generation, 0),
 	}
 	st := Store{
-		filename:         filename,
-		generationGcRoot: gcRootsDir + "/last-built-generation",
-		capacityMain:     capacityMain,
-		capacityTesting:  capacityTesting,
-		data:             data,
-		broker:           broker,
+		filename:            filename,
+		generationGcRoot:    gcRootsDir + "/last-built-generation",
+		numberOfBootentries: numberOfBootentries,
+		numberOfDeployment:  numberOfDeployment,
+		data:                data,
+		broker:              broker,
 	}
 	if err := os.MkdirAll(gcRootsDir, os.ModeDir); err != nil {
 		return nil, err
@@ -64,43 +60,8 @@ func (s *Store) GetState() *protobuf.Store {
 	return s.data
 }
 
-func (s *Store) DeploymentInsertAndCommit(dpl *protobuf.Deployment) (ok bool, evicted *protobuf.Deployment) {
-	ok, evicted = s.DeploymentInsert(dpl)
-	if ok {
-		logrus.Infof("store: the deployment %s has been removed from store.json file", evicted.Uuid)
-	}
-	if err := s.Commit(); err != nil {
-		logrus.Errorf("Error while commiting the store.json file: %s", err)
-		return
-	}
-	logrus.Infof("store: the new deployment %s has been commited to store.json file", dpl.Uuid)
-	return
-}
-
-// DeploymentInsert inserts a deployment and return an evicted
+// DeploymentAdd inserts a deployment and return an evicted
 // deployment because the capacity has been reached.
-func (s *Store) DeploymentInsert(dpl *protobuf.Deployment) (getsEvicted bool, evicted *protobuf.Deployment) {
-	var qty, older int
-	capacity := s.capacityMain
-	if IsTesting(dpl) {
-		capacity = s.capacityTesting
-	}
-	for i, d := range s.data.Deployments {
-		if IsTesting(dpl) == IsTesting(d) {
-			older = i
-			qty += 1
-		}
-	}
-	// If the capacity is reached, we remove the older elements
-	if qty >= capacity {
-		evicted = s.data.Deployments[older]
-		getsEvicted = true
-		s.data.Deployments = append(s.data.Deployments[:older], s.data.Deployments[older+1:]...)
-	}
-	s.data.Deployments = append([]*protobuf.Deployment{dpl}, s.data.Deployments...)
-	return
-}
-
 func (s *Store) DeploymentList() []*protobuf.Deployment {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -132,7 +93,7 @@ func (s *Store) Load() (err error) {
 	return
 }
 
-func (s *Store) Commit() (err error) {
+func (s *Store) Commit() {
 	marshaler := protojson.MarshalOptions{
 		UseProtoNames:   true,
 		EmitUnpopulated: true,
@@ -140,8 +101,11 @@ func (s *Store) Commit() (err error) {
 	}
 	buf, err := marshaler.Marshal(s.data)
 	if err != nil {
+		logrus.Errorf("store: cannot marshal store.data: %s", err)
 		return
 	}
 	err = os.WriteFile(s.filename, buf, 0644)
-	return
+	if err != nil {
+		logrus.Errorf("store: cannot write store.data to %s: %s", s.filename, err)
+	}
 }

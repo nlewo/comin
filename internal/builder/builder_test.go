@@ -30,7 +30,7 @@ func (n ExecutorMock) NeedToReboot(_, _ string) bool {
 func (n ExecutorMock) IsStorePathExist(storePath string) bool {
 	return n.alreadyBuilt
 }
-func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
 	return false, "", nil
 }
 func (n ExecutorMock) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {

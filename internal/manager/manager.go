@@ -15,7 +15,6 @@ import (
 	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
-	"github.com/nlewo/comin/internal/profile"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
@@ -241,22 +240,6 @@ func (m *Manager) Run(ctx context.Context) {
 			m.stateResultCh <- m.toState()
 		case dpl := <-m.deployer.DeploymentDoneCh:
 			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, dpl.Status)
-			getsEvicted, evicted := m.storage.DeploymentInsertAndCommit(dpl)
-
-			// We remove the evicted deployment profile
-			// path only if this profile path is not used
-			// by any still alive other deployments.
-			if getsEvicted && evicted.ProfilePath != "" {
-				alive := false
-				for _, d := range m.storage.DeploymentList() {
-					if d.ProfilePath == evicted.ProfilePath {
-						alive = true
-					}
-				}
-				if !alive {
-					_ = profile.RemoveProfilePath(evicted.ProfilePath)
-				}
-			}
 			m.needToReboot = m.executor.NeedToReboot(dpl.Generation.OutPath, dpl.Operation)
 			if m.needToReboot {
 				e := &protobuf.Event_RebootRequired{Deployment: dpl}

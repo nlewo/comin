@@ -45,8 +45,8 @@ func (n *NixLocal) Build(ctx context.Context, drvPath string) (err error) {
 	return buildWithNix(ctx, drvPath)
 }
 
-func (n *NixLocal) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
-	return deployLinux(ctx, outPath, operation)
+func (n *NixLocal) Deploy(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
+	return deployLinux(ctx, outPath, operation, profilePaths)
 }
 
 func cloneRepoToTemp(remoteDir string, commitId string) (string, error) {

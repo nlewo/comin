@@ -130,6 +130,7 @@ message Deployment {
   string profile_path = 7;
   string status = 8;
   string operation = 9;
+  google.protobuf.Timestamp created_at = 11;
 }
 
 message State {
@@ -213,5 +214,6 @@ message RepositoryStatus {
 
 message Store {
   repeated Deployment deployments = 1;
-  repeated Generation generations = 2; 
+  repeated Generation generations = 2;
+  map<string, string> retention_reasons = 3;
 }

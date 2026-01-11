@@ -17,7 +17,7 @@ type BuildFunc func(ctx context.Context, drvPath string) error
 type Executor interface {
 	Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error)
 	Build(ctx context.Context, drvPath string) (err error)
-	Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error)
+	Deploy(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error)
 	NeedToReboot(outPath, operation string) bool
 	ReadMachineId() (string, error)
 	// IsStorePathExist returns true if a storepath exists. This

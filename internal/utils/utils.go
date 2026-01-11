@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/sirupsen/logrus"
 )
 
 func FormatCommitMsg(msg string) string {
@@ -21,6 +23,20 @@ func FormatCommitMsg(msg string) string {
 		}
 	}
 	return formatted
+}
+
+func GetBootedAndCurrentStorepaths() (booted, current string) {
+	booted, err := os.Readlink("/run/booted-system")
+	if err != nil {
+		logrus.Errorf("utils: can not read the link '/run/booted-system': %s", err)
+		return
+	}
+	current, err = os.Readlink("/run/current-system")
+	if err != nil {
+		logrus.Errorf("utils: can not read the link '/run/current-system': %s", err)
+		return
+	}
+	return
 }
 
 func ReadMachineIdLinux() (machineId string, err error) {

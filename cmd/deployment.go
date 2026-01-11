@@ -30,7 +30,7 @@ var deploymentListCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		deploymentList(status.Store.Deployments)
+		deploymentList(status.Store.Deployments, status.Store.RetentionReasons)
 	},
 }
 
@@ -52,7 +52,7 @@ var deploymentSwitchLatestCmd = &cobra.Command{
 	},
 }
 
-func deploymentList(dpls []*protobuf.Deployment) {
+func deploymentList(dpls []*protobuf.Deployment, retentions map[string]string) {
 	endedAtCmp := func(a, b *protobuf.Deployment) int {
 		return a.EndedAt.AsTime().Compare(b.EndedAt.AsTime())
 	}
@@ -68,6 +68,10 @@ func deploymentList(dpls []*protobuf.Deployment) {
 		fmt.Printf("  out path          %s\n", dpl.Generation.OutPath)
 		fmt.Printf("  generation uuid   %s\n", dpl.Generation.Uuid)
 		fmt.Printf("    commit id       %s\n", dpl.Generation.SelectedCommitId)
+		reason, ok := retentions[dpl.Uuid]
+		if ok {
+			fmt.Printf("  retention         %s\n", reason)
+		}
 		fmt.Print("\n")
 	}
 }
