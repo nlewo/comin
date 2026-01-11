@@ -54,6 +54,8 @@ func runNixCommand(ctx context.Context, command string, args []string, stdout, s
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("command '%s' with args '%s' fails with %s", command, args, err)
+	} else {
+		logrus.Infof("nix: command '%s' with args '%s' successfully executed", command, args)
 	}
 	return nil
 }
@@ -69,6 +71,8 @@ func runNixFlakeCommand(ctx context.Context, args []string, stdout, stderr io.Wr
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("command '%s' fails with %s", cmdStr, err)
+	} else {
+		logrus.Infof("nix: command '%s' successfully executed", cmdStr)
 	}
 	return nil
 }
