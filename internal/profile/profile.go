@@ -5,14 +5,75 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 
 const (
 	systemProfiles  = "/nix/var/nix/profiles/system-profiles"
-	cominProfileDir = systemProfiles + "/comin"
+	profileName     = "comin"
+	cominProfileDir = systemProfiles + "/" + profileName
 )
+
+func RemoveProfiles(bootEntryOutPaths []string) {
+	removeProfiles(systemProfiles, profileName, bootEntryOutPaths)
+}
+
+// removeProfiles removes profiles that are no longer tracked by
+// deployments, excepting the current default entry and the booted profile path.
+// bootEntryProfilePaths is the list of profile path stored in the comin deployment history.
+func removeProfiles(systemProfileDir string, profileName string, bootEntryProfilePaths []string) {
+	// This is to ensure the booted storepath is preserved in the
+	// bootloader entries in order to be able to always boot a
+	// working system. In its deployment history, comin always
+	// preserves the current and booted systems. However, if the
+	// comin state directory is lost (manual deletion, status.json
+	// incompatibility, ...), the history is then empty. In this
+	// case, comin would remove the currently booted system from
+	// the bootloader menu. To avoid such situation, we preserve
+	// the booted profile, even if it is not part of the comin
+	// deployment history.
+	booted, _ := utils.GetBootedAndCurrentStorepaths()
+
+	profilePaths, err := os.ReadDir(systemProfileDir)
+	if err != nil {
+		logrus.Errorf("profile: can not read the profile directory %s: %s", systemProfileDir, err)
+		return
+	}
+	defaultProfile := path.Join(systemProfileDir, profileName)
+	defaultTarget, err := os.Readlink(defaultProfile)
+	if err != nil {
+		logrus.Errorf("profile: can not read the default profile %s: %s", defaultProfile, err)
+		return
+	}
+	bootEntryProfilePaths = append(bootEntryProfilePaths, defaultTarget)
+	for _, entry := range profilePaths {
+		// we don't want to remove the default profile entry
+		if entry.Name() == profileName {
+			continue
+		}
+		p := path.Join(systemProfileDir, entry.Name())
+		storepath, err := os.Readlink(p)
+		if err != nil {
+			logrus.Errorf("profile: can not read the link %s: %s", p, err)
+			continue
+		}
+		// we preserve the booted profile
+		if storepath == booted {
+			logrus.Infof("profile: preserving the booted profile %s", p)
+			continue
+		}
+		if !slices.Contains(bootEntryProfilePaths, p) {
+			if err := os.Remove(p); err != nil {
+				logrus.Errorf("profile: can not remove profile path %s: %s", p, err)
+			} else {
+				logrus.Infof("profile: profile path %s removed", p)
+			}
+		}
+	}
+}
 
 // setSystemProfile creates a link into the directory
 // /nix/var/nix/profiles/system-profiles/comin to the built system

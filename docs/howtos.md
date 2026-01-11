@@ -94,3 +94,45 @@ services.comin = {
 ```
 
 Please note this is currently not supported by for nix-darwin configurations.
+
+## Deployments and profiles retention policy
+
+comin tracks deployments in its persisent storage. It uses these
+deployment entries to add and remove system profiles which are
+consumed by bootloaders to install boot menu entries.
+
+First of all, comin always keep the current switched deployment and
+the current booted deployment.
+
+Then, comin maintains 3 lists of deployments. These lists are updated
+when a deployment is created or updated. In the comin configuration,
+you can specify the capacity for each of these lists. These three lists are
+
+1. The most recent successful deployments generating a boot entry
+   (deployment with the operation `boot` or `switch`). It also
+   deduplicates storepaths in order to keep a minimum number of
+   distinct deployments.
+   - The size of this list is controlled with the option `retention.deployment_boot_entry_capacity`
+2. The most recent successful deployments 
+   - The size of this list is controlled with the option `retention.deployment_successful_capacity`
+3. The most recent deployments of any type
+   - The size of this list is controlled with the option `retention.deployment_capacity`
+
+A deployment can appear in several lists, when it satisfies several
+criteria.
+
+## What happen on /var/lib/comin deletion
+
+comin store a state file in the `/var/lib/comin` directory. Here are
+the consequencies:
+
+- comin no longer knows the last deployed commit ID. It would then be
+  possible for an attacker to hard reset the remote repository main
+  branch. If you signed your commits, an attacker could then rollback
+  the repository to a previous signed commit, which could contains
+  CVEs.
+- comin no longer knows the deployment history. On the next
+  deployment, it would then no longer able to generate boot entries
+  for previous deployments. However, if you delete the
+  `/var/lib/comin` directory, the current booted entry would still be
+  present in the boot menu.

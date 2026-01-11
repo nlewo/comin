@@ -14,7 +14,7 @@ import (
 
 func TestDeployerBasic(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -23,7 +23,7 @@ func TestDeployerBasic(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
 	d.Run(t.Context())
@@ -50,7 +50,7 @@ func TestDeployerBasic(t *testing.T) {
 
 func TestDeployerSubmit(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -59,7 +59,7 @@ func TestDeployerSubmit(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
 	d.Run(t.Context())
@@ -93,7 +93,7 @@ func TestDeployerSubmit(t *testing.T) {
 
 func TestDeployerSuspend(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -102,7 +102,7 @@ func TestDeployerSuspend(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	d := deployer.New(s, deployFunc, nil, "")
 	d.Run(t.Context())
