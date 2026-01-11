@@ -57,3 +57,12 @@ data to a file in order to preserve them across comin restarts.
 Protobuf has been introduced to be able to stream events from the
 agent to the CLI client. This was pretty hard to achieve with the
 previous HTTP Rest API.
+
+## Profile retention
+
+comin internally tracks a list of deployments. This list is stored in
+the comin JSON state file located in the comin state directory.
+
+
+
+When a new deployment occurs, comin 

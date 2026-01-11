@@ -5,14 +5,51 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 
 	"github.com/sirupsen/logrus"
 )
 
 const (
 	systemProfiles  = "/nix/var/nix/profiles/system-profiles"
-	cominProfileDir = systemProfiles + "/comin"
+	profileName     = "comin"
+	cominProfileDir = systemProfiles + "/" + profileName
 )
+
+func RemoveProfiles(bootEntryOutPaths []string) {
+	removeProfiles(systemProfiles, profileName, bootEntryOutPaths)
+}
+
+// removeProfiles removes profiles that are no longer tracked by
+// deployments, excepting the current default entry.
+func removeProfiles(systemProfileDir string, profileName string, bootEntries []string) {
+	entries, err := os.ReadDir(systemProfileDir)
+	if err != nil {
+		logrus.Errorf("profile: can not read the profile directory %s: %s", systemProfileDir, err)
+		return
+	}
+	defaultProfile := path.Join(systemProfileDir, profileName)
+	defaultTarget, err := os.Readlink(defaultProfile)
+	if err != nil {
+		logrus.Errorf("profile: can not read the default profile %s: %s", defaultProfile, err)
+		return
+	}
+	bootEntries = append(bootEntries, defaultTarget)
+	for _, entry := range entries {
+		// we don't want to remove the default profile entry
+		if entry.Name() == profileName {
+			continue
+		}
+		p := path.Join(systemProfileDir, entry.Name())
+		if !slices.Contains(bootEntries, p) {
+			if err := os.Remove(p); err != nil {
+				logrus.Errorf("profile: can not remove profile path %s: %s", p, err)
+			} else {
+				logrus.Infof("profile: profile path %s removed", p)
+			}
+		}
+	}
+}
 
 // setSystemProfile creates a link into the directory
 // /nix/var/nix/profiles/system-profiles/comin to the built system
