@@ -31,6 +31,10 @@ func Read(path string) (config types.Configuration, err error) {
 			}
 			config.Remotes[i].Auth.AccessToken = strings.TrimSpace(string(content))
 		}
+		// On GitLab and GitHub, any non blank username is working
+		if remote.Auth.Username == "" {
+			config.Remotes[i].Auth.Username = "comin"
+		}
 		if remote.Timeout == 0 {
 			config.Remotes[i].Timeout = 300
 		}
