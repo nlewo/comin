@@ -51,13 +51,14 @@ func IsTesting(d *protobuf.Deployment) bool {
 	return d.Operation == "test"
 }
 
-func (s *Store) NewDeployment(g *protobuf.Generation, operation string) *protobuf.Deployment {
+func (s *Store) NewDeployment(g *protobuf.Generation, operation, reason string) *protobuf.Deployment {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d := &protobuf.Deployment{
 		Uuid:       uuid.New().String(),
 		Generation: g,
 		Operation:  operation,
+		Reason:     reason,
 		Status:     StatusToString(Init),
 	}
 	s.data.Deployments = append(s.data.Deployments, d)

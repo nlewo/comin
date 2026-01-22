@@ -177,6 +177,7 @@ func (s *Store) GenerationEvalStarted(uuid string) error {
 	}
 	g.EvalStartedAt = timestamppb.New(time.Now().UTC())
 	g.EvalStatus = Evaluating.String()
+
 	s.lastEvalStarted = g
 	s.generationsGC()
 	e := &protobuf.Event_EvalStarted{Generation: g}
@@ -208,7 +209,7 @@ func (s *Store) GenerationEvalFinished(uuid string, drvPath, outPath, machineId 
 	return nil
 }
 
-func (s *Store) GenerationBuildStart(uuid string) error {
+func (s *Store) GenerationBuildStart(uuid, reason string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	g, err := s.generationGet(uuid)
@@ -217,6 +218,7 @@ func (s *Store) GenerationBuildStart(uuid string) error {
 	}
 	g.BuildStartedAt = timestamppb.New(time.Now().UTC())
 	g.BuildStatus = Building.String()
+	g.BuildReason = reason
 	s.lastBuildStarted = g
 	s.generationsGC()
 	e := &protobuf.Event_BuildStarted{Generation: g}

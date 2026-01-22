@@ -56,6 +56,9 @@ message Event {
   message DeploymentFinished {
     Deployment deployment = 1;
   }
+  message RebootRequired {
+    Deployment deployment = 1;
+  }
   oneof Type {
     EvalStarted evalStartedType = 1;
     EvalFinished evalFinishedType = 2;
@@ -68,6 +71,7 @@ message Event {
     Suspend suspend = 9;
     DeploymentStarted deploymentStartedType = 10;
     DeploymentFinished deploymentFinishedType = 11;
+    RebootRequired rebootRequired = 12;
   }
 }
 
@@ -107,6 +111,7 @@ message Generation {
   string machine_id = 19;
 
   string build_status = 20;
+  string build_reason = 27;
   google.protobuf.Timestamp build_started_at = 21;
   google.protobuf.Timestamp build_ended_at = 22;
   string build_err = 23;
@@ -114,6 +119,7 @@ message Generation {
 
 message Deployment {
   string uuid = 1;
+  string reason = 10;
   Generation generation = 2;
 
   google.protobuf.Timestamp started_at = 3;
