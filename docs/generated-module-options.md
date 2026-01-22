@@ -434,6 +434,26 @@ string
 
 
 
+## services\.comin\.remotes\.\*\.auth\.username
+
+
+
+The username used to authenticate to the Git
+remote repository\. Note that any non empty
+username is valid on GitLab and GitHub\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "comin" `
+
+
+
 ## services\.comin\.remotes\.\*\.branches
 
 
