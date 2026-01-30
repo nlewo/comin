@@ -129,7 +129,7 @@ func GenerationShow(g *protobuf.Generation) {
 	}
 	switch g.EvalStatus {
 	case Evaluated.String():
-		fmt.Printf("%sEvaluation succedded %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
+		fmt.Printf("%sEvaluation succeeded %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
 		fmt.Printf("%s  DrvPath: %s\n", padding, g.DrvPath)
 	case EvalFailed.String():
 		fmt.Printf("%sEvaluation failed %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
