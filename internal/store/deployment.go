@@ -139,6 +139,12 @@ func (s *Store) deploymentGet(uuid string) (g *protobuf.Deployment, err error) {
 	return nil, fmt.Errorf("store: no deployment with uuid %s has been found", uuid)
 }
 
+func (s *Store) GetDeployment(uuid string) (g *protobuf.Deployment, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.deploymentGet(uuid)
+}
+
 func (s *Store) GetDeploymentLastest() (latest *protobuf.Deployment) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

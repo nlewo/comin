@@ -127,17 +127,32 @@ func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf
 	deployer.previousDeployment.Store(previousDeployment)
 	deployer.deployment.Store(previousDeployment)
 
+	dState := store.GetState().Deployer
+	isSuspended := dState.IsSuspended
+	if isSuspended {
+		logrus.Infof("deployer: suspended because of %s", dState.SuspendReason)
+		deployer.isSuspended.Store(true)
+	}
+
 	return deployer
 }
 
-func (d *Deployer) Suspend() {
+func (d *Deployer) Suspend(reason string) {
 	d.isSuspended.Store(true)
+	d.store.DeployerUpdate(&protobuf.DeployerState{
+		IsSuspended:   true,
+		SuspendReason: reason,
+	})
 }
 
 func (d *Deployer) Resume() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.isSuspended.Store(false)
+	d.store.DeployerUpdate(&protobuf.DeployerState{
+		IsSuspended:   false,
+		SuspendReason: "",
+	})
 	select {
 	case d.resumeCh <- struct{}{}:
 	default:
@@ -166,12 +181,16 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation 
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
 // of the last deployment, this generation is skipped.
-func (d *Deployer) Submit(generation *protobuf.Generation, operation string) {
-	logrus.Infof("deployer: submitting generation %s with operation %s", generation.Uuid, operation)
+func (d *Deployer) Submit(generation *protobuf.Generation, operation string, force bool) {
+	forceStr := "false"
+	if force {
+		forceStr = "true"
+	}
+	logrus.Infof("deployer: submitting generation %s with operation %s (force: %s)", generation.Uuid, operation, forceStr)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if !d.IsAlreadyDeployed(generation, operation) {
+	if force || !d.IsAlreadyDeployed(generation, operation) {
 		d.GenerationToDeploy = generation
 		d.Operation = operation
 		select {

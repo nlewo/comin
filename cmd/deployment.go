@@ -41,24 +41,6 @@ var deploymentListCmd = &cobra.Command{
 	},
 }
 
-var deploymentSwitchLatestCmd = &cobra.Command{
-	Use:  "switch-latest",
-	Args: cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
-		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
-		}
-		c, err := client.New(opts)
-		if err != nil {
-			logrus.Fatal(err)
-		}
-		err = c.SwitchDeploymentLatest()
-		if err != nil {
-			logrus.Fatal(err)
-		}
-	},
-}
-
 func retentionListsForDeployment(uuid string, store *protobuf.Store) (result []string) {
 	if store.DeploymentSwitched == uuid {
 		result = append(result, "switched")
@@ -125,9 +107,72 @@ func deploymentList(dpls []*protobuf.Deployment, store *protobuf.Store, newestFi
 	}
 }
 
+var deploymentLatestCmd = &cobra.Command{
+	Use:  "latest",
+	Args: cobra.MinimumNArgs(0),
+	Run: func(cmd *cobra.Command, args []string) {
+		opts := client.ClientOpts{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
+		}
+		c, err := client.New(opts)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		status, err := c.GetManagerState()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		dpls := status.Store.Deployments
+		if len(dpls) == 0 {
+			fmt.Println("No deployment found")
+			return
+		}
+		slices.SortFunc(dpls, func(a, b *protobuf.Deployment) int {
+			return a.EndedAt.AsTime().Compare(b.EndedAt.AsTime())
+		})
+		latest := dpls[len(dpls)-1]
+		deploymentList([]*protobuf.Deployment{latest}, status.Store, false)
+	},
+}
+
+var deploymentLatestSubmitCmd = &cobra.Command{
+	Use:   "submit-latest",
+	Short: "Submit the latest deployment",
+	Long:  "Submit the latest deployment for a redeployment. When the operation argument is not specified, it reuses the latest deployment operation.",
+	Args:  cobra.MinimumNArgs(0),
+	Run: func(cmd *cobra.Command, args []string) {
+		operation, _ := cmd.Flags().GetString("operation")
+		// If operation is not provided, use empty string which will trigger default behavior
+		if operation != "" && !slices.Contains([]string{"test", "switch", "boot"}, operation) {
+			logrus.Fatalf("The operation is '%s' while it must be one of [test, switch, boot]", operation)
+		}
+		opts := client.ClientOpts{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
+		}
+		c, err := client.New(opts)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		err = c.DeploymentLatestSubmit(operation)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+	},
+}
+
+// TODO: remove this two releases after v0.12.0
+var deploymentLatestSwitchCmd = &cobra.Command{
+	Use:        "switch-latest",
+	Deprecated: "use 'submit-latest' instead",
+	Args:       cobra.MinimumNArgs(0),
+}
+
 func init() {
 	rootCmd.AddCommand(deploymentCmd)
 	deploymentCmd.AddCommand(deploymentListCmd)
 	deploymentListCmd.Flags().BoolVar(&bootOnly, "boot", false, "only show boot entry deployments, newest first")
-	deploymentCmd.AddCommand(deploymentSwitchLatestCmd)
+	deploymentCmd.AddCommand(deploymentLatestCmd)
+	deploymentLatestSubmitCmd.Flags().StringP("operation", "", "", "the deployment operation: [boot, test, switch]")
+	deploymentCmd.AddCommand(deploymentLatestSubmitCmd)
+	deploymentCmd.AddCommand(deploymentLatestSwitchCmd)
 }
