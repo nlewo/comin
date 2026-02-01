@@ -34,10 +34,14 @@ var deploymentListCmd = &cobra.Command{
 	},
 }
 
-var deploymentSwitchLatestCmd = &cobra.Command{
-	Use:  "switch-latest",
+var deploymentLatestSubmitCmd = &cobra.Command{
+	Use:  "submit-latest",
 	Args: cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		operation, _ := cmd.Flags().GetString("operation")
+		if !slices.Contains([]string{"test", "switch", "boot"}, operation) {
+			logrus.Fatalf("The operation is '%s' while it must be one of [test, switch, boot]", operation)
+		}
 		opts := client.ClientOpts{
 			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		}
@@ -45,7 +49,7 @@ var deploymentSwitchLatestCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		err = c.SwitchDeploymentLatest()
+		err = c.DeploymentLatestSubmit(operation)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -79,5 +83,6 @@ func deploymentList(dpls []*protobuf.Deployment, retentions map[string]string) {
 func init() {
 	rootCmd.AddCommand(deploymentCmd)
 	deploymentCmd.AddCommand(deploymentListCmd)
-	deploymentCmd.AddCommand(deploymentSwitchLatestCmd)
+	deploymentLatestSubmitCmd.Flags().StringP("operation", "", "", "The deployment operation: [boot, test, switch]")
+	deploymentCmd.AddCommand(deploymentLatestSubmitCmd)
 }

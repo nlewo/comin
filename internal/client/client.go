@@ -79,8 +79,8 @@ func (c Client) Resume() error {
 	_, err := c.cominClient.Resume(context.Background(), &emptypb.Empty{})
 	return err
 }
-func (c Client) SwitchDeploymentLatest() error {
-	_, err := c.cominClient.SwitchDeploymentLatest(context.Background(), &emptypb.Empty{})
+func (c Client) DeploymentLatestSubmit(operation string) error {
+	_, err := c.cominClient.DeploymentLatestSubmit(context.Background(), &protobuf.Operation{Operation: operation})
 	return err
 }
 

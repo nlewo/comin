@@ -158,12 +158,16 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation) bool {
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
 // of the last deployment, this generation is skipped.
-func (d *Deployer) Submit(generation *protobuf.Generation, operation string) {
-	logrus.Infof("deployer: submitting generation %s with operation %s", generation.Uuid, operation)
+func (d *Deployer) Submit(generation *protobuf.Generation, operation string, force bool) {
+	forceStr := "false"
+	if force {
+		forceStr = "true"
+	}
+	logrus.Infof("deployer: submitting generation %s with operation %s (force: %s)", generation.Uuid, operation, forceStr)
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if !d.IsAlreadyDeployed(generation) {
+	if force || !d.IsAlreadyDeployed(generation) {
 		d.GenerationToDeploy = generation
 		d.Operation = operation
 		select {
