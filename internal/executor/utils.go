@@ -131,10 +131,16 @@ func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr
 	}
 
 	var output map[string]Derivation
-	err = json.Unmarshal(stdout.Bytes(), &output)
-	if err != nil {
-		return
+	var wrapper DerivationOutput
+	if err := json.Unmarshal(stdout.Bytes(), &wrapper); err == nil && wrapper.Derivations != nil {
+		output = wrapper.Derivations
+	} else {
+		// fallback to legacy format (Nix < 2.33)
+		if err := json.Unmarshal(stdout.Bytes(), &output); err != nil {
+			return "", "", fmt.Errorf("failed to unmarshal JSON in both formats: %w", err)
+		}
 	}
+
 	keys := make([]string, 0, len(output))
 	for key := range output {
 		keys = append(keys, key)

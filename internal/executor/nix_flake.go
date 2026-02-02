@@ -75,6 +75,11 @@ type Derivation struct {
 	Outputs Output `json:"outputs"`
 }
 
+type DerivationOutput struct {
+	Version     int                   `json:"version"`
+	Derivations map[string]Derivation `json:"derivations"`
+}
+
 type Show struct {
 	NixosConfigurations  map[string]struct{} `json:"nixosConfigurations"`
 	DarwinConfigurations map[string]struct{} `json:"darwinConfigurations"`
