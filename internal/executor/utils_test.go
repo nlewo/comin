@@ -1,11 +1,82 @@
 package executor
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+const drv_nix_2_33 string = `{
+  "derivations": {
+    "6bidfy5ckghrp1mra47i1b9j5whld606-nixos-system-bucatini-26.05.20260121.88d3861.drv": {
+      "args": [],
+      "builder": "/nix/store/lw117lsr8d585xs63kx5k233impyrq7q-bash-5.3p3/bin/bash",
+      "env": {},
+      "inputs": {
+        "drvs": {
+          "37j2jc708n38xfvhx1wffm0pbrixnnr3-initrd-linux-hardened-6.12.66.drv": {
+            "dynamicOutputs": {},
+            "outputs": ["out"]
+          }
+        },
+        "srcs": [
+          "l622p70vy8k5sh7y5wizi5f2mic6ynpg-source-stdenv.sh"
+        ]
+      },
+      "name": "nixos-system-bucatini-26.05.20260121.88d3861",
+      "outputs": {
+        "out": {
+          "path": "ysdrf7krk4q64sgd1q7z3b42l3plpgw8-nixos-system-bucatini-26.05.20260121.88d3861"
+        }
+      },
+      "system": "x86_64-linux",
+      "version": 4
+    }
+  },
+  "version": 4
+}
+`
+
+const drv_nix_2_31 string = `{
+  "/nix/store/plbm2vvs61q9868g8wh3m191dslvpgwi-nixos-system-tilia-25.11.20260122.078d69f.drv": {
+    "args": [],
+    "builder": "/nix/store/j8645yndikbrvn292zgvyv64xrrmwdcb-bash-5.3p3/bin/bash",
+    "env": {},
+    "inputDrvs": {
+      "/nix/store/05hi8vkdi5d9q4rdgpnnimp3x5s3ja50-make-shell-wrapper-hook.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      }
+    },
+    "inputSrcs": [],
+    "name": "nixos-system-tilia-25.11.20260122.078d69f",
+    "outputs": {
+      "out": {
+        "path": "/nix/store/wc14lijvyzacwf6by6dfj4hq1qx8s745-nixos-system-tilia-25.11.20260122.078d69f"
+      }
+    },
+    "system": "x86_64-linux"
+  }
+}
+`
+
+func TestParseDerivationWithFlake(t *testing.T) {
+	var buf = bytes.NewBufferString(drv_nix_2_33)
+	drvPath, outPath, err := parseDerivationWithFlake(*buf)
+	assert.Equal(t, "/nix/store/6bidfy5ckghrp1mra47i1b9j5whld606-nixos-system-bucatini-26.05.20260121.88d3861.drv", drvPath)
+	assert.Equal(t, "/nix/store/ysdrf7krk4q64sgd1q7z3b42l3plpgw8-nixos-system-bucatini-26.05.20260121.88d3861", outPath)
+	assert.Nil(t, err)
+
+	buf = bytes.NewBufferString(drv_nix_2_31)
+	drvPath, outPath, err = parseDerivationWithFlake(*buf)
+	assert.Equal(t, "/nix/store/plbm2vvs61q9868g8wh3m191dslvpgwi-nixos-system-tilia-25.11.20260122.078d69f.drv", drvPath)
+	assert.Equal(t, "/nix/store/wc14lijvyzacwf6by6dfj4hq1qx8s745-nixos-system-tilia-25.11.20260122.078d69f", outPath)
+	assert.Nil(t, err)
+}
 
 func TestGetExpectedMachineId(t *testing.T) {
 	tests := []struct {
