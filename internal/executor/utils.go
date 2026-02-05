@@ -115,28 +115,15 @@ func showDerivationWithNix(ctx context.Context, directory, systemAttr string) (d
 	return
 }
 
-func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr string) (drvPath string, outPath string, err error) {
-	installable := fmt.Sprintf("%s#%s.\"%s\".config.system.build.toplevel", flakeUrl, systemAttr, hostname)
-	args := []string{
-		"derivation",
-		"show",
-		installable,
-		"-L",
-		"--show-trace",
-	}
-	var stdout bytes.Buffer
-	err = runNixFlakeCommand(ctx, args, &stdout, os.Stderr)
-	if err != nil {
-		return
-	}
-
+func parseDerivationWithFlake(buf bytes.Buffer) (drvPath string, outPath string, err error) {
 	var output map[string]Derivation
 	var wrapper DerivationOutput
-	if err := json.Unmarshal(stdout.Bytes(), &wrapper); err == nil && wrapper.Derivations != nil {
+	if err := json.Unmarshal(buf.Bytes(), &wrapper); err == nil && wrapper.Derivations != nil {
 		output = wrapper.Derivations
 	} else {
 		// fallback to legacy format (Nix < 2.33)
-		if err := json.Unmarshal(stdout.Bytes(), &output); err != nil {
+		// TODO: we should use the derivation format version
+		if err := json.Unmarshal(buf.Bytes(), &output); err != nil {
 			return "", "", fmt.Errorf("failed to unmarshal JSON in both formats: %w", err)
 		}
 	}
@@ -160,6 +147,23 @@ func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr
 	logrus.Infof("nix: the derivation path is %s", drvPath)
 	logrus.Infof("nix: the output path is %s", outPath)
 	return
+}
+
+func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr string) (drvPath string, outPath string, err error) {
+	installable := fmt.Sprintf("%s#%s.\"%s\".config.system.build.toplevel", flakeUrl, systemAttr, hostname)
+	args := []string{
+		"derivation",
+		"show",
+		installable,
+		"-L",
+		"--show-trace",
+	}
+	var stdout bytes.Buffer
+	err = runNixFlakeCommand(ctx, args, &stdout, os.Stderr)
+	if err != nil {
+		return
+	}
+	return parseDerivationWithFlake(stdout)
 }
 
 func buildWithFlake(ctx context.Context, drvPath string) (err error) {
