@@ -22,6 +22,13 @@ const (
 	Failed
 )
 
+const (
+	RETENTION_REASON_HISTORY = "history"
+	RETENTION_REASON_CURRENT = "current"
+	RETENTION_REASON_BOOTED  = "booted"
+	RETENTION_REASON_BOOT    = "boot"
+)
+
 func StatusToString(status Status) string {
 	switch status {
 	case Init:
@@ -181,7 +188,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 		if d.Operation == "boot" &&
 			d.Status == "done" &&
 			(d.Generation.OutPath == bootedStorepath) {
-			res = append(res, DeploymentRetention{dpl: d, reason: "booted"})
+			res = append(res, DeploymentRetention{dpl: d, reason: RETENTION_REASON_BOOTED})
 			break
 		}
 	}
@@ -190,7 +197,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 		if d.Operation == "switch" &&
 			d.Status == "done" &&
 			(d.Generation.OutPath == switchedStorepath) {
-			res = append(res, DeploymentRetention{dpl: d, reason: "switched"})
+			res = append(res, DeploymentRetention{dpl: d, reason: RETENTION_REASON_CURRENT})
 			break
 		}
 	}
@@ -212,7 +219,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 			})
 			storepaths[d.Generation.OutPath] = struct{}{}
 			if !resAlreadyHasStorepath {
-				res = append(res, DeploymentRetention{dpl: d, reason: "boot-entry"})
+				res = append(res, DeploymentRetention{dpl: d, reason: RETENTION_REASON_BOOT})
 			}
 		}
 	}
@@ -228,7 +235,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 			return r.dpl.Uuid == d.Uuid
 		})
 		if !hasUuid {
-			res = append(res, DeploymentRetention{dpl: d, reason: "last"})
+			res = append(res, DeploymentRetention{dpl: d, reason: RETENTION_REASON_HISTORY})
 		}
 		counter++
 	}

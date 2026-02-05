@@ -340,6 +340,28 @@ in
             description = "The notification title.";
           };
         };
+        retention = mkOption {
+          description = "The deployments and profiles retention policyes.";
+          default = { };
+          type = submodule {
+            options = {
+              keep_boot_entries = mkOption {
+                type = int;
+                default = 2;
+                description = ''
+                  The number of boot entries to keep.
+                '';
+              };
+              keep_deployment_entries = mkOption {
+                type = int;
+                default = 3;
+                description = ''
+                  The number of deployments to keep.
+                '';
+              };
+            };
+          };
+        };
       };
     };
 }

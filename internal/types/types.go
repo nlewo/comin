@@ -55,6 +55,11 @@ type Confirmer struct {
 	AutoDuration int    `yaml:"auto_duration"`
 }
 
+type Retention struct {
+	MaxBootEntries       int `yaml:"max_boot_entries"`
+	MaxDeploymentEntries int `yaml:"max_deployment_entries"`
+}
+
 type Configuration struct {
 	Hostname      string `yaml:"hostname"`
 	StateDir      string `yaml:"state_dir"`
@@ -71,4 +76,5 @@ type Configuration struct {
 	PostDeploymentCommand string     `yaml:"post_deployment_command"`
 	BuildConfirmer        Confirmer  `yaml:"build_confirmer"`
 	DeployConfirmer       Confirmer  `yaml:"deploy_confirmer"`
+	Retention             Retention  `yaml:"retention"`
 }
