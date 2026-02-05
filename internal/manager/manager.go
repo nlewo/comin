@@ -224,7 +224,7 @@ func (m *Manager) Run(ctx context.Context) {
 	if lastDpl != nil {
 		m.needToReboot = m.executor.NeedToReboot(lastDpl.Generation.OutPath, lastDpl.Operation)
 	}
-	m.prometheus.SetHostInfo(m.needToReboot)
+	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 
 	m.FetchAndBuild(ctx)
 	m.deployer.Run(ctx)
@@ -256,7 +256,7 @@ func (m *Manager) Run(ctx context.Context) {
 				e := &protobuf.Event_RebootRequired{Deployment: dpl}
 				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}})
 			}
-			m.prometheus.SetHostInfo(m.needToReboot)
+			m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
 				logrus.Infof("manager: comin needs to be restarted")

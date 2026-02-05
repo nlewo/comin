@@ -32,7 +32,7 @@ func New() Prometheus {
 	hostInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "comin_host_info",
 		Help: "Info of the host.",
-	}, []string{"need_to_reboot"})
+	}, []string{"is_suspended", "need_to_reboot"})
 	promReg.MustRegister(buildInfo)
 	promReg.MustRegister(deploymentInfo)
 	promReg.MustRegister(fetchCounter)
@@ -68,13 +68,17 @@ func (m Prometheus) SetDeploymentInfo(commitId, status string) {
 	m.deploymentInfo.With(prometheus.Labels{"commit_id": commitId, "status": status}).Set(1)
 }
 
-func (m Prometheus) SetHostInfo(needToReboot bool) {
-	m.hostInfo.Reset()
-	var value string
-	if needToReboot {
-		value = "1"
-	} else {
-		value = "0"
+func boolToString(b bool) string {
+	if b {
+		return "1"
 	}
-	m.hostInfo.With(prometheus.Labels{"need_to_reboot": value}).Set(1)
+	return "0"
+}
+
+func (m Prometheus) SetHostInfo(needToReboot bool, isSuspended bool) {
+	m.hostInfo.Reset()
+	m.hostInfo.With(prometheus.Labels{
+		"need_to_reboot": boolToString(needToReboot),
+		"is_suspended":   boolToString(isSuspended),
+	}).Set(1)
 }
