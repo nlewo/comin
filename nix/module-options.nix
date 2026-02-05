@@ -300,6 +300,28 @@ in {
           description = "The notification title.";
         };
       };
+      retention = mkOption {
+        description = "The deployments and profiles retention policyes.";
+        default = {};
+        type = submodule {
+          options = {
+            max_boot_entries = mkOption {
+              type = int;
+              default = 2;
+              description = ''
+                The maximum number of boot entries to keep. note that the booted system is always preserved in the boot menu.
+              '';
+            };
+            max_deployment_entries = mkOption {
+              type = int;
+              default = 5;
+              description = ''
+                The maximum number of deployments entries to keep.
+              '';
+            };
+          };
+        };
+      };
     };
   };
 }
