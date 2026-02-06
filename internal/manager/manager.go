@@ -121,6 +121,8 @@ func (m *Manager) Suspend() error {
 	}
 	m.deployer.Suspend()
 	m.isSuspended = true
+	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
+	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}})
 	return nil
 }
@@ -134,6 +136,8 @@ func (m *Manager) Resume(ctx context.Context) error {
 	}
 	m.deployer.Resume()
 	m.isSuspended = false
+	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
+	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}})
 	return nil
 }
@@ -225,6 +229,8 @@ func (m *Manager) Run(ctx context.Context) {
 		m.needToReboot = m.executor.NeedToReboot(lastDpl.Generation.OutPath, lastDpl.Operation)
 	}
 	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
+	m.prometheus.SetNeedToReboot(m.needToReboot)
+	m.prometheus.SetIsSuspended(m.isSuspended)
 
 	m.FetchAndBuild(ctx)
 	m.deployer.Run(ctx)
@@ -257,6 +263,7 @@ func (m *Manager) Run(ctx context.Context) {
 				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}})
 			}
 			m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
+			m.prometheus.SetNeedToReboot(m.needToReboot)
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
 				logrus.Infof("manager: comin needs to be restarted")
