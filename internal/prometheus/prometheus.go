@@ -12,7 +12,10 @@ type Prometheus struct {
 	buildInfo      *prometheus.GaugeVec
 	deploymentInfo *prometheus.GaugeVec
 	fetchCounter   *prometheus.CounterVec
-	hostInfo       *prometheus.GaugeVec
+	// TODO: deprecated: remove for the next release
+	hostInfo     *prometheus.GaugeVec
+	isSuspended  prometheus.Gauge
+	needToReboot prometheus.Gauge
 }
 
 func New() Prometheus {
@@ -29,20 +32,35 @@ func New() Prometheus {
 		Name: "comin_fetch_count",
 		Help: "Number of fetches per status",
 	}, []string{"remote_name", "status"})
+	// TODO: deprecated: remove for the next release
 	hostInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "comin_host_info",
-		Help: "Info of the host.",
+		Help: "(DEPRECATED) Info of the host.",
 	}, []string{"is_suspended", "need_to_reboot"})
+	isSuspended := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "comin_is_suspended",
+		Help: "Whether the host is suspended (1) or not (0).",
+	})
+	needToReboot := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "comin_need_to_reboot",
+		Help: "Whether the host needs to reboot (1) or not (0).",
+	})
 	promReg.MustRegister(buildInfo)
 	promReg.MustRegister(deploymentInfo)
 	promReg.MustRegister(fetchCounter)
+	// TODO: deprecated: remove for the next release
 	promReg.MustRegister(hostInfo)
+	promReg.MustRegister(isSuspended)
+	promReg.MustRegister(needToReboot)
 	return Prometheus{
 		promRegistry:   promReg,
 		buildInfo:      buildInfo,
 		deploymentInfo: deploymentInfo,
 		fetchCounter:   fetchCounter,
-		hostInfo:       hostInfo,
+		// TODO: deprecated: remove for the next release
+		hostInfo:     hostInfo,
+		isSuspended:  isSuspended,
+		needToReboot: needToReboot,
 	}
 }
 
@@ -75,10 +93,26 @@ func boolToString(b bool) string {
 	return "0"
 }
 
+func boolToFloat64(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// TODO: deprecated: remove for the next release
 func (m Prometheus) SetHostInfo(needToReboot bool, isSuspended bool) {
 	m.hostInfo.Reset()
 	m.hostInfo.With(prometheus.Labels{
 		"need_to_reboot": boolToString(needToReboot),
 		"is_suspended":   boolToString(isSuspended),
 	}).Set(1)
+}
+
+func (m Prometheus) SetIsSuspended(isSuspended bool) {
+	m.isSuspended.Set(boolToFloat64(isSuspended))
+}
+
+func (m Prometheus) SetNeedToReboot(needToReboot bool) {
+	m.needToReboot.Set(boolToFloat64(needToReboot))
 }
