@@ -305,18 +305,18 @@ in {
         default = {};
         type = submodule {
           options = {
-            max_boot_entries = mkOption {
+            keep_boot_entries = mkOption {
               type = int;
               default = 2;
               description = ''
-                The maximum number of boot entries to keep. note that the booted system is always preserved in the boot menu.
+                The number of boot entries to keep.
               '';
             };
-            max_deployment_entries = mkOption {
+            keep_deployment_entries = mkOption {
               type = int;
-              default = 5;
+              default = 3;
               description = ''
-                The maximum number of deployments entries to keep.
+                The number of deployments to keep.
               '';
             };
           };

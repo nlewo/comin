@@ -79,7 +79,7 @@ var runCmd = &cobra.Command{
 		gcRootsDir := path.Join(cfg.StateDir, "gcroots")
 		broker := brokerPkg.New()
 		broker.Start()
-		store, err := storePkg.New(broker, storeFilename, gcRootsDir, cfg.Retention.MaxBootEntries, cfg.Retention.MaxDeploymentEntries)
+		store, err := storePkg.New(broker, storeFilename, gcRootsDir, cfg.Retention.KeepBootEntries, cfg.Retention.KeepDeploymentEntries)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
