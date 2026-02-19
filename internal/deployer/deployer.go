@@ -211,7 +211,7 @@ func (d *Deployer) Run(ctx context.Context) {
 
 			deployment := d.Deployment()
 			deployment.EndedAt = timestamppb.New(time.Now().UTC())
-			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath); err != nil {
+			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath, booted, current); err != nil {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
 				continue
 			}

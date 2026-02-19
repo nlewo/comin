@@ -2,11 +2,13 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"sync"
 
 	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -36,6 +38,13 @@ type Store struct {
 }
 
 func New(broker *broker.Broker, filename, gcRootsDir string, numberOfBootentries, numberOfDeployment int) (*Store, error) {
+	if numberOfBootentries < 1 {
+		return nil, fmt.Errorf("store: numberOfBootentries cannot be < 1")
+	}
+	if numberOfDeployment < 1 {
+		return nil, fmt.Errorf("store: numberOfDeployment cannot be < 1")
+	}
+
 	data := &protobuf.Store{
 		Deployments: make([]*protobuf.Deployment, 0),
 		Generations: make([]*protobuf.Generation, 0),
@@ -51,6 +60,8 @@ func New(broker *broker.Broker, filename, gcRootsDir string, numberOfBootentries
 	if err := os.MkdirAll(gcRootsDir, os.ModeDir); err != nil {
 		return nil, err
 	}
+	logrus.Infof("store: init with generationGcRoot=%s numberOfBootentries=%d numberOfDeployment=%d", st.generationGcRoot, st.numberOfBootentries, st.numberOfDeployment)
+
 	return &st, nil
 }
 
@@ -90,6 +101,10 @@ func (s *Store) Load() (err error) {
 	}
 	s.data = &data
 	logrus.Infof("store: loaded %d deployments from %s", len(s.data.Deployments), s.filename)
+
+	booted, current := utils.GetBootedAndCurrentStorepaths()
+	s.updateDataDeployments(booted, current, nil)
+
 	return
 }
 
