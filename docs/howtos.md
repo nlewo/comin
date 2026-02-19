@@ -95,23 +95,30 @@ services.comin = {
 
 Please note this is currently not supported by for nix-darwin configurations.
 
-## Profile retention policy
+## Deployments and profiles retention policy
 
-comin tracks deployments in order to manage system profiles. This
-allows to control the number of boot entries and the number of Nix
-store roots. It is then possible to control the size of the Nix store
-(by activating the `nix.gc.automatic` module).
+comin tracks deployments in its persisent storage. It uses this list
+to add and remove system profiles which are consumed by bootloaders to install
+boot menu entries.
 
-First of all, comin preserves the booted system in the boot entries menu.
+The goal of the retention policy is to
+1. keep the currently booted system, in order to always be able to rollback on reboot
+2. keep the currently switched system
+3. keep a configuration quantity of successful deployments leading to a boot menu entries (typically, `boot` and `switch` deployments).
+   This is configuration thanks to `retention.keepBootEntries`
+4. keep a configuration quantity of deployments to provide an history to the user
+   This is configuration thanks to `retention.keepDeploymentEntries`
 
-You can then control the number of boot entries and the number of
-previous deployments kept in the comin deployment history. Two
-configuration options allow to control the retention:
+Thanks to this retention policy, you could then enable the
+`nix.gc.automatic` module to automatically clean up your Nix store,
+while preserving a configurable gcroot history.
 
-- `retention.max_boot_entries`: the maximum number of last boot entries
-- `retention.max_deployment_entries`: the maximum number of last
-  deployment entries in the comin deployment history
-
+Note that your bootloader entries shows one more entries than the ones
+listed by `comin deployment list`. This is currently a comin
+implementation limitation. Comin first creates a deployment, deploys it and
+if it has been successfully deployed, it can remove older deployments,
+accordingly to the retention policy. However, when it removes the
+deployment, it currently doesn't reinstall the bootloader.
 
 ## What happen on /var/lib/comin deletion
 
@@ -125,6 +132,6 @@ the consequencies:
   CVEs.
 - comin no longer knows the deployment history. On the next
   deployment, it would then no longer able to generate boot entries
-  for previous deployments. So, even if you delete the
+  for previous deployments. However, if you delete the
   `/var/lib/comin` directory, the current booted entry would still be
   present in the boot menu.

@@ -56,8 +56,8 @@ type Confirmer struct {
 }
 
 type Retention struct {
-	MaxBootEntries       int `yaml:"max_boot_entries"`
-	MaxDeploymentEntries int `yaml:"max_deployment_entries"`
+	KeepBootEntries       int `yaml:"keep_boot_entries"`
+	KeepDeploymentEntries int `yaml:"keep_deployment_entries"`
 }
 
 type Configuration struct {
