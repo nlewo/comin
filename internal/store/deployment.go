@@ -24,9 +24,11 @@ const (
 
 const (
 	RETENTION_REASON_HISTORY = "history"
+	// The current running system
 	RETENTION_REASON_CURRENT = "current"
-	RETENTION_REASON_BOOTED  = "booted"
-	RETENTION_REASON_BOOT    = "boot"
+	// The current booted system
+	RETENTION_REASON_BOOTED = "booted"
+	RETENTION_REASON_BOOT   = "boot"
 )
 
 func StatusToString(status Status) string {
@@ -61,6 +63,30 @@ func IsTesting(d *protobuf.Deployment) bool {
 	return d.Operation == "test"
 }
 
+func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, new *protobuf.Deployment) {
+	dr := retention(s.data.Deployments, new, bootedStorepath, currentStorepath, s.numberOfBootentries, s.numberOfDeployment)
+
+	for _, d := range s.data.Deployments {
+		if !slices.ContainsFunc(dr, func(a DeploymentRetention) bool { return a.dpl.Uuid == d.Uuid }) {
+			logrus.Infof("store: removing the deployment %s because of the retention policy", d.Uuid)
+		}
+	}
+	for _, r := range dr {
+		if !slices.ContainsFunc(s.data.Deployments, func(a *protobuf.Deployment) bool { return a.Uuid == r.dpl.Uuid }) {
+			logrus.Infof("store: adding the deployment %s", r.dpl.Uuid)
+		}
+	}
+
+	dpls := make([]*protobuf.Deployment, 0)
+	drs := make(map[string]string, 0)
+	for _, e := range dr {
+		dpls = append(dpls, e.dpl)
+		drs[e.dpl.Uuid] = e.reason
+	}
+	s.data.Deployments = dpls
+	s.data.RetentionReasons = drs
+}
+
 func (s *Store) NewDeployment(g *protobuf.Generation, operation, reason, bootedStorepath, currentStorepath string) *protobuf.Deployment {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -72,15 +98,7 @@ func (s *Store) NewDeployment(g *protobuf.Generation, operation, reason, bootedS
 		Status:     StatusToString(Init),
 		CreatedAt:  timestamppb.New(time.Now().UTC()),
 	}
-	dr := retention(s.data.Deployments, d, bootedStorepath, currentStorepath, s.numberOfBootentries, s.numberOfDeployment)
-	dpls := make([]*protobuf.Deployment, 0)
-	drs := make(map[string]string, 0)
-	for _, e := range dr {
-		dpls = append(dpls, e.dpl)
-		drs[e.dpl.Uuid] = e.reason
-	}
-	s.data.Deployments = dpls
-	s.data.RetentionReasons = drs
+	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
 	s.Commit()
 	return d
 
@@ -133,7 +151,7 @@ func (s *Store) DeploymentStarted(uuid string) error {
 	return nil
 }
 
-func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRestart bool, profilePath string) error {
+func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRestart bool, profilePath string, bootedStorepath, currentStorepath string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, err := s.deploymentGet(uuid)
@@ -152,6 +170,7 @@ func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRe
 	d.ProfilePath = profilePath
 	e := &protobuf.Event_DeploymentFinished{Deployment: d}
 	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: e}})
+	s.updateDataDeployments(bootedStorepath, currentStorepath, nil)
 	s.Commit()
 	return nil
 }
@@ -181,11 +200,13 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 	res := make([]DeploymentRetention, 0)
 
 	// 1. We keep the last deployment
-	res = append(res, DeploymentRetention{dpl: new, reason: "new"})
+	if new != nil {
+		res = append(res, DeploymentRetention{dpl: new, reason: "new"})
+	}
 
 	// 2. We keep the current booted systems
 	for _, d := range dpls {
-		if d.Operation == "boot" &&
+		if d.Operation == "boot" || d.Operation == "switch" &&
 			d.Status == "done" &&
 			(d.Generation.OutPath == bootedStorepath) {
 			res = append(res, DeploymentRetention{dpl: d, reason: RETENTION_REASON_BOOTED})
@@ -227,7 +248,6 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 	// 5. We keep M last deployment excluding the current one
 	counter := 0
 	for _, d := range dpls {
-		logrus.Infof("retention: %s", d.Uuid)
 		if counter >= numberOfDeployment {
 			break
 		}

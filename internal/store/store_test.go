@@ -18,6 +18,34 @@ func deploymentUuids(rdpls []DeploymentRetention) (uuids []string) {
 	return uuids
 }
 
+func TestDeploymentRetentionMinimal(t *testing.T) {
+	secs := func(s int) *timestamppb.Timestamp {
+		return timestamppb.New(time.Date(1970, time.January, 01, 0, 0, s, 0, time.UTC))
+	}
+	gWithSt := func(st string) *protobuf.Generation {
+		return &protobuf.Generation{OutPath: st}
+	}
+	dpls := []*protobuf.Deployment{
+		{Uuid: "5", Operation: "test", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(5)},
+		{Uuid: "4", Operation: "boot", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(4)},
+		{Uuid: "3", Operation: "test", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(3)},
+		{Uuid: "2", Operation: "boot", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(2)},
+		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
+	}
+
+	res := retention(dpls, nil, "st1", "", 1, 1)
+	expected := []string{"5", "4"}
+	assert.Equal(t, expected, deploymentUuids(res))
+
+	res = retention(dpls, nil, "st1", "", 1, 2)
+	expected = []string{"5", "4"}
+	assert.Equal(t, expected, deploymentUuids(res))
+
+	res = retention(dpls, nil, "st1", "", 1, 3)
+	expected = []string{"5", "4", "3"}
+	assert.Equal(t, expected, deploymentUuids(res))
+}
+
 func TestDeploymentRetention(t *testing.T) {
 	secs := func(s int) *timestamppb.Timestamp {
 		return timestamppb.New(time.Date(1970, time.January, 01, 0, 0, s, 0, time.UTC))
@@ -66,7 +94,6 @@ func TestDeploymentRetention(t *testing.T) {
 	slices.Sort(actual)
 
 	assert.Equal(t, expected, actual)
-
 }
 
 func TestDeploymentCommitAndLoad(t *testing.T) {
