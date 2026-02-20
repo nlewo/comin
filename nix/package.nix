@@ -26,8 +26,6 @@ buildGoModule rec {
   pname = "comin";
   version = "0.11.0";
   nativeCheckInputs = [ git ];
-  # FIXME: remove this
-  doCheck = false;
   src = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.unions [
@@ -38,7 +36,7 @@ buildGoModule rec {
       ../main.go
     ];
   };
-  vendorHash = "sha256-nGaYoOauw/lxw1LIq12AErrpBoonUWF6v+kVhKL20K0=";
+  vendorHash = "sha256-niH4c9+aVfVYSyfviCbVVA1xuYu1BWmfWz317VTDcqg=";
   ldflags = [
     "-X github.com/nlewo/comin/cmd.version=${version}"
   ];
