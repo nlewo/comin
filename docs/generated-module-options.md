@@ -19,7 +19,10 @@ boolean
 
 
 *Default:*
-` false `
+
+```nix
+false
+```
 
 
 
@@ -37,7 +40,10 @@ null or package
 
 
 *Default:*
-` "pkgs.comin or comin.packages.\${system}.default or null" `
+
+```nix
+"pkgs.comin or comin.packages.\${system}.default or null"
+```
 
 
 
@@ -55,7 +61,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -74,7 +83,10 @@ signed integer
 
 
 *Default:*
-` 120 `
+
+```nix
+120
+```
 
 
 
@@ -95,7 +107,10 @@ one of “without”, “auto”, “manual”
 
 
 *Default:*
-` "without" `
+
+```nix
+"without"
+```
 
 
 
@@ -113,7 +128,10 @@ boolean
 
 
 *Default:*
-` false `
+
+```nix
+false
+```
 
 
 
@@ -131,7 +149,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -150,7 +171,10 @@ signed integer
 
 
 *Default:*
-` 120 `
+
+```nix
+120
+```
 
 
 
@@ -171,7 +195,10 @@ one of “without”, “auto”, “manual”
 
 
 *Default:*
-` "without" `
+
+```nix
+"without"
+```
 
 
 
@@ -189,12 +216,18 @@ boolean
 
 
 *Default:*
-` false `
+
+```nix
+false
+```
 
 
 
 *Example:*
-` true `
+
+```nix
+true
+```
 
 
 
@@ -212,7 +245,10 @@ string
 
 
 *Default:*
-` "comin" `
+
+```nix
+"comin"
+```
 
 
 
@@ -230,7 +266,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -248,7 +287,10 @@ string
 
 
 *Default:*
-` "" `
+
+```nix
+""
+```
 
 
 
@@ -266,7 +308,10 @@ boolean
 
 
 *Default:*
-` false `
+
+```nix
+false
+```
 
 
 
@@ -284,7 +329,10 @@ signed integer
 
 
 *Default:*
-` 4243 `
+
+```nix
+4243
+```
 
 
 
@@ -302,7 +350,10 @@ list of string
 
 
 *Default:*
-` [ ] `
+
+```nix
+[ ]
+```
 
 
 
@@ -324,7 +375,10 @@ string
 
 
 *Default:*
-` config.networking.hostName `
+
+```nix
+config.networking.hostName
+```
 
 
 
@@ -350,7 +404,10 @@ null or string
 
 
 *Default:*
-` null `
+
+```nix
+null
+```
 
 
 
@@ -372,13 +429,16 @@ null or absolute path
 
 
 *Default:*
-` null `
+
+```nix
+null
+```
 
 
 
 *Example:*
 
-```
+```nix
 pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
 
 ```
@@ -412,7 +472,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -430,7 +493,10 @@ string
 
 
 *Default:*
-` "" `
+
+```nix
+""
+```
 
 
 
@@ -450,7 +516,10 @@ string
 
 
 *Default:*
-` "comin" `
+
+```nix
+"comin"
+```
 
 
 
@@ -468,7 +537,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -486,7 +558,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -504,7 +579,10 @@ string
 
 
 *Default:*
-` "main" `
+
+```nix
+"main"
+```
 
 
 
@@ -522,7 +600,10 @@ one of “switch”, “test”, “boot”
 
 
 *Default:*
-` "switch" `
+
+```nix
+"switch"
+```
 
 
 
@@ -540,7 +621,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -558,7 +642,10 @@ string
 
 
 *Default:*
-` testing-${config.services.comin.hostname} `
+
+```nix
+testing-${config.services.comin.hostname}
+```
 
 
 
@@ -576,7 +663,10 @@ one of “switch”, “test”, “boot”
 
 
 *Default:*
-` "test" `
+
+```nix
+"test"
+```
 
 
 
@@ -607,7 +697,10 @@ submodule
 
 
 *Default:*
-` { } `
+
+```nix
+{ }
+```
 
 
 
@@ -625,7 +718,10 @@ signed integer
 
 
 *Default:*
-` 60 `
+
+```nix
+60
+```
 
 
 
@@ -643,7 +739,10 @@ signed integer
 
 
 *Default:*
-` 300 `
+
+```nix
+300
+```
 
 
 
@@ -674,7 +773,10 @@ string
 
 
 *Default:*
-` "." `
+
+```nix
+"."
+```
 
 
 
@@ -692,7 +794,73 @@ one of “flake”, “nix”
 
 
 *Default:*
-` "flake" `
+
+```nix
+"flake"
+```
+
+
+
+## services\.comin\.retention
+
+
+
+The deployments and profiles retention policyes\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.retention\.keep_boot_entries
+
+
+
+The number of boot entries to keep\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+2
+```
+
+
+
+## services\.comin\.retention\.keep_deployment_entries
+
+
+
+The number of deployments to keep\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+3
+```
 
 
 
@@ -713,6 +881,9 @@ null or string
 
 
 *Default:*
-` null `
+
+```nix
+null
+```
 
 

@@ -31,13 +31,13 @@ func TestRemoveProfilePath(t *testing.T) {
 func TestGarbageCollectProfiles(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	systemProfilePath := t.TempDir()
-	os.Mkdir(systemProfilePath, 0700)
-	os.Create(systemProfilePath + "/comin-5-link")
-	os.Create(systemProfilePath + "/comin-4-link")
-	os.Create(systemProfilePath + "/comin-3-link")
-	os.Create(systemProfilePath + "/comin-2-link")
-	os.Create(systemProfilePath + "/comin-1-link")
-	os.Symlink(systemProfilePath+"/comin-2-link", systemProfilePath+"/comin")
+	_ = os.Mkdir(systemProfilePath, 0700)
+	_, _ = os.Create(systemProfilePath + "/comin-5-link")
+	_, _ = os.Create(systemProfilePath + "/comin-4-link")
+	_, _ = os.Create(systemProfilePath + "/comin-3-link")
+	_, _ = os.Create(systemProfilePath + "/comin-2-link")
+	_, _ = os.Create(systemProfilePath + "/comin-1-link")
+	_ = os.Symlink(systemProfilePath+"/comin-2-link", systemProfilePath+"/comin")
 
 	bootEntries := []string{systemProfilePath + "/comin-3-link", systemProfilePath + "/comin-5-link"}
 	removeProfiles(systemProfilePath, "comin", bootEntries)
