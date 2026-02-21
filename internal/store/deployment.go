@@ -170,7 +170,6 @@ func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRe
 	d.ProfilePath = profilePath
 	e := &protobuf.Event_DeploymentFinished{Deployment: d}
 	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: e}})
-	s.updateDataDeployments(bootedStorepath, currentStorepath, nil)
 	s.Commit()
 	return nil
 }
