@@ -26,6 +26,8 @@ buildGoModule rec {
   pname = "comin";
   version = "0.11.0";
   nativeCheckInputs = [ git ];
+  # We run tests in the go-test derivation to speedup the comin build
+  doCheck = false;
   src = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.unions [
