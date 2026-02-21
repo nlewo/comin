@@ -23,7 +23,7 @@ import (
 var emptyConfigurationOperations = map[string]map[string]string{}
 
 var mkDeployerMock = func(t *testing.T) *deployer.Deployer {
-	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
 		return false, "", nil
 	}
 	tmp := t.TempDir()
@@ -50,7 +50,7 @@ func (n ExecutorMock) NeedToReboot(_, _ string) bool {
 func (n ExecutorMock) IsStorePathExist(storePath string) bool {
 	return false
 }
-func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
 	return false, "", nil
 }
 func (n ExecutorMock) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
@@ -91,7 +91,7 @@ func TestBuild(t *testing.T) {
 	f.Start(t.Context())
 	eMock := NewExecutorMock("")
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
-	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "")
@@ -205,7 +205,7 @@ func TestDeploy(t *testing.T) {
 	eMock.evalOk <- true
 	eMock.buildOk <- true
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", 2*time.Second, 2*time.Second)
-	var deployFunc = func(context.Context, string, string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "")

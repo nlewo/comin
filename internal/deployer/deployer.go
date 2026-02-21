@@ -11,6 +11,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -21,7 +22,7 @@ const (
 	ReasonDeploymentManual  = "manual"
 )
 
-type DeployFunc func(context.Context, string, string) (bool, string, error)
+type DeployFunc func(context.Context, string, string, []string) (bool, string, error)
 
 type Deployer struct {
 	GenerationCh       chan *protobuf.Generation
@@ -189,8 +190,8 @@ func (d *Deployer) Run(ctx context.Context) {
 			d.GenerationToDeploy = nil
 			d.mu.Unlock()
 			logrus.Infof("deployer: deploying generation %s with operation %s", g.Uuid, operation)
-
-			dpl := d.store.NewDeployment(g, d.Operation, d.Reason)
+			booted, current := utils.GetBootedAndCurrentStorepaths()
+			dpl := d.store.NewDeployment(g, d.Operation, d.Reason, booted, current)
 			d.mu.Lock()
 			d.previousDeployment.Swap(d.Deployment())
 			d.deployment.Store(dpl)
@@ -200,15 +201,17 @@ func (d *Deployer) Run(ctx context.Context) {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
 				continue
 			}
+			profilePaths := d.store.GetDeploymentProfilePaths()
 			cominNeedRestart, profilePath, err := d.deployerFunc(
 				ctx,
 				g.OutPath,
 				operation,
+				profilePaths,
 			)
 
 			deployment := d.Deployment()
 			deployment.EndedAt = timestamppb.New(time.Now().UTC())
-			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath); err != nil {
+			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath, booted, current); err != nil {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
 				continue
 			}

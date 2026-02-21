@@ -29,8 +29,14 @@
       module-options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
       # I don't understand why nix flake check does't build packages.default
       package = self.packages."${system}".comin;
+      lint = import ./nix/lint.nix {
+        pkgs = nixpkgsFor."${system}";
+        comin = self.packages."${system}".comin;
+      };
+      go-test = import ./nix/go-test.nix {
+        comin = self.packages."${system}".comin;
+      };
     });
-
     nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
     darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
     devShells.x86_64-linux.default = let

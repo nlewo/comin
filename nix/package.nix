@@ -26,7 +26,7 @@ buildGoModule rec {
   pname = "comin";
   version = "0.11.0";
   nativeCheckInputs = [ git ];
-  # FIXME: remove this
+  # We run tests in the go-test derivation to speedup the comin build
   doCheck = false;
   src = lib.fileset.toSource {
     root = ../.;
@@ -38,7 +38,7 @@ buildGoModule rec {
       ../main.go
     ];
   };
-  vendorHash = "sha256-nGaYoOauw/lxw1LIq12AErrpBoonUWF6v+kVhKL20K0=";
+  vendorHash = "sha256-niH4c9+aVfVYSyfviCbVVA1xuYu1BWmfWz317VTDcqg=";
   ldflags = [
     "-X github.com/nlewo/comin/cmd.version=${version}"
   ];

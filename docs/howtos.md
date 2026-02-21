@@ -94,3 +94,37 @@ services.comin = {
 ```
 
 Please note this is currently not supported by for nix-darwin configurations.
+
+## Deployments and profiles retention policy
+
+comin tracks deployments in its persisent storage. It uses this list
+to add and remove system profiles which are consumed by bootloaders to install
+boot menu entries.
+
+The goal of the retention policy is to
+1. keep the currently booted system, in order to always be able to rollback on reboot
+2. keep the currently switched system
+3. keep a configuration quantity of successful deployments leading to a boot menu entries (typically, `boot` and `switch` deployments).
+   This is configuration thanks to `retention.keepBootEntries`
+4. keep a configuration quantity of deployments to provide an history to the user
+   This is configuration thanks to `retention.keepDeploymentEntries`
+
+Thanks to this retention policy, you could then enable the
+`nix.gc.automatic` module to automatically clean up your Nix store,
+while preserving a configurable gcroot history.
+
+## What happen on /var/lib/comin deletion
+
+comin store a state file in the `/var/lib/comin` directory. Here are
+the consequencies:
+
+- comin no longer knows the last deployed commit ID. It would then be
+  possible for an attacker to hard reset the remote repository main
+  branch. If you signed your commits, an attacker could then rollback
+  the repository to a previous signed commit, which could contains
+  CVEs.
+- comin no longer knows the deployment history. On the next
+  deployment, it would then no longer able to generate boot entries
+  for previous deployments. However, if you delete the
+  `/var/lib/comin` directory, the current booted entry would still be
+  present in the boot menu.
