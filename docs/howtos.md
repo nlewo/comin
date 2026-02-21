@@ -113,13 +113,6 @@ Thanks to this retention policy, you could then enable the
 `nix.gc.automatic` module to automatically clean up your Nix store,
 while preserving a configurable gcroot history.
 
-Note that your bootloader entries shows one more entries than the ones
-listed by `comin deployment list`. This is currently a comin
-implementation limitation. Comin first creates a deployment, deploys it and
-if it has been successfully deployed, it can remove older deployments,
-accordingly to the retention policy. However, when it removes the
-deployment, it currently doesn't reinstall the bootloader.
-
 ## What happen on /var/lib/comin deletion
 
 comin store a state file in the `/var/lib/comin` directory. Here are
