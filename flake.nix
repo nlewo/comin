@@ -33,6 +33,9 @@
         pkgs = nixpkgsFor."${system}";
         comin = self.packages."${system}".comin;
       };
+      go-test = import ./nix/go-test.nix {
+        comin = self.packages."${system}".comin;
+      };
     });
     nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
     darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
