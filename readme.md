@@ -72,3 +72,7 @@ documentation](https://github.com/nlewo/comin/blob/main/docs/generated-module-op
 - [Comin module options](./docs/generated-module-options.md)
 - [Design](./docs/design.md)
 - [Contribute](./docs/contribute.md)
+
+## Community
+
+We have a Matrix room at [https://matrix.to/#/#nixos-comin:matrix.org](https://matrix.to/#/#nixos-comin:matrix.org).
