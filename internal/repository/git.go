@@ -10,6 +10,7 @@ import (
 	gitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
@@ -96,7 +97,7 @@ func getHeadFromRemoteAndBranch(r repository, remoteName, branchName, currentMai
 	return *head, commitObject.Message, nil
 }
 
-func hardReset(r repository, newHead plumbing.Hash) error {
+func hardReset(r repository, newHead plumbing.Hash, auth transport.AuthMethod) error {
 	var w *git.Worktree
 	w, err := r.Repository.Worktree()
 	if err != nil {
@@ -108,6 +109,44 @@ func hardReset(r repository, newHead plumbing.Hash) error {
 	})
 	if err != nil {
 		return fmt.Errorf("git reset --hard %s fails: '%s'", newHead, err)
+	}
+	if r.GitConfig.Submodules {
+		if err := updateSubmodules(w, auth); err != nil {
+			return fmt.Errorf("failed to update submodules: %s", err)
+		}
+	}
+	return nil
+}
+
+func updateSubmodules(w *git.Worktree, auth transport.AuthMethod) error {
+	submodules, err := w.Submodules()
+	if err != nil {
+		return err
+	}
+	for _, sub := range submodules {
+		logrus.Debugf("Updating submodule %s", sub.Config().Name)
+		err := sub.Update(&git.SubmoduleUpdateOptions{
+			Init:              true,
+			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+			Auth:              auth,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update submodule %s: %s", sub.Config().Name, err)
+		}
+	}
+	return nil
+}
+
+// getAuthForRemote returns the transport.AuthMethod for the named remote, or nil if
+// no authentication is configured.
+func getAuthForRemote(config types.GitConfig, remoteName string) transport.AuthMethod {
+	for _, remote := range config.Remotes {
+		if remote.Name == remoteName && remote.Auth.AccessToken != "" {
+			return &http.BasicAuth{
+				Username: remote.Auth.Username,
+				Password: remote.Auth.AccessToken,
+			}
+		}
 	}
 	return nil
 }

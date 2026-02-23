@@ -30,8 +30,8 @@ func (n *NixLocal) NeedToReboot(outPath, operation string) bool {
 	return utils.NeedToRebootLinux(outPath, operation)
 }
 
-func (n *NixLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
-	tempDir, err := cloneRepoToTemp(repositoryPath, commitId)
+func (n *NixLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
+	tempDir, err := cloneRepoToTemp(repositoryPath, commitId, submodules)
 	defer os.RemoveAll(tempDir) // nolint: errcheck
 	if err != nil {
 		return
@@ -49,7 +49,7 @@ func (n *NixLocal) Deploy(ctx context.Context, outPath, operation string) (needT
 	return deployLinux(ctx, outPath, operation)
 }
 
-func cloneRepoToTemp(remoteDir string, commitId string) (string, error) {
+func cloneRepoToTemp(remoteDir string, commitId string, submodules bool) (string, error) {
 	dir, err := os.MkdirTemp("", "comin-git-clone-*")
 	if err != nil {
 		return "", err
@@ -68,9 +68,13 @@ func cloneRepoToTemp(remoteDir string, commitId string) (string, error) {
 		return "", fmt.Errorf("nix: failed to set reference 'archive' to '%s' in %s: %s", commitId, remoteDir, err)
 	}
 
-	r, err := git.PlainClone(dir, false, &git.CloneOptions{
+	cloneOpts := &git.CloneOptions{
 		URL: remoteDir,
-	})
+	}
+	if submodules {
+		cloneOpts.RecurseSubmodules = git.DefaultSubmoduleRecursionDepth
+	}
+	r, err := git.PlainClone(dir, false, cloneOpts)
 	if err != nil {
 		return "", fmt.Errorf("nix: failed to clone '%s': %s", dir, err)
 	}

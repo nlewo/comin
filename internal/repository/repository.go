@@ -203,7 +203,8 @@ func (r *repository) Update() error {
 		r.RepositoryStatus.SelectedCommitId = selectedCommitId
 	}
 
-	if err := hardReset(*r, plumbing.NewHash(selectedCommitId)); err != nil {
+	auth := getAuthForRemote(r.GitConfig, r.RepositoryStatus.SelectedRemoteName)
+	if err := hardReset(*r, plumbing.NewHash(selectedCommitId), auth); err != nil {
 		r.RepositoryStatus.ErrorMsg = err.Error()
 		return err
 	}

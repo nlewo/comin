@@ -21,6 +21,7 @@ type GitConfig struct {
 	Dir               string
 	Remotes           []Remote
 	GpgPublicKeyPaths []string
+	Submodules        bool
 }
 
 type Auth struct {
@@ -62,6 +63,7 @@ type Configuration struct {
 	// RepositoryType describes type of the repository. It can currently only be "flake"
 	RepositoryType        string     `yaml:"repository_type"`
 	RepositorySubdir      string     `yaml:"repository_subdir"`
+	Submodules            bool       `yaml:"submodules"`
 	SystemAttr            string     `yaml:"system_attr"`
 	Remotes               []Remote   `yaml:"remotes"`
 	ApiServer             HttpServer `yaml:"api_server"`
