@@ -1,4 +1,10 @@
-{ self }: { config, pkgs, lib, ... }:
+{ self }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 let
   cfg = config;
   cominConfigLib = import ./comin-config.nix { inherit config pkgs lib; };
@@ -6,24 +12,35 @@ let
 
   inherit (pkgs.stdenv.hostPlatform) system;
   inherit (cfg.services.comin) package;
-in {
+in
+{
   imports = [ ./module-options.nix ];
   config = lib.mkIf cfg.services.comin.enable {
     assertions = [
-      { assertion = package != null; message = "`services.comin.package` cannot be null."; }
-      { assertion = package == null -> lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake."; }
+      {
+        assertion = package != null;
+        message = "`services.comin.package` cannot be null.";
+      }
+      {
+        assertion = package == null -> lib.elem system (lib.attrNames self.packages);
+        message = "comin: ${system} is not supported by the Flake.";
+      }
     ];
 
     environment.systemPackages = [ package ];
     services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     launchd.daemons.comin = {
-      command = lib.concatStringsSep " " ([
-        (lib.getExe package)
-      ] ++ (lib.optionals cfg.services.comin.debug [ "--debug" ]) ++ [
-        "run"
-        "--config"
-        "${cominConfigYaml}"
-      ]);
+      command = lib.concatStringsSep " " (
+        [
+          (lib.getExe package)
+        ]
+        ++ (lib.optionals cfg.services.comin.debug [ "--debug" ])
+        ++ [
+          "run"
+          "--config"
+          "${cominConfigYaml}"
+        ]
+      );
       serviceConfig = {
         Label = "com.github.nlewo.comin";
         KeepAlive = true;
@@ -31,7 +48,11 @@ in {
         StandardErrorPath = "/var/log/comin.log";
         StandardOutPath = "/var/log/comin.log";
         EnvironmentVariables = {
-          PATH = lib.makeBinPath [ config.nix.package pkgs.git pkgs.openssh ];
+          PATH = lib.makeBinPath [
+            config.nix.package
+            pkgs.git
+            pkgs.openssh
+          ];
         };
       };
     };

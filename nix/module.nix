@@ -1,4 +1,10 @@
-{ self }: { config, pkgs, lib, ... }:
+{ self }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 let
   cfg = config;
   cominConfigLib = import ./comin-config.nix { inherit config pkgs lib; };
@@ -6,13 +12,20 @@ let
 
   inherit (pkgs.stdenv.hostPlatform) system;
   inherit (cfg.services.comin) package;
-in {
+in
+{
   imports = [ ./module-options.nix ];
   config = lib.mkIf cfg.services.comin.enable {
     assertions = [
-      { assertion = package != null; message = "`services.comin.package` cannot be null."; }
+      {
+        assertion = package != null;
+        message = "`services.comin.package` cannot be null.";
+      }
       # If the package is null and our `system` isn't supported by the Flake, it's probably safe to show this error message
-      { assertion = package == null -> lib.elem system (lib.attrNames self.packages); message = "comin: ${system} is not supported by the Flake."; }
+      {
+        assertion = package == null -> lib.elem system (lib.attrNames self.packages);
+        message = "comin: ${system} is not supported by the Flake.";
+      }
     ];
 
     systemd.user.services.comin-desktop = lib.mkIf cfg.services.comin.desktop.enable {
@@ -29,7 +42,10 @@ in {
     services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
-      path = [ config.nix.package config.programs.ssh.package ];
+      path = [
+        config.nix.package
+        config.programs.ssh.package
+      ];
       # The comin service is restarted by comin itself when it
       # detects the unit file changed.
       restartIfChanged = false;
