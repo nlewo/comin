@@ -1,8 +1,14 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 let
   cfg = config;
   yaml = pkgs.formats.yaml { };
-in rec {
+in
+rec {
   cominConfig = {
     hostname = cfg.services.comin.hostname;
     state_dir = "/var/lib/comin";
@@ -17,9 +23,9 @@ in rec {
     gpg_public_key_paths = cfg.services.comin.gpgPublicKeyPaths;
     build_confirmer = cfg.services.comin.buildConfirmer;
     deploy_confirmer = cfg.services.comin.deployConfirmer;
-  } // (
-    lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null)
-      { post_deployment_command = cfg.services.comin.postDeploymentCommand; }
-  );
+  }
+  // (lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null) {
+    post_deployment_command = cfg.services.comin.postDeploymentCommand;
+  });
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 }

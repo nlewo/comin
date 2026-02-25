@@ -1,39 +1,40 @@
 pkgs: rec {
-  optionsDocCommonMark = let
-    eval = pkgs.lib.evalModules {
-      modules = [
-        (import ./module-options.nix)
-        {
-          options = {
-            _module.args = pkgs.lib.mkOption {
-              internal = true;
-            };
-            assertions = pkgs.lib.mkOption {
-              type = pkgs.lib.types.anything;
-              description = "";
-            };
+  optionsDocCommonMark =
+    let
+      eval = pkgs.lib.evalModules {
+        modules = [
+          (import ./module-options.nix)
+          {
+            options = {
+              _module.args = pkgs.lib.mkOption {
+                internal = true;
+              };
+              assertions = pkgs.lib.mkOption {
+                type = pkgs.lib.types.anything;
+                description = "";
+              };
 
-            networking.hostName = pkgs.lib.mkOption {
-              type = pkgs.lib.types.str;
-              internal = true;
-              default = "the-machine-hostname";
+              networking.hostName = pkgs.lib.mkOption {
+                type = pkgs.lib.types.str;
+                internal = true;
+                default = "the-machine-hostname";
+              };
             };
-          };
-        }
-      ];
-    };
-    optionsDoc = pkgs.nixosOptionsDoc {
-      inherit (eval) options;
-    };
-  in
-    pkgs.runCommand "options-doc.md" {} ''
+          }
+        ];
+      };
+      optionsDoc = pkgs.nixosOptionsDoc {
+        inherit (eval) options;
+      };
+    in
+    pkgs.runCommand "options-doc.md" { } ''
       cat ${optionsDoc.optionsCommonMark} >> $out
     '';
   optionsDocCommonMarkGenerator = pkgs.writers.writeBashBin "optionsDocCommonMarkGenerator" ''
     cp -v ${optionsDocCommonMark} ./docs/generated-module-options.md
     chmod u+w ./docs/generated-module-options.md
   '';
-  checkOptionsDocCommonMark =  pkgs.runCommand "check-options-doc.md" {} ''
+  checkOptionsDocCommonMark = pkgs.runCommand "check-options-doc.md" { } ''
     set +e
     ${pkgs.diffutils}/bin/diff -q ${optionsDocCommonMark} ${../docs/generated-module-options.md}
     if [[ $? -ne 0 ]]
