@@ -144,14 +144,22 @@ func (d *Deployer) Resume() {
 	}
 }
 
-func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation) bool {
+func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation string) bool {
 	previous := d.previousDeployment.Load()
-	if previous == nil || generation.SelectedCommitId != previous.Generation.SelectedCommitId || generation.SelectedBranchIsTesting.GetValue() != previous.Generation.SelectedBranchIsTesting.GetValue() {
+	if previous == nil {
+		logrus.Infof("deployer: no previous deployment found for generation %s", generation.Uuid)
 		return false
-	} else {
-		logrus.Infof("deployer: skipping deployment of the generation %s because it is the same than the last deployment", generation.Uuid)
-		return true
 	}
+	if generation.OutPath != previous.Generation.OutPath {
+		logrus.Infof("deployer: out path %s differs from previous out path %s for generation %s", generation.OutPath, previous.Generation.OutPath, generation.Uuid)
+		return false
+	}
+	if previous.Operation != operation {
+		logrus.Infof("deployer: operation %s differs from previous operation %s for generation %s", operation, previous.Operation, generation.Uuid)
+		return false
+	}
+	logrus.Infof("deployer: skipping deployment of generation %s: out path %s with operation %s has already been deployed", generation.Uuid, generation.OutPath, operation)
+	return true
 }
 
 // Submit submits a generation to be deployed. If a deployment is
@@ -163,7 +171,7 @@ func (d *Deployer) Submit(generation *protobuf.Generation, operation string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if !d.IsAlreadyDeployed(generation) {
+	if !d.IsAlreadyDeployed(generation, operation) {
 		d.GenerationToDeploy = generation
 		d.Operation = operation
 		select {

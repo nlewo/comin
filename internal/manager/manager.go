@@ -184,7 +184,8 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 				}
 				if generation.BuildErr == "" {
 					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					if !m.deployer.IsAlreadyDeployed(&generation) {
+					operation := m.getOperationFromConfigurationOperations(generation.SelectedRemoteName, generation.SelectedBranchName)
+					if !m.deployer.IsAlreadyDeployed(&generation, operation) {
 						m.DeployConfirmer.Submit(generationUUID)
 					}
 				}
