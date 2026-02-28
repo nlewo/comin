@@ -69,6 +69,7 @@
           default = pkgs.mkShell {
             nativeBuildInputs = [ treefmtStack.${system}.config.build.wrapper ];
             buildInputs = with pkgs; [
+              go
               godef
               gopls
               golangci-lint
