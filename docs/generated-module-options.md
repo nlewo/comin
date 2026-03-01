@@ -801,6 +801,69 @@ one of “flake”, “nix”
 
 
 
+## services\.comin\.retention
+
+
+
+The deployments and profiles retention policyes\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.retention\.keep_boot_entries
+
+
+
+The number of boot entries to keep\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+2
+```
+
+
+
+## services\.comin\.retention\.keep_deployment_entries
+
+
+
+The number of deployments to keep\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+3
+```
+
+
+
 ## services\.comin\.systemAttr
 
 

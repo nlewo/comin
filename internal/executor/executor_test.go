@@ -160,7 +160,7 @@ func TestNixExecutorDeploy(t *testing.T) {
 			ctx := context.Background()
 
 			// Test that Deploy doesn't panic and delegates to the correct platform-specific function
-			_, _, err = executor.Deploy(ctx, tt.outPath, tt.operation)
+			_, _, err = executor.Deploy(ctx, tt.outPath, tt.operation, []string{})
 			t.Logf("Deploy with %s returned error: %v (expected in test environment)", tt.systemAttr, err)
 		})
 	}
