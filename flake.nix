@@ -53,8 +53,11 @@
         # I don't understand why nix flake check does't build packages.default
         package = self.packages."${system}".comin;
         formatting = treefmtStack.${system}.config.build.check self;
+        lint = import ./nix/lint.nix {
+          pkgs = nixpkgsFor."${system}";
+          comin = self.packages."${system}".comin;
+        };
       });
-
       nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
       darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
       devShells = forAllSystems (
@@ -66,6 +69,7 @@
           default = pkgs.mkShell {
             nativeBuildInputs = [ treefmtStack.${system}.config.build.wrapper ];
             buildInputs = with pkgs; [
+              go
               godef
               gopls
               golangci-lint
