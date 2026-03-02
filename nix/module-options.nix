@@ -84,6 +84,14 @@ in
             derived from the hostname.
           '';
         };
+        submodules = mkOption {
+          type = bool;
+          default = false;
+          description = ''
+            Whether to fetch and include Git submodules when cloning the repository.
+            When enabled, this adds ?submodules=1 to the flake URL.
+          '';
+        };
         exporter = mkOption {
           description = "Options for the Prometheus exporter.";
           default = { };

@@ -45,8 +45,11 @@ func (n *NixFlakeLocal) ShowDerivation(ctx context.Context, flakeUrl, hostname s
 	return showDerivationWithFlake(ctx, flakeUrl, hostname, n.systemAttr)
 }
 
-func (n *NixFlakeLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string) (drvPath string, outPath string, machineId string, err error) {
+func (n *NixFlakeLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
 	flakeUrl := fmt.Sprintf("git+file://%s?dir=%s&rev=%s", repositoryPath, repositorySubdir, commitId)
+	if submodules {
+		flakeUrl += "&submodules=1"
+	}
 	drvPath, outPath, err = showDerivationWithFlake(ctx, flakeUrl, hostname, n.systemAttr)
 	if err != nil {
 		return

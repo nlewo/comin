@@ -801,6 +801,28 @@ one of “flake”, “nix”
 
 
 
+## services\.comin\.submodules
+
+
+
+Whether to fetch and include Git submodules when cloning the repository\.
+When enabled, this adds ?submodules=1 to the flake URL\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+
+```nix
+false
+```
+
+
+
 ## services\.comin\.systemAttr
 
 

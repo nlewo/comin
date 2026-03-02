@@ -35,6 +35,7 @@ type Builder struct {
 	repositoryPath string
 	repositoryDir  string
 	systemAttr     string
+	submodules     bool
 	evalTimeout    time.Duration
 	buildTimeout   time.Duration
 
@@ -62,15 +63,16 @@ type Builder struct {
 	isSuspended bool
 }
 
-func New(store *store.Store, executor executor.Executor, repositoryPath, repositoryDir, systemAttr, hostname string, evalTimeout time.Duration, buildTimeout time.Duration) *Builder {
-	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, evalTimeout=%fs, buildTimeout=%fs, )",
-		repositoryPath, repositoryDir, systemAttr, hostname, evalTimeout.Seconds(), buildTimeout.Seconds())
+func New(store *store.Store, executor executor.Executor, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration) *Builder {
+	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, )",
+		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds())
 	return &Builder{
 		store:          store,
 		executor:       executor,
 		repositoryPath: repositoryPath,
 		repositoryDir:  repositoryDir,
 		systemAttr:     systemAttr,
+		submodules:     submodules,
 		hostname:       hostname,
 		evalTimeout:    evalTimeout,
 		buildTimeout:   buildTimeout,
@@ -146,6 +148,7 @@ type Evaluator struct {
 	systemAttr      string
 	commitId        string
 	hostname        string
+	submodules      bool
 
 	evalFunc executor.EvalFunc
 
@@ -155,7 +158,7 @@ type Evaluator struct {
 }
 
 func (r *Evaluator) Run(ctx context.Context) (err error) {
-	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.repositoryPath, r.repostorySubdir, r.commitId, r.systemAttr, r.hostname)
+	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.repositoryPath, r.repostorySubdir, r.commitId, r.systemAttr, r.hostname, r.submodules)
 	return err
 }
 
@@ -194,6 +197,7 @@ func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error
 		repositoryPath:  g.RepositoryPath,
 		repostorySubdir: g.RepositorySubdir,
 		systemAttr:      g.SystemAttr,
+		submodules:      b.submodules,
 
 		commitId: g.SelectedCommitId,
 		evalFunc: b.executor.Eval,
