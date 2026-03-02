@@ -41,6 +41,8 @@ in
     # Use package from overlay first, then Flake package if available
     services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     systemd.services.comin = {
+      wants = [ "network-online.target" ];
+      after = [ "network-online.target" ];
       wantedBy = [ "multi-user.target" ];
       path = [
         config.nix.package
