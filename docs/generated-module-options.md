@@ -816,7 +816,10 @@ boolean
 
 
 *Default:*
-` false `
+
+```nix
+false
+```
 
 
 
