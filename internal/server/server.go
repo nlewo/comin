@@ -93,6 +93,13 @@ func (s *cominServer) Confirm(ctx context.Context, req *protobuf.ConfirmRequest)
 
 func (c *cominServer) Start() {
 	go func() {
+		if _, err := os.Stat(c.unixSocketPath); err == nil {
+			conn, err := net.Dial("unix", c.unixSocketPath)
+			if err == nil {
+				_ = conn.Close()
+				logrus.Fatalf("server: socket %s already in use by another server", c.unixSocketPath)
+			}
+		}
 		if err := os.RemoveAll(c.unixSocketPath); err != nil {
 			log.Fatalf("server: failed to remove existing socket file: %s", err)
 		}
