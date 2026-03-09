@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/nlewo/comin/internal/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -22,6 +24,7 @@ var fetchCmd = &cobra.Command{
 			logrus.Fatal(err)
 		}
 		c.Fetch()
+		fmt.Printf("All remotes have been fetched.")
 	},
 }
 
