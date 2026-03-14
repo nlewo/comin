@@ -34,13 +34,50 @@ func New(clientOpts ClientOpts) (c Client, err error) {
 	c.cominClient = protobuf.NewCominClient(c.conn)
 	return
 }
-
 func (c Client) Close() {
 	c.conn.Close() // nolint: errcheck
 }
 
 func (c Client) GetManagerState() (state *protobuf.State, err error) {
 	return c.cominClient.GetState(context.Background(), &emptypb.Empty{})
+}
+
+type Streamer struct {
+	FailureMsg string
+	Event      *protobuf.Event
+}
+
+func (c Client) Stream(ctx context.Context) (ch chan Streamer) {
+	ch = make(chan Streamer)
+	go func() {
+		for {
+			events, err := c.cominClient.Events(ctx, &emptypb.Empty{})
+			if err != nil {
+				reason := fmt.Sprintf("failed to connect to the stream: %s", err)
+				logrus.Debug(reason)
+				ch <- Streamer{FailureMsg: reason}
+				time.Sleep(time.Second)
+				continue
+			}
+			for {
+				event, err := events.Recv()
+				if err == io.EOF {
+					reason := fmt.Sprintf("server closed stream: %s", err)
+					logrus.Debug(reason)
+					ch <- Streamer{FailureMsg: reason}
+					break
+				}
+				if err != nil {
+					reason := fmt.Sprintf("failed to receive from the stream: %s", err)
+					logrus.Debug(reason)
+					ch <- Streamer{FailureMsg: reason}
+					break
+				}
+				ch <- Streamer{Event: event}
+			}
+		}
+	}()
+	return ch
 }
 
 func (c Client) Events(handler func(*protobuf.Event) error) error {
