@@ -14,6 +14,7 @@ rec {
     state_dir = "/var/lib/comin";
     repository_type = cfg.services.comin.repositoryType;
     repository_subdir = cfg.services.comin.repositorySubdir;
+    submodules = cfg.services.comin.submodules;
     system_attr = cfg.services.comin.systemAttr;
     remotes = cfg.services.comin.remotes;
     exporter = {

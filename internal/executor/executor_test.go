@@ -60,7 +60,7 @@ func TestNixExecutorEval(t *testing.T) {
 			// Test that Eval doesn't panic and handles parameters correctly
 			// This will error in test environment since nix commands will fail,
 			// but we're testing the code path and parameter handling
-			_, _, _, err = executor.Eval(ctx, tt.repositoryPath, tt.repositorySubdir, tt.commitId, tt.systemAttr, tt.hostname)
+			_, _, _, err = executor.Eval(ctx, tt.repositoryPath, tt.repositorySubdir, tt.commitId, tt.systemAttr, tt.hostname, false)
 			t.Logf("Eval with %s returned error: %v (expected in test environment)", tt.systemAttr, err)
 		})
 	}

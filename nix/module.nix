@@ -8,10 +8,21 @@
 let
   cfg = config;
   cominConfigLib = import ./comin-config.nix { inherit config pkgs lib; };
-  inherit (cominConfigLib) cominConfig cominConfigYaml;
+  inherit (cominConfigLib) cominConfigYaml;
 
   inherit (pkgs.stdenv.hostPlatform) system;
   inherit (cfg.services.comin) package;
+
+  remoteWithAuth = lib.findFirst (r: r.auth.access_token_path != "") null cfg.services.comin.remotes;
+
+  # This is needed because Nix's flake fetcher shells out to git for
+  # submodule operations, and git has no other way to authenticate.
+  gitAskpass = pkgs.writeShellScript "comin-git-askpass" ''
+    case "$1" in
+      Username*) echo "${remoteWithAuth.auth.username}" ;;
+      Password*) cat "${remoteWithAuth.auth.access_token_path}" ;;
+    esac
+  '';
 in
 {
   imports = [ ./module-options.nix ];
@@ -49,6 +60,9 @@ in
       # The comin service is restarted by comin itself when it
       # detects the unit file changed.
       restartIfChanged = false;
+      environment = lib.mkIf (cfg.services.comin.submodules && remoteWithAuth != null) {
+        GIT_ASKPASS = gitAskpass;
+      };
       serviceConfig = {
         ExecStart =
           (lib.getExe package)

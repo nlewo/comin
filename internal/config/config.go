@@ -82,5 +82,6 @@ func MkGitConfig(config types.Configuration) types.GitConfig {
 		Dir:               config.RepositorySubdir,
 		Remotes:           config.Remotes,
 		GpgPublicKeyPaths: config.GpgPublicKeyPaths,
+		Submodules:        config.Submodules,
 	}
 }
