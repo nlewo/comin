@@ -30,7 +30,7 @@ func (n ExecutorMock) NeedToReboot(_, _ string) bool {
 func (n ExecutorMock) IsStorePathExist(storePath string) bool {
 	return n.alreadyBuilt
 }
-func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string) (needToRestartComin bool, profilePath string, err error) {
+func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
 	return false, "", nil
 }
 func (n ExecutorMock) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
@@ -66,7 +66,7 @@ func TestBuilderBuild(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "my-machine", false, 2*time.Second, 2*time.Second)
@@ -130,7 +130,7 @@ func TestEval(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", false, 5*time.Second, 5*time.Second)
@@ -152,7 +152,7 @@ func TestEvalAlreadyBuilt(t *testing.T) {
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(true)
 	b := New(s, eMock, "", "", "", "", false, 5*time.Second, 5*time.Second)
@@ -176,7 +176,7 @@ func TestBuilderPreemption(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", false, 5*time.Second, 5*time.Second)
@@ -199,7 +199,7 @@ func TestBuilderStop(t *testing.T) {
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", false, 5*time.Second, 5*time.Second)
@@ -217,7 +217,7 @@ func TestBuilderTimeout(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", false, 1*time.Second, 5*time.Second)
@@ -234,7 +234,7 @@ func TestBuilderSuspend(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, "", "", "", "", false, 1*time.Second, 5*time.Second)

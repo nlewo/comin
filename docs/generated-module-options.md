@@ -801,6 +801,94 @@ one of “flake”, “nix”
 
 
 
+## services\.comin\.retention
+
+
+
+The deployments and profiles retention policyes\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.retention\.deployment_any_capacity
+
+
+
+Total number of deployments to keep\. Includes all deployments
+regardless of status (including failed deployments)\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+5
+```
+
+
+
+## services\.comin\.retention\.deployment_boot_entry_capacity
+
+
+
+Number of boot entries to keep\. Controls how many successful
+deployments generating boot entries (boot or switch operations)
+with unique storepaths are retained\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+3
+```
+
+
+
+## services\.comin\.retention\.deployment_successful_capacity
+
+
+
+Number of successful deployments to keep\. Includes all deployments
+with status=done, regardless of operation type\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+3
+```
+
+
+
 ## services\.comin\.submodules
 
 
