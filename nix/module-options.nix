@@ -348,6 +348,39 @@ in
             description = "The notification title.";
           };
         };
+        retention = mkOption {
+          description = "The deployments and profiles retention policyes.";
+          default = { };
+          type = submodule {
+            options = {
+              deployment_boot_entry_capacity = mkOption {
+                type = int;
+                default = 3;
+                description = ''
+                  Number of boot entries to keep. Controls how many successful
+                  deployments generating boot entries (boot or switch operations)
+                  with unique storepaths are retained.
+                '';
+              };
+              deployment_successful_capacity = mkOption {
+                type = int;
+                default = 3;
+                description = ''
+                  Number of successful deployments to keep. Includes all deployments
+                  with status=done, regardless of operation type.
+                '';
+              };
+              deployment_any_capacity = mkOption {
+                type = int;
+                default = 5;
+                description = ''
+                  Total number of deployments to keep. Includes all deployments
+                  regardless of status (including failed deployments).
+                '';
+              };
+            };
+          };
+        };
       };
     };
 }
