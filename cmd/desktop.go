@@ -99,7 +99,7 @@ func handler(event *protobuf.Event) error {
 	case *protobuf.Event_BuildStartedType:
 		g := event.Type.(*protobuf.Event_BuildStartedType).BuildStartedType.Generation
 		if g.BuildReason == builder.BuildReasonNeedBuild {
-			message = fmt.Sprintf("A new commit from %s/%s is available.\nIt and will be built.", g.SelectedRemoteName, g.SelectedBranchName)
+			message = fmt.Sprintf("A new commit from %s/%s is building.", g.SelectedRemoteName, g.SelectedBranchName)
 		}
 	case *protobuf.Event_BuildFinishedType:
 		dpl := event.Type.(*protobuf.Event_BuildFinishedType).BuildFinishedType.Generation
