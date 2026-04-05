@@ -10,6 +10,8 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"time"
+
 	"github.com/dustin/go-humanize"
 	"github.com/nlewo/comin/internal/client"
 	"github.com/nlewo/comin/internal/protobuf"
@@ -27,6 +29,21 @@ var (
 	activeStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
+
+func formatTime(t time.Time) string {
+	if time.Since(t) < 10*time.Second {
+		return "less than 10 seconds ago"
+	}
+	return humanize.Time(t)
+}
+
+type tickMsg time.Time
+
+func tick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
 
 func commitMsgSummary(msg string) string {
 	parts := strings.SplitN(strings.TrimSpace(msg), "\n", 2)
@@ -72,6 +89,62 @@ var keys = keyMap{
 	),
 }
 
+// FetcherModel holds the current fetcher state and renders it.
+type FetcherModel struct {
+	isFetching       bool
+	repositoryStatus *protobuf.RepositoryStatus
+}
+
+func (fm FetcherModel) View() string {
+	var b strings.Builder
+
+	var status string
+	if fm.isFetching {
+		status = activeStyle.Render("fetching...")
+	} else {
+		status = dimStyle.Render("idle")
+	}
+	b.WriteString(sectionStyle.Render("Fetcher") + "  " + status + "\n")
+
+	if fm.repositoryStatus == nil {
+		return b.String()
+	}
+	for _, r := range fm.repositoryStatus.Remotes {
+		fetchedAt := ""
+		if r.FetchedAt != nil {
+			fetchedAt = "  " + dimStyle.Render(formatTime(r.FetchedAt.AsTime()))
+		}
+		b.WriteString("  " + labelStyle.Render("Remote: ") + r.Name + fetchedAt + "\n")
+		b.WriteString("    " + labelStyle.Render("URL:     ") + r.Url + "\n")
+		if r.FetchErrorMsg != "" {
+			b.WriteString("    " + errorStyle.Render("Error: "+r.FetchErrorMsg) + "\n")
+		}
+		if r.Main != nil {
+			commitID := r.Main.CommitId
+			if len(commitID) > 8 {
+				commitID = commitID[:8]
+			}
+			b.WriteString("    " + labelStyle.Render("main:    ") +
+				commitID + "  " + commitMsgSummary(r.Main.CommitMsg) + "\n")
+			if r.Main.ErrorMsg != "" {
+				b.WriteString("      " + errorStyle.Render(r.Main.ErrorMsg) + "\n")
+			}
+		}
+		if r.Testing != nil {
+			commitID := r.Testing.CommitId
+			if len(commitID) > 8 {
+				commitID = commitID[:8]
+			}
+			b.WriteString("    " + labelStyle.Render("testing: ") +
+				commitID + "  " + commitMsgSummary(r.Testing.CommitMsg) + "\n")
+			if r.Testing.ErrorMsg != "" {
+				b.WriteString("      " + errorStyle.Render(r.Testing.ErrorMsg) + "\n")
+			}
+		}
+	}
+	return b.String()
+}
+
 type BuilderModel struct {
 	isEvaluating bool
 	isBuilding   bool
@@ -109,30 +182,30 @@ func (bm BuilderModel) View() string {
 		case store.Evaluating.String():
 			b.WriteString("  " + labelStyle.Render("Eval:    ") +
 				activeStyle.Render("running") +
-				fmt.Sprintf(" since %s\n", humanize.Time(g.EvalStartedAt.AsTime())))
+				fmt.Sprintf(" since %s\n", formatTime(g.EvalStartedAt.AsTime())))
 		case store.Evaluated.String():
 			b.WriteString("  " + labelStyle.Render("Eval:    ") +
 				successStyle.Render("succeeded") +
-				fmt.Sprintf(" %s\n", humanize.Time(g.EvalEndedAt.AsTime())))
+				fmt.Sprintf(" %s\n", formatTime(g.EvalEndedAt.AsTime())))
 		case store.EvalFailed.String():
 			b.WriteString("  " + labelStyle.Render("Eval:    ") +
 				errorStyle.Render("failed") +
-				fmt.Sprintf(" %s\n", humanize.Time(g.EvalEndedAt.AsTime())))
+				fmt.Sprintf(" %s\n", formatTime(g.EvalEndedAt.AsTime())))
 		}
 
 		switch g.BuildStatus {
 		case store.Building.String():
 			b.WriteString("  " + labelStyle.Render("Build:   ") +
 				activeStyle.Render("running") +
-				fmt.Sprintf(" since %s\n", humanize.Time(g.BuildStartedAt.AsTime())))
+				fmt.Sprintf(" since %s\n", formatTime(g.BuildStartedAt.AsTime())))
 		case store.Built.String():
 			b.WriteString("  " + labelStyle.Render("Build:   ") +
 				successStyle.Render("succeeded") +
-				fmt.Sprintf(" %s\n", humanize.Time(g.BuildEndedAt.AsTime())))
+				fmt.Sprintf(" %s\n", formatTime(g.BuildEndedAt.AsTime())))
 		case store.BuildFailed.String():
 			b.WriteString("  " + labelStyle.Render("Build:   ") +
 				errorStyle.Render("failed") +
-				fmt.Sprintf(" %s\n", humanize.Time(g.BuildEndedAt.AsTime())))
+				fmt.Sprintf(" %s\n", formatTime(g.BuildEndedAt.AsTime())))
 		}
 	}
 	return b.String()
@@ -176,15 +249,15 @@ func (dm DeployerModel) View() string {
 		case store.StatusToString(store.Running):
 			b.WriteString("  " + labelStyle.Render("Status:    ") +
 				activeStyle.Render("running") +
-				fmt.Sprintf(" since %s\n", humanize.Time(d.StartedAt.AsTime())))
+				fmt.Sprintf(" since %s\n", formatTime(d.StartedAt.AsTime())))
 		case store.StatusToString(store.Done):
 			b.WriteString("  " + labelStyle.Render("Status:    ") +
 				successStyle.Render("done") +
-				fmt.Sprintf(" %s\n", humanize.Time(d.EndedAt.AsTime())))
+				fmt.Sprintf(" %s\n", formatTime(d.EndedAt.AsTime())))
 		case store.StatusToString(store.Failed):
 			b.WriteString("  " + labelStyle.Render("Status:    ") +
 				errorStyle.Render("failed") +
-				fmt.Sprintf(" %s\n", humanize.Time(d.EndedAt.AsTime())))
+				fmt.Sprintf(" %s\n", formatTime(d.EndedAt.AsTime())))
 		}
 	}
 	return b.String()
@@ -195,6 +268,7 @@ type ManagerModel struct {
 	isSuspended   bool
 	hostname      string
 	connectionMsg string
+	fetcher       FetcherModel
 	builder       BuilderModel
 	deployer      DeployerModel
 }
@@ -214,6 +288,8 @@ func (mm ManagerModel) View() string {
 	b.WriteString("  " + dimStyle.Render("Connected") + "\n")
 	b.WriteString("  " + labelStyle.Render("Reboot required: ") + boolToString(mm.needToReboot) + "\n")
 	b.WriteString("  " + labelStyle.Render("Suspended:       ") + boolToString(mm.isSuspended) + "\n")
+	b.WriteString("\n")
+	b.WriteString(mm.fetcher.View())
 	b.WriteString("\n")
 	b.WriteString(mm.builder.View())
 	b.WriteString("\n")
@@ -236,7 +312,7 @@ func consumeStream(m Model) func() tea.Msg {
 }
 
 func (m Model) Init() tea.Cmd {
-	return consumeStream(m)
+	return tea.Batch(consumeStream(m), tick())
 }
 
 func updateModel(m Model, event *protobuf.Event) Model {
@@ -257,6 +333,10 @@ func updateModel(m Model, event *protobuf.Event) Model {
 			m.manager.deployer.isSuspended = state.Deployer.IsSuspended.GetValue()
 			m.manager.deployer.deployment = state.Deployer.Deployment
 		}
+		if state.Fetcher != nil {
+			m.manager.fetcher.isFetching = state.Fetcher.IsFetching.GetValue()
+			m.manager.fetcher.repositoryStatus = state.Fetcher.RepositoryStatus
+		}
 	case *protobuf.Event_EvalStartedType:
 		m.manager.builder.isEvaluating = true
 		m.manager.builder.generation = e.EvalStartedType.Generation
@@ -275,6 +355,9 @@ func updateModel(m Model, event *protobuf.Event) Model {
 	case *protobuf.Event_DeploymentFinishedType:
 		m.manager.deployer.isDeploying = false
 		m.manager.deployer.deployment = e.DeploymentFinishedType.Deployment
+	case *protobuf.Event_Fetched_:
+		m.manager.fetcher.isFetching = false
+		m.manager.fetcher.repositoryStatus = e.Fetched.RepositoryStatus
 	case *protobuf.Event_Suspend_:
 		m.manager.isSuspended = true
 	case *protobuf.Event_Resume_:
@@ -295,6 +378,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.manager.connectionMsg = msg.FailureMsg
 		}
 		return m, consumeStream(m)
+	case tickMsg:
+		return m, tick()
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Quit):

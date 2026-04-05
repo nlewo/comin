@@ -104,7 +104,7 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fetcher := fetcher.NewFetcher(repository)
+		fetcher := fetcher.NewFetcher(repository, broker)
 		fetcher.Start(cmd.Context())
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)

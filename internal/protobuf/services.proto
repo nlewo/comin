@@ -62,6 +62,9 @@ message Event {
   message ManagerState {
     State state = 1;
   }
+  message Fetched {
+    RepositoryStatus repositoryStatus = 1;
+  }
   oneof Type {
     EvalStarted evalStartedType = 1;
     EvalFinished evalFinishedType = 2;
@@ -76,6 +79,7 @@ message Event {
     DeploymentFinished deploymentFinishedType = 11;
     RebootRequired rebootRequired = 12;
     ManagerState managerState = 13;
+    Fetched fetched = 14;
   }
 }
 
