@@ -83,12 +83,12 @@ func NewExecutorMock(machineId string) ExecutorMock {
 func TestBuild(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
-	f := fetcher.NewFetcher(r)
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
-	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	f := fetcher.NewFetcher(r, bk)
 	f.Start(t.Context())
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	eMock := NewExecutorMock("")
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second)
 	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
@@ -194,11 +194,11 @@ func TestBuild(t *testing.T) {
 func TestDeploy(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
-	f := fetcher.NewFetcher(r)
-	f.Start(t.Context())
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
+	f := fetcher.NewFetcher(r, bk)
+	f.Start(t.Context())
 
 	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	eMock := NewExecutorMock("")
@@ -229,11 +229,11 @@ func TestDeploy(t *testing.T) {
 func TestIncorrectMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
-	f := fetcher.NewFetcher(r)
-	f.Start(t.Context())
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
+	f := fetcher.NewFetcher(r, bk)
+	f.Start(t.Context())
 
 	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	eMock := NewExecutorMock("invalid-machine-id")
@@ -260,11 +260,11 @@ func TestIncorrectMachineId(t *testing.T) {
 func TestCorrectMachineId(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	r := utils.NewRepositoryMock()
-	f := fetcher.NewFetcher(r)
-	f.Start(t.Context())
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
+	f := fetcher.NewFetcher(r, bk)
+	f.Start(t.Context())
 
 	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	eMock := NewExecutorMock("the-test-machine-id")
@@ -291,12 +291,12 @@ func TestCorrectMachineId(t *testing.T) {
 
 func TestManagerWithDarwinConfiguration(t *testing.T) {
 	r := utils.NewRepositoryMock()
-	f := fetcher.NewFetcher(r)
 	tmp := t.TempDir()
 	eMock := NewExecutorMock("")
 	eMock.buildOk <- true
 	bk := broker.New()
 	bk.Start()
+	f := fetcher.NewFetcher(r, bk)
 
 	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	b := builder.New(s, eMock, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second)

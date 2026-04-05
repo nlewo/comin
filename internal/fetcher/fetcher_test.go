@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,9 @@ import (
 
 func TestFetcher(t *testing.T) {
 	r := utils.NewRepositoryMock()
-	f := NewFetcher(r)
+	bk := broker.New()
+	bk.Start()
+	f := NewFetcher(r, bk)
 	f.Start(t.Context())
 	var commitId string
 

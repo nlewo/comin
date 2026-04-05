@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
@@ -20,17 +21,18 @@ type Fetcher struct {
 	submitRemotes      chan []string
 	RepositoryStatusCh chan *protobuf.RepositoryStatus
 	repo               repository.Repository
+	broker             *broker.Broker
 }
 
-func NewFetcher(repo repository.Repository) *Fetcher {
+func NewFetcher(repo repository.Repository, broker *broker.Broker) *Fetcher {
 	f := &Fetcher{
 		repo:               repo,
+		broker:             broker,
 		submitRemotes:      make(chan []string),
 		RepositoryStatusCh: make(chan *protobuf.RepositoryStatus),
 	}
 	f.repositoryStatus = repo.GetRepositoryStatus()
 	return f
-
 }
 
 func (f *Fetcher) IsFetching() bool {
@@ -72,6 +74,7 @@ func (f *Fetcher) Start(ctx context.Context) {
 				remotes = union(remotes, submittedRemotes)
 			case rs := <-workerRepositoryStatusCh:
 				f.isFetching.Store(false)
+				f.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Fetched_{Fetched: &protobuf.Event_Fetched{RepositoryStatus: rs}}})
 				f.mu.Lock()
 				if rs.SelectedCommitId != f.repositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting.GetValue() != f.repositoryStatus.SelectedBranchIsTesting.GetValue() {
 					f.repositoryStatus = rs
