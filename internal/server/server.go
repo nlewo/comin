@@ -28,7 +28,16 @@ func (s *cominServer) Events(_ *emptypb.Empty, stream grpc.ServerStreamingServer
 	logrus.Infof("server: start to stream events")
 
 	subscriber := s.broker.Subscribe()
+	state := s.manager.GetState()
+	stateEvent := &protobuf.Event{Type: &protobuf.Event_ManagerState_{ManagerState: &protobuf.Event_ManagerState{State: state}}}
+	if err := stream.Send(stateEvent); err != nil {
+		logrus.Infof("server: failed to send stream: %s", err)
+		s.broker.Unsubscribe(subscriber)
+		return err
+	}
+
 	for {
+
 		event := <-subscriber
 		if err := stream.Send(event); err != nil {
 			logrus.Infof("server: failed to send stream: %s", err)
