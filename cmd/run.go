@@ -62,6 +62,8 @@ var runCmd = &cobra.Command{
 			}
 		case "nix":
 			executor, err = executorPkg.NewNixOSNix()
+		case "system-manager":
+			executor, err = executorPkg.NewSystemManagerFlake()
 		}
 		if err != nil {
 			logrus.Errorf("Failed to create the executor: %s", err)
