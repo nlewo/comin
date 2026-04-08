@@ -79,6 +79,15 @@ deploys a configuration found in the flake output
 output and run comin on the target machine.
 
 
+## How to deploy non-NixOS Linux machines with system-manager
+
+comin can deploy [system-manager](https://github.com/numtide/system-manager)
+configurations to non-NixOS Linux machines. Set `repository_type` to
+`"system-manager"` and expose a `systemConfigs.<hostname>` output in
+your flake. See the full [system-manager guide](system-manager.md) for
+setup instructions and examples.
+
+
 ## How to use comin without Nix flake
 
 comin supports deploying configuration from a repository that doesn't
