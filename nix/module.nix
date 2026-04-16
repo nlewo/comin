@@ -60,9 +60,13 @@ in
       # The comin service is restarted by comin itself when it
       # detects the unit file changed.
       restartIfChanged = false;
-      environment = lib.mkIf (cfg.services.comin.submodules && remoteWithAuth != null) {
+      environment = {
+        CURL_CA_BUNDLE = cfg.security.pki.caBundle;
+      }
+      // cfg.networking.proxy.envVars
+      // (lib.optionalAttrs (cfg.services.comin.submodules && remoteWithAuth != null) {
         GIT_ASKPASS = gitAskpass;
-      };
+      });
       serviceConfig = {
         ExecStart =
           (lib.getExe package)
