@@ -22,6 +22,7 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
+	fyne.io/systray v1.12.0 // indirect
 	git.sr.ht/~jackmordaunt/go-toast v1.1.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect

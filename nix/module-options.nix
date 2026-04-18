@@ -348,6 +348,14 @@ in
             description = "The notification title.";
           };
         };
+        tray = {
+          enable = mkEnableOption "Whether to run the comin tray service. This tray item allows confirming deployments and builds. Will also display notifications over DBus.";
+          title = mkOption {
+            type = str;
+            default = "comin";
+            description = "The notification title.";
+          };
+        };
         retention = mkOption {
           description = "The deployments and profiles retention policyes.";
           default = { };
