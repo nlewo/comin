@@ -934,3 +934,53 @@ null
 ```
 
 
+
+## services\.comin\.tray\.enable
+
+
+
+Whether to enable Whether to run the comin tray service\. This tray item allows confirming deployments and builds\. Will also display notifications over DBus…
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+
+```nix
+false
+```
+
+
+
+*Example:*
+
+```nix
+true
+```
+
+
+
+## services\.comin\.tray\.title
+
+
+
+The notification title\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"comin"
+```
+
+

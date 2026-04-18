@@ -117,6 +117,8 @@ func (c *Confirmer) start() {
 				switch Mode(c.state.Mode) {
 				case Manual:
 					logrus.Infof("confirmer: generation %s has been submitted", command.uuid)
+					e := &protobuf.Event_ConfirmationSubmitted{Uuid: command.uuid}
+					c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationSubmittedType{ConfirmationSubmittedType: e}})
 				case Without:
 					logrus.Infof("confirmer: generation %s has been submitted and confirmed", command.uuid)
 					c.state.Confirmed = command.uuid
@@ -129,6 +131,8 @@ func (c *Confirmer) start() {
 					timer = c.timer.C
 					c.state.AutoconfirmStarted = wrapperspb.Bool(true)
 					c.state.AutoconfirmStartedAt = timestamppb.New(time.Now().UTC())
+					e := &protobuf.Event_ConfirmationSubmitted{Uuid: command.uuid}
+					c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationSubmittedType{ConfirmationSubmittedType: e}})
 				}
 			case "confirm":
 				logrus.Infof("confirmer: generation %s has been confirmed", command.uuid)

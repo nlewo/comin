@@ -42,7 +42,7 @@ var desktopCmd = &cobra.Command{
 			if err != nil {
 				logrus.Fatal(err)
 			}
-			err = client.Events(handler)
+			err = client.Events(desktopEventHandler)
 			log.Fatalf("failed to consume to the event stream: %s", err)
 		}
 	},
@@ -55,33 +55,35 @@ func scenario() {
 		SelectedBranchName: "main",
 	}
 	e := protobuf.Event{Type: &protobuf.Event_BuildStartedType{BuildStartedType: &protobuf.Event_BuildStarted{Generation: &g}}}
-	handler(&e) // nolint: errcheck
+	desktopEventHandler(&e) // nolint: errcheck
 	time.Sleep(time.Second)
 
 	d := protobuf.Deployment{
 		Status: store.StatusToString(store.Init),
 	}
 	e = protobuf.Event{Type: &protobuf.Event_DeploymentStartedType{DeploymentStartedType: &protobuf.Event_DeploymentStarted{Deployment: &d}}}
-	handler(&e) // nolint: errcheck
+	desktopEventHandler(&e) // nolint: errcheck
 	time.Sleep(time.Second)
 
 	d = protobuf.Deployment{
 		Status: store.StatusToString(store.Done),
 	}
 	e = protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: &protobuf.Event_DeploymentFinished{Deployment: &d}}}
-	handler(&e) // nolint: errcheck
+	desktopEventHandler(&e) // nolint: errcheck
 
 	time.Sleep(time.Second)
 	e = protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: &protobuf.Event_RebootRequired{Deployment: &d}}}
-	handler(&e) // nolint: errcheck
+	desktopEventHandler(&e) // nolint: errcheck
 }
 
-func handler(event *protobuf.Event) error {
+func generateEventMessage(event *protobuf.Event) string {
 	var message string
 	logrus.Debugf("received event: %s", event)
 	switch v := event.Type.(type) {
 	default:
 		logrus.Errorf("unexpected type %T", v)
+	case *protobuf.Event_Fetched_:
+	case *protobuf.Event_ManagerState_:
 	case *protobuf.Event_Suspend_:
 		message = "The agent is suspended."
 	case *protobuf.Event_Resume_:
@@ -124,14 +126,27 @@ func handler(event *protobuf.Event) error {
 		}
 	case *protobuf.Event_RebootRequired_:
 		message = "The machine needs to be rebooted to take the deployment into account."
+	case *protobuf.Event_ConfirmationSubmittedType:
+		uuid := event.Type.(*protobuf.Event_ConfirmationSubmittedType).ConfirmationSubmittedType.GetUuid()
+		message = fmt.Sprintf("A confirmation request was submitted. %s", uuid)
 	}
+	return message
+}
+
+func desktopEventHandler(event *protobuf.Event) error {
+	message := generateEventMessage(event)
+	displayNotification(message)
+	return nil
+}
+
+func displayNotification(message string) {
 	if message != "" {
+		logrus.Println(fmt.Sprintf("Displaying notification: %s", message))
 		err := beeep.Notify(title, message, []byte{})
 		if err != nil {
 			logrus.Errorf("failed to send the notification: %s", err)
 		}
 	}
-	return nil
 }
 
 func init() {
