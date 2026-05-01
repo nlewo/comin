@@ -10,7 +10,6 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/nlewo/comin/internal/prometheus"
 	pb "github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/types"
@@ -203,15 +202,9 @@ func (r *repository) Update() error {
 		r.RepositoryStatus.SelectedCommitId = selectedCommitId
 	}
 
-	auth := getAuthForRemote(r.GitConfig, r.RepositoryStatus.SelectedRemoteName)
-	if err := hardReset(*r, plumbing.NewHash(selectedCommitId), auth); err != nil {
-		r.RepositoryStatus.ErrorMsg = err.Error()
-		return err
-	}
-
 	if len(r.gpgPubliKeys) > 0 {
 		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(true)
-		signedBy, err := headSignedBy(r.Repository, r.gpgPubliKeys)
+		signedBy, err := commitSignedBy(r.Repository, selectedCommitId, r.gpgPubliKeys)
 		if err != nil {
 			r.RepositoryStatus.ErrorMsg = err.Error()
 		}

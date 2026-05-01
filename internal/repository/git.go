@@ -10,7 +10,6 @@ import (
 	gitConfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
@@ -97,60 +96,6 @@ func getHeadFromRemoteAndBranch(r repository, remoteName, branchName, currentMai
 	return *head, commitObject.Message, nil
 }
 
-func hardReset(r repository, newHead plumbing.Hash, auth transport.AuthMethod) error {
-	var w *git.Worktree
-	w, err := r.Repository.Worktree()
-	if err != nil {
-		return fmt.Errorf("failed to get the worktree")
-	}
-	err = w.Checkout(&git.CheckoutOptions{
-		Hash:  newHead,
-		Force: true,
-	})
-	if err != nil {
-		return fmt.Errorf("git reset --hard %s fails: '%s'", newHead, err)
-	}
-	if r.GitConfig.Submodules {
-		if err := updateSubmodules(w, auth); err != nil {
-			return fmt.Errorf("failed to update submodules: %s", err)
-		}
-	}
-	return nil
-}
-
-func updateSubmodules(w *git.Worktree, auth transport.AuthMethod) error {
-	submodules, err := w.Submodules()
-	if err != nil {
-		return err
-	}
-	for _, sub := range submodules {
-		logrus.Debugf("Updating submodule %s", sub.Config().Name)
-		err := sub.Update(&git.SubmoduleUpdateOptions{
-			Init:              true,
-			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-			Auth:              auth,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to update submodule %s: %s", sub.Config().Name, err)
-		}
-	}
-	return nil
-}
-
-// getAuthForRemote returns the transport.AuthMethod for the named remote, or nil if
-// no authentication is configured.
-func getAuthForRemote(config types.GitConfig, remoteName string) transport.AuthMethod {
-	for _, remote := range config.Remotes {
-		if remote.Name == remoteName && remote.Auth.AccessToken != "" {
-			return &http.BasicAuth{
-				Username: remote.Auth.Username,
-				Password: remote.Auth.AccessToken,
-			}
-		}
-	}
-	return nil
-}
-
 // fetch fetches the config.Remote
 func fetch(r repository, remote types.Remote) (err error) {
 	logrus.Debugf("Fetching remote '%s'", remote.Name)
@@ -204,7 +149,7 @@ func isAncestor(r *git.Repository, base, top plumbing.Hash) (found bool, err err
 }
 
 func repositoryOpen(config types.GitConfig) (r *git.Repository, err error) {
-	r, err = git.PlainInit(config.Path, false)
+	r, err = git.PlainInit(config.Path, true)
 	if err != nil {
 		r, err = git.PlainOpen(config.Path)
 		if err != nil {
@@ -259,21 +204,17 @@ func manageRemote(r *git.Repository, remote types.Remote) error {
 	return nil
 }
 
-func headSignedBy(r *git.Repository, publicKeys []string) (signedBy *openpgp.Entity, err error) {
-	head, _ := r.Head()
-	if head == nil {
-		return nil, fmt.Errorf("repository HEAD should not be nil")
-	}
-	commit, err := r.CommitObject(head.Hash())
+func commitSignedBy(r *git.Repository, commitId string, publicKeys []string) (signedBy *openpgp.Entity, err error) {
+	commit, err := r.CommitObject(plumbing.NewHash(commitId))
 	if err != nil {
 		return nil, err
 	}
 	for _, k := range publicKeys {
 		entity, err := commit.Verify(k)
 		if err == nil {
-			logrus.Debugf("Commit %s signed by %s", head.Hash(), entity.PrimaryIdentity().Name)
+			logrus.Debugf("Commit %s signed by %s", commitId, entity.PrimaryIdentity().Name)
 			return entity, nil
 		}
 	}
-	return nil, fmt.Errorf("commit %s is not signed", head.Hash())
+	return nil, fmt.Errorf("commit %s is not signed", commitId)
 }

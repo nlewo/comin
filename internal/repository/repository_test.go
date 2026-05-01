@@ -260,7 +260,7 @@ func TestMultipleRemote(t *testing.T) {
 	// r2/main: c1 - c2 - c3
 	r.Fetch([]string{"r1", "r2"})
 	_ = r.Update()
-	assert.Equal(t, HeadCommitId(r.Repository), r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, HeadCommitId(r1), r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 
@@ -443,7 +443,7 @@ func TestWithoutTesting(t *testing.T) {
 	var err error
 	r1Dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()
-	_, err = initRemoteRepostiory(r1Dir, false)
+	r1, err := initRemoteRepostiory(r1Dir, false)
 	assert.Nil(t, err)
 	gitConfig := types.GitConfig{
 		Path: cominRepositoryDir,
@@ -467,7 +467,7 @@ func TestWithoutTesting(t *testing.T) {
 
 	r.Fetch([]string{"r1"})
 	_ = r.Update()
-	assert.Equal(t, HeadCommitId(r.Repository), r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, HeadCommitId(r1), r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 }
@@ -501,14 +501,14 @@ func TestRepositoryUpdateMain(t *testing.T) {
 	// The remote repository is initially checkouted
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
-	assert.Equal(t, HeadCommitId(r.Repository), r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, HeadCommitId(remoteRepository), r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "origin", r.RepositoryStatus.SelectedRemoteName)
 
 	// Without any new remote commits, the local repository is not updated
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
-	assert.Equal(t, HeadCommitId(r.Repository), r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, HeadCommitId(remoteRepository), r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "origin", r.RepositoryStatus.SelectedRemoteName)
 
@@ -560,7 +560,7 @@ func TestRepositoryUpdateHardResetMain(t *testing.T) {
 	// The remote repository is initially checkouted
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
-	assert.Equal(t, HeadCommitId(r.Repository), r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, HeadCommitId(remoteRepository), r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "origin", r.RepositoryStatus.SelectedRemoteName)
 
@@ -619,7 +619,7 @@ func TestRepositoryUpdateTesting(t *testing.T) {
 	// The remote repository is initially checkouted on main
 	r.Fetch([]string{"origin"})
 	_ = r.Update()
-	assert.Equal(t, HeadCommitId(r.Repository), r.RepositoryStatus.SelectedCommitId)
+	assert.Equal(t, HeadCommitId(remoteRepository), r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "origin", r.RepositoryStatus.SelectedRemoteName)
 
