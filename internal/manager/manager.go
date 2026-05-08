@@ -66,7 +66,8 @@ func New(s *store.Store,
 ) *Manager {
 
 	m := &Manager{
-		machineId:               machineId,
+		machineId: machineId,
+
 		stateRequestCh:          make(chan struct{}),
 		stateResultCh:           make(chan *protobuf.State),
 		prometheus:              p,
@@ -102,12 +103,20 @@ func (m *Manager) toState() *protobuf.State {
 	}
 }
 
-func (m *Manager) SwitchDeploymentLatest() error {
+func (m *Manager) DeploymentLatestSubmit(operation string) error {
 	latest := m.storage.GetDeploymentLastest()
 	if latest == nil {
 		return fmt.Errorf("manager: no previous deployment")
 	}
-	m.deployer.Submit(latest.Generation, "switch")
+	// If no operation is provided, use default based on branch type
+	if operation == "" {
+		if latest.Generation.SelectedBranchIsTesting != nil && latest.Generation.SelectedBranchIsTesting.Value {
+			operation = "test"
+		} else {
+			operation = "switch"
+		}
+	}
+	m.deployer.Submit(latest.Generation, operation, true)
 	return nil
 }
 
@@ -118,7 +127,7 @@ func (m *Manager) Suspend() error {
 	if err := m.Builder.Suspend(); err != nil {
 		return err
 	}
-	m.deployer.Suspend()
+	m.deployer.Suspend("manager has been manually suspended")
 	m.isSuspended = true
 	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 	m.prometheus.SetIsSuspended(m.isSuspended)
@@ -196,7 +205,7 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					continue
 				}
 				operation := m.getOperationFromConfigurationOperations(generation.SelectedRemoteName, generation.SelectedBranchName)
-				m.deployer.Submit(&generation, operation)
+				m.deployer.Submit(&generation, operation, false)
 			}
 		}
 	}()

@@ -44,6 +44,7 @@ func New(broker *broker.Broker, filename, gcRootsDir string, bootEntryCapacity, 
 	data := &protobuf.Store{
 		Deployments: make([]*protobuf.Deployment, 0),
 		Generations: make([]*protobuf.Generation, 0),
+		Deployer:    &protobuf.DeployerState{},
 	}
 	st := Store{
 		filename:           filename,
@@ -68,8 +69,6 @@ func (s *Store) GetState() *protobuf.Store {
 	return s.data
 }
 
-// DeploymentAdd inserts a deployment and return an evicted
-// deployment because the capacity has been reached.
 func (s *Store) DeploymentList() []*protobuf.Deployment {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -81,6 +80,13 @@ func (s *Store) LastDeployment() (ok bool, d *protobuf.Deployment) {
 		return true, s.DeploymentList()[0]
 	}
 	return
+}
+
+func (s *Store) DeployerUpdate(state *protobuf.DeployerState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data.Deployer = state
+	s.Commit()
 }
 
 func (s *Store) Load() (err error) {
@@ -98,6 +104,9 @@ func (s *Store) Load() (err error) {
 	}
 	s.data = &data
 	logrus.Infof("store: loaded %d deployments from %s", len(s.data.Deployments), s.filename)
+	if s.data.Deployer == nil {
+		s.data.Deployer = &protobuf.DeployerState{}
+	}
 
 	booted, current := utils.GetBootedAndCurrentStorepaths()
 	s.updateDataDeployments(booted, current, nil)

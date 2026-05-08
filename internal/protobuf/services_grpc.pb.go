@@ -29,7 +29,7 @@ const (
 	Comin_Resume_FullMethodName                 = "/protobuf.Comin/Resume"
 	Comin_Confirm_FullMethodName                = "/protobuf.Comin/Confirm"
 	Comin_Events_FullMethodName                 = "/protobuf.Comin/Events"
-	Comin_SwitchDeploymentLatest_FullMethodName = "/protobuf.Comin/SwitchDeploymentLatest"
+	Comin_DeploymentLatestSubmit_FullMethodName = "/protobuf.Comin/DeploymentLatestSubmit"
 )
 
 // CominClient is the client API for Comin service.
@@ -42,7 +42,7 @@ type CominClient interface {
 	Resume(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Confirm(ctx context.Context, in *ConfirmRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	Events(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Event], error)
-	SwitchDeploymentLatest(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeploymentLatestSubmit(ctx context.Context, in *Operation, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type cominClient struct {
@@ -122,10 +122,10 @@ func (c *cominClient) Events(ctx context.Context, in *emptypb.Empty, opts ...grp
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Comin_EventsClient = grpc.ServerStreamingClient[Event]
 
-func (c *cominClient) SwitchDeploymentLatest(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *cominClient) DeploymentLatestSubmit(ctx context.Context, in *Operation, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, Comin_SwitchDeploymentLatest_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Comin_DeploymentLatestSubmit_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ type CominServer interface {
 	Resume(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	Confirm(context.Context, *ConfirmRequest) (*emptypb.Empty, error)
 	Events(*emptypb.Empty, grpc.ServerStreamingServer[Event]) error
-	SwitchDeploymentLatest(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	DeploymentLatestSubmit(context.Context, *Operation) (*emptypb.Empty, error)
 	mustEmbedUnimplementedCominServer()
 }
 
@@ -171,8 +171,8 @@ func (UnimplementedCominServer) Confirm(context.Context, *ConfirmRequest) (*empt
 func (UnimplementedCominServer) Events(*emptypb.Empty, grpc.ServerStreamingServer[Event]) error {
 	return status.Error(codes.Unimplemented, "method Events not implemented")
 }
-func (UnimplementedCominServer) SwitchDeploymentLatest(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method SwitchDeploymentLatest not implemented")
+func (UnimplementedCominServer) DeploymentLatestSubmit(context.Context, *Operation) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeploymentLatestSubmit not implemented")
 }
 func (UnimplementedCominServer) mustEmbedUnimplementedCominServer() {}
 func (UnimplementedCominServer) testEmbeddedByValue()               {}
@@ -296,20 +296,20 @@ func _Comin_Events_Handler(srv interface{}, stream grpc.ServerStream) error {
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type Comin_EventsServer = grpc.ServerStreamingServer[Event]
 
-func _Comin_SwitchDeploymentLatest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
+func _Comin_DeploymentLatestSubmit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Operation)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CominServer).SwitchDeploymentLatest(ctx, in)
+		return srv.(CominServer).DeploymentLatestSubmit(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Comin_SwitchDeploymentLatest_FullMethodName,
+		FullMethod: Comin_DeploymentLatestSubmit_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CominServer).SwitchDeploymentLatest(ctx, req.(*emptypb.Empty))
+		return srv.(CominServer).DeploymentLatestSubmit(ctx, req.(*Operation))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -342,8 +342,8 @@ var Comin_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Comin_Confirm_Handler,
 		},
 		{
-			MethodName: "SwitchDeploymentLatest",
-			Handler:    _Comin_SwitchDeploymentLatest_Handler,
+			MethodName: "DeploymentLatestSubmit",
+			Handler:    _Comin_DeploymentLatestSubmit_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

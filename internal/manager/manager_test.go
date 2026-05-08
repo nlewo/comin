@@ -219,7 +219,7 @@ func TestDeploy(t *testing.T) {
 	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
 	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
 	assert.False(t, m.Builder.State().IsBuilding.GetValue())
-	m.deployer.Submit(&protobuf.Generation{}, "test")
+	m.deployer.Submit(&protobuf.Generation{}, "test", false)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, "profile-path", m.deployer.State().Deployment.ProfilePath)
 	}, 5*time.Second, 100*time.Millisecond)

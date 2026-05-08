@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+
 func FormatCommitMsg(msg string) string {
 	split := strings.Split(msg, "\n")
 	formatted := ""

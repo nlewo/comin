@@ -19,7 +19,11 @@ service Comin {
   rpc Resume(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc Confirm(ConfirmRequest) returns (google.protobuf.Empty) {}
   rpc Events(google.protobuf.Empty) returns (stream Event);
-  rpc SwitchDeploymentLatest(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc DeploymentLatestSubmit(Operation) returns (google.protobuf.Empty) {}
+}
+
+message Operation {
+  string operation = 1;
 }
 
 message Event {
@@ -220,6 +224,11 @@ message RepositoryStatus {
   string error_msg = 13;
 }
 
+message DeployerState {
+  bool is_suspended = 1;
+  string suspend_reason = 2;
+}
+
 message Store {
   repeated Deployment deployments = 1;
   repeated Generation generations = 2;
@@ -229,4 +238,5 @@ message Store {
   repeated string deployments_boot_entry = 5;
   repeated string deployments_successful = 6;
   repeated string deployments_any = 7;
+  DeployerState deployer = 8;
 }
