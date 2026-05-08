@@ -69,9 +69,19 @@ type GarnixConfig struct {
 	CacheSize     int    `yaml:"cache_size"`
 }
 
+type HydraConfig struct {
+	BaseUrl       string `yaml:"base_url"`
+	Project       string `yaml:"project"`
+	Jobset        string `yaml:"jobset"`
+	JobName       string `yaml:"job_name"`
+	RetryInterval int    `yaml:"retry_interval"`
+	MaxEvalPages  int    `yaml:"max_eval_pages"`
+}
+
 type ExecutorConfig struct {
 	Type         string       `yaml:"type"`
 	GarnixConfig GarnixConfig `yaml:"garnix"`
+	HydraConfig  HydraConfig  `yaml:"hydra"`
 }
 
 type Configuration struct {
