@@ -89,8 +89,13 @@ func Read(path string) (config types.Configuration, err error) {
 		if config.ExecutorConfig.HydraConfig.Project == "" {
 			return config, fmt.Errorf("config: executor type 'hydra' requires executor.hydra.project to be set")
 		}
-		if config.ExecutorConfig.HydraConfig.Jobset == "" {
-			return config, fmt.Errorf("config: executor type 'hydra' requires executor.hydra.jobset to be set")
+		if len(config.ExecutorConfig.HydraConfig.Jobsets) == 0 {
+			return config, fmt.Errorf("config: executor type 'hydra' requires executor.hydra.jobsets to contain at least one jobset")
+		}
+		for i, j := range config.ExecutorConfig.HydraConfig.Jobsets {
+			if j == "" {
+				return config, fmt.Errorf("config: executor.hydra.jobsets[%d] is empty", i)
+			}
 		}
 		if config.ExecutorConfig.HydraConfig.JobName == "" {
 			config.ExecutorConfig.HydraConfig.JobName = config.Hostname

@@ -22,7 +22,7 @@ import (
 type Hydra struct {
 	baseUrl       url.URL
 	project       string
-	jobset        string
+	jobsets       []string
 	jobName       string
 	retryInterval time.Duration
 	maxEvalPages  int
@@ -47,7 +47,7 @@ func NewHydraExecutor(config types.HydraConfig, systemAttr string) (h *Hydra, er
 	h = &Hydra{
 		baseUrl:       *baseUrl,
 		project:       config.Project,
-		jobset:        config.Jobset,
+		jobsets:       config.Jobsets,
 		jobName:       config.JobName,
 		retryInterval: time.Duration(config.RetryInterval) * time.Second,
 		maxEvalPages:  config.MaxEvalPages,
@@ -116,8 +116,78 @@ func (h *Hydra) getJSON(ctx context.Context, u string, out any) error {
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
+// scanResult is the outcome of scanning a single jobset for a commit.
+type scanResult int
+
+const (
+	scanNoMatch scanResult = iota // commit/job not found in this jobset's recent evals
+	scanPending                   // commit+job matched but the build hasn't finished yet
+	scanSuccess                   // commit+job matched and the build succeeded
+)
+
+// scanJobset walks max_eval_pages of evaluations for a single jobset and
+// looks for the first build whose eval matches commitId and whose Build.job
+// matches h.jobName. Returns scanSuccess with drv/out on a finished-success
+// match, scanPending if the match is still building, scanNoMatch otherwise.
+func (h *Hydra) scanJobset(ctx context.Context, jobset, commitId string) (drvPath, outPath string, result scanResult, err error) {
+	for page := 1; page <= h.maxEvalPages; page++ {
+		pageUrl := h.baseUrl.JoinPath("/jobset/", h.project, jobset, "evals")
+		q := pageUrl.Query()
+		q.Set("page", fmt.Sprintf("%d", page))
+		pageUrl.RawQuery = q.Encode()
+		logrus.Infof("hydra: fetching evaluations from %s", pageUrl)
+
+		var evals hydraEvalsPage
+		if err = h.getJSON(ctx, pageUrl.String(), &evals); err != nil {
+			return
+		}
+
+		for _, ev := range evals.Evals {
+			rev := extractRevFromFlakeUrl(ev.Flake)
+			if rev == "" || !strings.HasPrefix(rev, commitId) {
+				continue
+			}
+			for _, buildId := range ev.Builds {
+				buildUrl := h.baseUrl.JoinPath("/build/", fmt.Sprintf("%d", buildId))
+				var b hydraBuild
+				if err = h.getJSON(ctx, buildUrl.String(), &b); err != nil {
+					return
+				}
+				if b.Job != h.jobName {
+					continue
+				}
+				if b.Finished == 0 {
+					logrus.Infof("hydra: jobset=%s matched build %d for %s/%s but not finished yet", jobset, b.Id, commitId, h.jobName)
+					result = scanPending
+					return
+				}
+				if b.BuildStatus == nil || *b.BuildStatus != 0 {
+					err = fmt.Errorf("hydra: jobset=%s build %d for %s/%s failed (buildstatus=%v)", jobset, b.Id, commitId, h.jobName, b.BuildStatus)
+					return
+				}
+				out, ok := b.BuildOutputs["out"]
+				if !ok || out.Path == "" {
+					err = fmt.Errorf("hydra: jobset=%s build %d for %s/%s has no 'out' output path", jobset, b.Id, commitId, h.jobName)
+					return
+				}
+				drvPath = b.DrvPath
+				outPath = out.Path
+				logrus.Infof("hydra: jobset=%s matched build %d for %s/%s drv=%s out=%s", jobset, b.Id, commitId, h.jobName, drvPath, outPath)
+				result = scanSuccess
+				return
+			}
+		}
+		if evals.Next == "" {
+			break
+		}
+	}
+	return "", "", scanNoMatch, nil
+}
+
 // Eval polls the Hydra API for a build matching the given commit and
-// jobName, blocking until the build has finished successfully. The returned
+// jobName, blocking until the build has finished successfully. Each tick
+// scans every configured jobset in order; the first jobset whose recent
+// evals contain a finished-success build for this commit wins. The returned
 // machineId is always empty: deriving the expected machine-id would require
 // a local flake evaluation, which defeats the purpose of the Hydra executor.
 func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
@@ -128,66 +198,20 @@ func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, comm
 	}
 
 	for {
-		matchedButNotFinished := false
-
-		for page := 1; page <= h.maxEvalPages; page++ {
-			pageUrl := h.baseUrl.JoinPath("/jobset/", h.project, h.jobset, "evals")
-			q := pageUrl.Query()
-			q.Set("page", fmt.Sprintf("%d", page))
-			pageUrl.RawQuery = q.Encode()
-			logrus.Infof("hydra: fetching evaluations from %s", pageUrl)
-
-			var evals hydraEvalsPage
-			if err = h.getJSON(ctx, pageUrl.String(), &evals); err != nil {
+		for _, jobset := range h.jobsets {
+			var result scanResult
+			drvPath, outPath, result, err = h.scanJobset(ctx, jobset, commitId)
+			if err != nil {
 				return
 			}
-
-			for _, ev := range evals.Evals {
-				rev := extractRevFromFlakeUrl(ev.Flake)
-				if rev == "" || !strings.HasPrefix(rev, commitId) {
-					continue
-				}
-				for _, buildId := range ev.Builds {
-					buildUrl := h.baseUrl.JoinPath("/build/", fmt.Sprintf("%d", buildId))
-					var b hydraBuild
-					if err = h.getJSON(ctx, buildUrl.String(), &b); err != nil {
-						return
-					}
-					if b.Job != h.jobName {
-						continue
-					}
-					if b.Finished == 0 {
-						logrus.Infof("hydra: matched build %d for %s/%s but not finished yet, retrying...", b.Id, commitId, h.jobName)
-						matchedButNotFinished = true
-						break
-					}
-					if b.BuildStatus == nil || *b.BuildStatus != 0 {
-						err = fmt.Errorf("hydra: build %d for %s/%s failed (buildstatus=%v)", b.Id, commitId, h.jobName, b.BuildStatus)
-						return
-					}
-					out, ok := b.BuildOutputs["out"]
-					if !ok || out.Path == "" {
-						err = fmt.Errorf("hydra: build %d for %s/%s has no 'out' output path", b.Id, commitId, h.jobName)
-						return
-					}
-					drvPath = b.DrvPath
-					outPath = out.Path
-					logrus.Infof("hydra: matched build %d for %s/%s drv=%s out=%s", b.Id, commitId, h.jobName, drvPath, outPath)
-					h.mu.Lock()
-					h.drv2Out[drvPath] = outPath
-					h.mu.Unlock()
-					return
-				}
-				if matchedButNotFinished {
-					break
-				}
+			if result == scanSuccess {
+				h.mu.Lock()
+				h.drv2Out[drvPath] = outPath
+				h.mu.Unlock()
+				return
 			}
-			if matchedButNotFinished {
-				break
-			}
-			if evals.Next == "" {
-				break
-			}
+			// scanPending or scanNoMatch: keep scanning remaining jobsets,
+			// then sleep and retry from the start.
 		}
 
 		select {
