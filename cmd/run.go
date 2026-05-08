@@ -62,13 +62,20 @@ var runCmd = &cobra.Command{
 		}
 
 		var executor executorPkg.Executor
-		if cfg.ExecutorConfig.Type == "garnix" {
+		switch cfg.ExecutorConfig.Type {
+		case "garnix":
 			systemAttr := "nixosConfigurations"
 			if runtime.GOOS == "darwin" {
 				systemAttr = "darwinConfigurations"
 			}
 			executor, err = executorPkg.NewGarnixExecutor(cfg.ExecutorConfig.GarnixConfig, systemAttr)
-		} else {
+		case "hydra":
+			systemAttr := "nixosConfigurations"
+			if runtime.GOOS == "darwin" {
+				systemAttr = "darwinConfigurations"
+			}
+			executor, err = executorPkg.NewHydraExecutor(cfg.ExecutorConfig.HydraConfig, systemAttr)
+		default:
 			executor, err = executorPkg.New(cfg.RepositoryType, gitConfig.Path, gitConfig.Submodules)
 		}
 		if err != nil {
