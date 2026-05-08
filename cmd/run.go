@@ -54,14 +54,30 @@ var runCmd = &cobra.Command{
 		}
 
 		var executor executorPkg.Executor
-		switch cfg.RepositoryType {
-		case "flake":
-			executor, err = executorPkg.NewNixOSFlake()
+		switch cfg.ExecutorConfig.Type {
+		case "garnix":
+			systemAttr := "nixosConfigurations"
 			if runtime.GOOS == "darwin" {
-				executor, err = executorPkg.NewNixDarwinFlake()
+				systemAttr = "darwinConfigurations"
 			}
-		case "nix":
-			executor, err = executorPkg.NewNixOSNix()
+			executor, err = executorPkg.NewGarnixExecutor(cfg.ExecutorConfig.GarnixConfig, systemAttr)
+		case "hydra":
+			systemAttr := "nixosConfigurations"
+			if runtime.GOOS == "darwin" {
+				systemAttr = "darwinConfigurations"
+			}
+			executor, err = executorPkg.NewHydraExecutor(cfg.ExecutorConfig.HydraConfig, systemAttr)
+		default:
+			switch cfg.RepositoryType {
+			case "flake":
+				if runtime.GOOS == "darwin" {
+					executor, err = executorPkg.NewNixDarwinFlake()
+				} else {
+					executor, err = executorPkg.NewNixOSFlake()
+				}
+			case "nix":
+				executor, err = executorPkg.NewNixOSNix()
+			}
 		}
 		if err != nil {
 			logrus.Errorf("Failed to create the executor: %s", err)

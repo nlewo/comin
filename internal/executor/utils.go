@@ -352,3 +352,16 @@ func isStorePathExist(storePath string) bool {
 	}
 	return true
 }
+
+// fetchBuild fetches the build output from the Nix binary cache
+// instead of evaluating locally. The substituter (e.g. cache.garnix.io)
+// must be configured in nix.conf for the fetch to succeed.
+func fetchBuild(ctx context.Context, outPath string) (err error) {
+	args := []string{
+		"build",
+		outPath,
+		"-L",
+		"--no-link",
+	}
+	return runNixFlakeCommand(ctx, args, os.Stdout, os.Stderr)
+}

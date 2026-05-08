@@ -27,6 +27,14 @@ in
           assertion = cfg.repositoryType == "flake" || cfg.repositoryType == "nix" && cfg.systemAttr != null;
           message = "When the `services.comin.repositoryType` is `nix`, the the configuration attribute `services.comin.systemAttr` must be set.";
         }
+        {
+          assertion = cfg.executor.type != "garnix" || cfg.repositoryType == "flake";
+          message = "When `services.comin.executor.type` is `garnix`, `services.comin.repositoryType` must be `flake` (Garnix only supports flakes).";
+        }
+        {
+          assertion = cfg.executor.type != "hydra" || cfg.repositoryType == "flake";
+          message = "When `services.comin.executor.type` is `hydra`, `services.comin.repositoryType` must be `flake` (the Hydra executor currently only supports flake-based jobsets).";
+        }
       ];
     })
   ];
@@ -377,6 +385,101 @@ in
                   Total number of deployments to keep. Includes all deployments
                   regardless of status (including failed deployments).
                 '';
+              };
+            };
+          };
+        };
+        executor = mkOption {
+          description = ''
+            Select which executor will be used for evaluating and building the system configuration.
+
+            The `garnix` executor delegates evaluation and building to garnix.io and fetches
+            the result from its binary cache. For this to work, the user must add
+            `cache.garnix.io` to `nix.settings.substituters` and the corresponding
+            `cache.garnix.io-1:...` key to `nix.settings.trusted-public-keys`.
+
+            The `hydra` executor delegates evaluation and building to a Hydra CI instance and
+            fetches the result from its binary cache. For this to work, the user must add the
+            corresponding cache URL to `nix.settings.substituters` and the matching public key
+            to `nix.settings.trusted-public-keys`. Only flake-based jobsets are supported.
+          '';
+          default = { };
+          type = submodule {
+            options = {
+              type = mkOption {
+                type = enum [
+                  "nix"
+                  "garnix"
+                  "hydra"
+                ];
+                default = "nix";
+                description = "Type of executor to use (nix, garnix or hydra).";
+              };
+              garnix = mkOption {
+                description = "Configuration for the Garnix executor.";
+                default = { };
+                type = submodule {
+                  options = {
+                    baseUrl = mkOption {
+                      type = str;
+                      default = "";
+                      description = "Base URL for the Garnix API. Defaults to https://garnix.io/ when empty.";
+                    };
+                    cacheUrl = mkOption {
+                      type = str;
+                      default = "";
+                      description = "URL of the Garnix binary cache. Defaults to https://cache.garnix.io/ when empty.";
+                    };
+                    retry_interval = mkOption {
+                      type = int;
+                      default = 0;
+                      description = "Polling interval (in seconds) when waiting for a Garnix build. Defaults to 60 when 0.";
+                    };
+                    cache_size = mkOption {
+                      type = int;
+                      default = 0;
+                      description = "LRU cache size for drvPath -> outPath mappings. Defaults to 2 when 0.";
+                    };
+                  };
+                };
+              };
+              hydra = mkOption {
+                description = "Configuration for the Hydra executor.";
+                default = { };
+                type = submodule {
+                  options = {
+                    base_url = mkOption {
+                      type = str;
+                      default = "";
+                      description = "Base URL of the Hydra instance, e.g. https://hydra.example.org.";
+                    };
+                    project = mkOption {
+                      type = str;
+                      default = "";
+                      description = "Hydra project name.";
+                    };
+                    jobset = mkOption {
+                      type = str;
+                      default = "";
+                      description = "Hydra jobset name.";
+                    };
+                    job_name = mkOption {
+                      type = str;
+                      default = "";
+                      description = "Job name to fetch from each evaluation. Defaults to the hostname when empty.";
+                    };
+                    retry_interval = mkOption {
+                      type = int;
+                      default = 0;
+                      description = "Polling interval (in seconds) when waiting for a Hydra build. Defaults to 60 when 0.";
+                    };
+                    max_eval_pages = mkOption {
+                      type = int;
+                      default = 0;
+                      description = "Number of evaluation pages to scan per poll cycle. Defaults to 5 when 0.";
+                    };
+                  };
+                };
               };
             };
           };

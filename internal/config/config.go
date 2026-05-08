@@ -69,6 +69,39 @@ func Read(path string) (config types.Configuration, err error) {
 	if !slices.Contains(supportedRepositoryTypes, config.RepositoryType) {
 		return config, fmt.Errorf("config: repository type is '%s' while it be one of '%s'", config.RepositoryType, supportedRepositoryTypes)
 	}
+	if config.ExecutorConfig.Type == "" {
+		config.ExecutorConfig.Type = "nix"
+	}
+	supportedExecutorTypes := []string{"nix", "garnix", "hydra"}
+	if !slices.Contains(supportedExecutorTypes, config.ExecutorConfig.Type) {
+		return config, fmt.Errorf("config: executor type is '%s' while it must be one of '%s'", config.ExecutorConfig.Type, supportedExecutorTypes)
+	}
+	if config.ExecutorConfig.Type == "garnix" && config.RepositoryType != "flake" {
+		return config, fmt.Errorf("config: executor type 'garnix' requires repository_type 'flake', got '%s'", config.RepositoryType)
+	}
+	if config.ExecutorConfig.Type == "hydra" {
+		if config.RepositoryType != "flake" {
+			return config, fmt.Errorf("config: executor type 'hydra' requires repository_type 'flake', got '%s'", config.RepositoryType)
+		}
+		if config.ExecutorConfig.HydraConfig.BaseUrl == "" {
+			return config, fmt.Errorf("config: executor type 'hydra' requires executor.hydra.base_url to be set")
+		}
+		if config.ExecutorConfig.HydraConfig.Project == "" {
+			return config, fmt.Errorf("config: executor type 'hydra' requires executor.hydra.project to be set")
+		}
+		if config.ExecutorConfig.HydraConfig.Jobset == "" {
+			return config, fmt.Errorf("config: executor type 'hydra' requires executor.hydra.jobset to be set")
+		}
+		if config.ExecutorConfig.HydraConfig.JobName == "" {
+			config.ExecutorConfig.HydraConfig.JobName = config.Hostname
+		}
+		if config.ExecutorConfig.HydraConfig.RetryInterval == 0 {
+			config.ExecutorConfig.HydraConfig.RetryInterval = 60
+		}
+		if config.ExecutorConfig.HydraConfig.MaxEvalPages == 0 {
+			config.ExecutorConfig.HydraConfig.MaxEvalPages = 5
+		}
+	}
 	if config.Grpc.UnixSocketPath == "" {
 		config.Grpc.UnixSocketPath = filepath.Join(config.StateDir, "grpc.sock")
 	}

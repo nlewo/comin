@@ -25,6 +25,7 @@ rec {
     build_confirmer = cfg.services.comin.buildConfirmer;
     deploy_confirmer = cfg.services.comin.deployConfirmer;
     retention = cfg.services.comin.retention;
+    executor = cfg.services.comin.executor;
   }
   // (lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null) {
     post_deployment_command = cfg.services.comin.postDeploymentCommand;
