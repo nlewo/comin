@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.13.0] - 2026-05-07
+
+### Added
+
+- `comin watch` command for monitoring repositories
+- Fetcher support to watch functionality
+- Support for proxies ([#150](https://github.com/nlewo/comin/pull/150))
+
+### Changed
+
+- Use a bare local repository for git operations ([#154](https://github.com/nlewo/comin/pull/154))
+- CLI: improved messages ([#145](https://github.com/nlewo/comin/pull/145))
+
+### Fixed
+
+- Desktop: fix typo ([#145](https://github.com/nlewo/comin/pull/145))
+
 ## [v0.12.0] - 2026-03-24
 
 ### Added
