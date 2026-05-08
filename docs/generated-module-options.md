@@ -451,23 +451,28 @@ string
 
 
 
-## services\.comin\.executor\.hydra\.jobset
+## services\.comin\.executor\.hydra\.jobsets
 
 
 
-Hydra jobset name\.
+List of Hydra jobset names to scan\. Each tick the
+executor walks every jobset in order and returns the
+first finished-success build of the current commit\.
+Use multiple jobsets when production and testing
+branches are evaluated by different jobsets (e\.g\.
+` [ "nixos-config-deploy" "nixos-config-deploy-testing" ] `)\.
 
 
 
 *Type:*
-string
+list of string
 
 
 
 *Default:*
 
 ```nix
-""
+[ ]
 ```
 
 
