@@ -43,14 +43,9 @@ in
       wantedBy = [ "graphical-session.target" ];
       path = [ pkgs.libnotify ];
       serviceConfig = {
-        ExecStart = ''${lib.getExe package} desktop --title "${cfg.services.comin.desktop.title}"'';
-      };
-    };
-    systemd.user.services.comin-tray = lib.mkIf cfg.services.comin.tray.enable {
-      wantedBy = [ "graphical-session.target" ];
-      path = [ pkgs.libnotify ];
-      serviceConfig = {
-        ExecStart = ''${lib.getExe package} tray --title "${cfg.services.comin.tray.title}"'';
+        ExecStart = ''${lib.getExe package} desktop --title "${cfg.services.comin.desktop.title}"${
+          if cfg.services.comin.desktop.tray then " --tray" else ""
+        }'';
       };
     };
 
