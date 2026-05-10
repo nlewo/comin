@@ -1,5 +1,10 @@
 package types
 
+const OperationTest = "test"
+const OperationSwitch = "switch"
+const OperationBoot = "boot"
+const OperationNull = "null"
+
 type Remote struct {
 	Name     string
 	URL      string
