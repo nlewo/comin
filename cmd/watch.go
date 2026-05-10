@@ -6,11 +6,12 @@ import (
 	"os"
 	"strings"
 
+	"time"
+
 	lipgloss "charm.land/lipgloss/v2"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/nlewo/comin/internal/client"
@@ -243,7 +244,13 @@ func (dm DeployerModel) View() string {
 				b.WriteString("  " + labelStyle.Render("Message:   ") + msg + "\n")
 			}
 		}
-		b.WriteString("  " + labelStyle.Render("Operation: ") + d.Operation + "\n")
+		operation := d.OperationComputed
+		// TODO: this is for backward compatibility because OperationComputed can be empty in existing deployments.
+		// Could be removed in release v0.15.0.
+		if operation == "" {
+			operation = d.Operation
+		}
+		b.WriteString("  " + labelStyle.Render("Operation: ") + operation + "\n")
 
 		switch d.Status {
 		case store.StatusToString(store.Running):

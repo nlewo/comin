@@ -170,3 +170,31 @@ func TestNewGeneration(t *testing.T) {
 	s, _ := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
 	s.NewGeneration("hostname", "repositoryPath", "repositoryDir", "systemAttr", &protobuf.RepositoryStatus{})
 }
+
+func TestCompareSwitchInhibitors(t *testing.T) {
+	oldInhibitors := map[string]string{
+		"inhibitor1": "old-value-1",
+		"inhibitor2": "old-value-2",
+		"common":     "common",
+	}
+	newInhibitors := map[string]string{
+		"inhibitor2": "new-value-2",
+		"inhibitor3": "new-value-3",
+		"common":     "common",
+	}
+
+	diff := compareSwitchInhibitors(oldInhibitors, newInhibitors)
+	assert.Len(t, diff, 1)
+	assert.Equal(t, inhibitorChange{old: "old-value-2", new: "new-value-2"}, diff["inhibitor2"])
+
+	diff = compareSwitchInhibitors(map[string]string{}, newInhibitors)
+	assert.Len(t, diff, 0)
+
+	// Test with empty new map
+	diff = compareSwitchInhibitors(oldInhibitors, map[string]string{})
+	assert.Len(t, diff, 0)
+
+	// Test with both maps empty
+	diff = compareSwitchInhibitors(map[string]string{}, map[string]string{})
+	assert.Len(t, diff, 0)
+}
