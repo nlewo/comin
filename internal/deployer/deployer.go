@@ -11,6 +11,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -203,6 +204,9 @@ func (d *Deployer) Submit(generation *protobuf.Generation, operation string, for
 func (d *Deployer) Run(ctx context.Context) {
 	go func() {
 		for {
+			var cominNeedRestart bool
+			var profilePath string
+			var err error
 			<-d.generationAvailableCh
 
 			if d.isSuspended.Load() {
@@ -213,12 +217,13 @@ func (d *Deployer) Run(ctx context.Context) {
 
 			d.mu.Lock()
 			g := d.GenerationToDeploy
-			operation := d.Operation
+			operationSubmitted := d.Operation
 			d.GenerationToDeploy = nil
 			d.mu.Unlock()
-			logrus.Infof("deployer: deploying generation %s with operation %s", g.Uuid, operation)
+			logrus.Infof("deployer: deploying generation %s with the submitted operation %s", g.Uuid, operationSubmitted)
 			booted, current := utils.GetBootedAndCurrentStorepaths()
-			dpl := d.store.NewDeployment(g, d.Operation, d.Reason, booted, current)
+			dpl := d.store.NewDeployment(g, operationSubmitted, d.Reason, booted, current)
+			operationComputed := dpl.Operation
 			d.mu.Lock()
 			d.previousDeployment.Swap(d.Deployment())
 			d.deployment.Store(dpl)
@@ -228,14 +233,15 @@ func (d *Deployer) Run(ctx context.Context) {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
 				continue
 			}
-			profilePaths := d.store.GetDeploymentProfilePaths()
-			cominNeedRestart, profilePath, err := d.deployerFunc(
-				ctx,
-				g.OutPath,
-				operation,
-				profilePaths,
-			)
-
+			if operationComputed != types.OperationNull {
+				profilePaths := d.store.GetDeploymentProfilePaths()
+				cominNeedRestart, profilePath, err = d.deployerFunc(
+					ctx,
+					g.OutPath,
+					operationComputed,
+					profilePaths,
+				)
+			}
 			deployment := d.Deployment()
 			deployment.EndedAt = timestamppb.New(time.Now().UTC())
 			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath, booted, current); err != nil {

@@ -23,7 +23,7 @@ service Comin {
 }
 
 message Operation {
-  string operation = 1;
+  string operation_submitted = 1;
 }
 
 message Event {
@@ -141,8 +141,12 @@ message Deployment {
   google.protobuf.BoolValue restart_comin = 6;
   string profile_path = 7;
   string status = 8;
+  string operation_submitted = 12;
   string operation = 9;
+  string operation_reason = 15;
   google.protobuf.Timestamp created_at = 11;
+  map<string, string> current_inhibitors = 13;
+  map<string, string> new_inhibitors = 14;
 }
 
 message State {

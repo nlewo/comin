@@ -1,4 +1,4 @@
-package deployer_test
+package deployer
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/broker"
-	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ func TestDeployerBasic(t *testing.T) {
 
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
-	d := deployer.New(s, deployFunc, nil, "")
+	d := New(s, deployFunc, nil, "")
 	d.Run(t.Context())
 	assert.False(t, d.IsDeploying())
 
@@ -61,7 +60,7 @@ func TestDeployerSubmit(t *testing.T) {
 
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
-	d := deployer.New(s, deployFunc, nil, "")
+	d := New(s, deployFunc, nil, "")
 	d.Run(t.Context())
 	assert.False(t, d.IsDeploying())
 
@@ -104,7 +103,7 @@ func TestDeployerSuspend(t *testing.T) {
 
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
-	d := deployer.New(s, deployFunc, nil, "")
+	d := New(s, deployFunc, nil, "")
 	d.Run(t.Context())
 	assert.False(t, d.IsSuspended())
 	d.Suspend("suspended for testing")

@@ -1,13 +1,17 @@
 package store
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
+	"os"
+	"path"
 	"slices"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -113,16 +117,40 @@ func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, 
 	s.Commit()
 }
 
-func (s *Store) NewDeployment(g *protobuf.Generation, operation, reason, bootedStorepath, currentStorepath string) *protobuf.Deployment {
+func loadInhibitors(filepath string) map[string]string {
+	if _, err := os.Stat(filepath); err != nil {
+		return nil
+	}
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil
+	}
+	defer file.Close() // nolint: errcheck
+	var inhibitors map[string]string
+	if err := json.NewDecoder(file).Decode(&inhibitors); err != nil {
+		return nil
+	}
+	return inhibitors
+}
+
+func (s *Store) NewDeployment(g *protobuf.Generation, operationSubmitted, reason, bootedStorepath, currentStorepath string) *protobuf.Deployment {
+	currentInhibitors := loadInhibitors(path.Join(currentStorepath, "switch-inhibitors"))
+	newInhibitors := loadInhibitors(path.Join(g.OutPath, "switch-inhibitors"))
+	operation, operationreason := computeOperation(operationSubmitted, currentInhibitors, newInhibitors)
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d := &protobuf.Deployment{
-		Uuid:       uuid.New().String(),
-		Generation: g,
-		Operation:  operation,
-		Reason:     reason,
-		Status:     StatusToString(Init),
-		CreatedAt:  timestamppb.New(time.Now().UTC()),
+		Uuid:               uuid.New().String(),
+		Generation:         g,
+		OperationSubmitted: operationSubmitted,
+		Operation:          operation,
+		OperationReason:    operationreason,
+		Reason:             reason,
+		Status:             StatusToString(Init),
+		CreatedAt:          timestamppb.New(time.Now().UTC()),
+		CurrentInhibitors:  currentInhibitors,
+		NewInhibitors:      newInhibitors,
 	}
 	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
 	s.Commit()
@@ -282,4 +310,47 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 	}
 
 	return current, booted, deploymentsBootEntry, deploymentsSuccessful, deploymentsAny
+}
+
+type inhibitorChange struct {
+	old string
+	new string
+}
+
+// compareSwitchInhibitors is a Go implementation of https://github.com/nixos/nixpkgs/blob/ddce4d809a16b9f0614e76636063282f6fb02908/nixos/modules/system/activation/switchable-system.nix#L101
+func compareSwitchInhibitors(current map[string]string, new map[string]string) (diff map[string]inhibitorChange) {
+	diff = make(map[string]inhibitorChange)
+	for k, v := range current {
+		if _, ok := new[k]; ok {
+			diff[k] = inhibitorChange{old: v}
+		}
+
+	}
+	for k, v := range new {
+		if existing, ok := diff[k]; ok {
+			if existing.old != v {
+				existing.new = v
+				diff[k] = existing
+			} else {
+				delete(diff, k)
+			}
+		}
+	}
+
+	return
+}
+
+func computeOperation(operation string, currentInhibitors map[string]string, newInhibitors map[string]string) (computedOperation string, reason string) {
+	diff := compareSwitchInhibitors(currentInhibitors, newInhibitors)
+	switch operation {
+	case types.OperationTest:
+		if len(diff) != 0 {
+			return types.OperationNull, "The test operation is not possible because of different switch inhibitors"
+		}
+	case types.OperationSwitch:
+		if len(diff) != 0 {
+			return types.OperationBoot, "Using the boot operation instead of switch operation because of diffrent switch inhibitors"
+		}
+	}
+	return operation, ""
 }

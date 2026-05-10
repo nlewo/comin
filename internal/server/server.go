@@ -62,7 +62,7 @@ func (s *cominServer) Fetch(ctx context.Context, empty *emptypb.Empty) (*emptypb
 }
 
 func (s *cominServer) DeploymentLatestSubmit(ctx context.Context, operation *protobuf.Operation) (*emptypb.Empty, error) {
-	err := s.manager.DeploymentLatestSubmit(operation.Operation)
+	err := s.manager.DeploymentLatestSubmit(operation.OperationSubmitted)
 	if err != nil {
 		st := status.New(codes.Aborted, err.Error())
 		err = st.Err()
