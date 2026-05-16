@@ -14,6 +14,7 @@ import (
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/http"
 	"github.com/nlewo/comin/internal/manager"
+	"github.com/nlewo/comin/internal/nats"
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/repository"
@@ -103,11 +104,9 @@ var runCmd = &cobra.Command{
 			logrus.Errorf("Failed to initialize the repository: %s", err)
 			os.Exit(1)
 		}
-
 		fetcher := fetcher.NewFetcher(repository, broker)
 		fetcher.Start(cmd.Context())
 		sched := scheduler.New()
-		sched.FetchRemotes(fetcher, cfg.Remotes)
 
 		builder := builder.New(store, executor, gitConfig.Path, gitConfig.Dir, cfg.SystemAttr, cfg.Hostname, gitConfig.Submodules, 30*time.Minute, 30*time.Minute)
 		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
@@ -142,8 +141,12 @@ var runCmd = &cobra.Command{
 		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath)
 		srv.Start()
 
+
 		prometheus.Subscribe(broker, &metrics)
 
+		n := nats.New(manager, broker)
+		n.Start()
+		sched.FetchRemotes(fetcher, cfg.Remotes)
 		manager.Run(cmd.Context())
 	},
 }
