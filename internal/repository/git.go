@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"os"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
@@ -149,6 +150,23 @@ func isAncestor(r *git.Repository, base, top plumbing.Hash) (found bool, err err
 }
 
 func repositoryOpen(config types.GitConfig) (r *git.Repository, err error) {
+	// TODO: this block could removed on release v0.16.0
+	// This has been introduced to handle the non bare repository, created before v0.13.0.
+	// This is required because go-git has some weird behaviors when cloning...
+	r, err = git.PlainOpen(config.Path)
+	if err == nil {
+		cfg, err := r.Config()
+		if err == nil {
+			if !cfg.Core.IsBare {
+				logrus.Infof("git: the repository %s is deleting because it is not a bare repository", config.Path)
+				err := os.RemoveAll(config.Path)
+				if err != nil {
+					logrus.Errorf("git: the repository %s failed to be deleted: ", err)
+				}
+			}
+		}
+	}
+
 	r, err = git.PlainInit(config.Path, true)
 	if err != nil {
 		r, err = git.PlainOpen(config.Path)

@@ -67,9 +67,11 @@ func cloneRepoToTemp(remoteDir string, commitId string, submodules bool) (string
 	if err != nil {
 		return "", fmt.Errorf("nix: failed to set reference 'archive' to '%s' in %s: %s", commitId, remoteDir, err)
 	}
-
 	cloneOpts := &git.CloneOptions{
 		URL: remoteDir,
+		NoCheckout: true,
+		ReferenceName: "refs/heads/archive",
+		SingleBranch:  true,
 	}
 	if submodules {
 		cloneOpts.RecurseSubmodules = git.DefaultSubmoduleRecursionDepth
