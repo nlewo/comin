@@ -117,7 +117,7 @@ func (c Client) Resume() error {
 	return err
 }
 func (c Client) DeploymentLatestSubmit(operation string) error {
-	_, err := c.cominClient.DeploymentLatestSubmit(context.Background(), &protobuf.Operation{Operation: operation})
+	_, err := c.cominClient.DeploymentLatestSubmit(context.Background(), &protobuf.Operation{OperationSubmitted: operation})
 	return err
 }
 
