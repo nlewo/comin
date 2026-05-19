@@ -252,6 +252,35 @@ string
 
 
 
+## services\.comin\.desktop\.tray
+
+
+
+Whether to enable Whether to run the tray with the desktop service\. This tray item allows confirming deployments and builds…
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+
+```nix
+false
+```
+
+
+
+*Example:*
+
+```nix
+true
+```
+
+
+
 ## services\.comin\.exporter
 
 
