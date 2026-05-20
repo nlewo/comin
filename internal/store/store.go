@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/nlewo/comin/internal/broker"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/encoding/protojson"

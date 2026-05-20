@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	pb "github.com/nlewo/comin/internal/protobuf"
+	pb "github.com/nlewo/comin/pkg/protobuf"
 
 	"github.com/sirupsen/logrus"
 )

@@ -8,7 +8,7 @@ import (
 	"github.com/gen2brain/beeep"
 	"github.com/nlewo/comin/internal/builder"
 	"github.com/nlewo/comin/internal/client"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

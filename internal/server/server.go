@@ -8,7 +8,7 @@ import (
 
 	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/manager"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

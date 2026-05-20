@@ -8,7 +8,7 @@ import (
 
 	"github.com/nlewo/comin/internal/client"
 	"github.com/nlewo/comin/internal/deployer"
-	pb "github.com/nlewo/comin/internal/protobuf"
+	pb "github.com/nlewo/comin/pkg/protobuf"
 	store "github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"

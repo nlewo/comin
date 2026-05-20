@@ -33,6 +33,7 @@ buildGoModule rec {
     fileset = lib.fileset.unions [
       ../cmd
       ../internal
+      ../pkg
       ../go.mod
       ../go.sum
       ../main.go

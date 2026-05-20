@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/client"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

@@ -1,7 +1,7 @@
 package repository
 
 import (
-	pb "github.com/nlewo/comin/internal/protobuf"
+	pb "github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/types"
 )
 

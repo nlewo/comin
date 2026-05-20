@@ -15,7 +15,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/nlewo/comin/internal/client"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/spf13/cobra"
 )

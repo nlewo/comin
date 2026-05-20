@@ -1,6 +1,6 @@
 package broker
 
-import "github.com/nlewo/comin/internal/protobuf"
+import "github.com/nlewo/comin/pkg/protobuf"
 
 type Broker struct {
 	stopCh    chan struct{}

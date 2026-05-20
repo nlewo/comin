@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/client"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 

@@ -11,7 +11,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
 	"github.com/nlewo/comin/internal/prometheus"
-	pb "github.com/nlewo/comin/internal/protobuf"
+	pb "github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"

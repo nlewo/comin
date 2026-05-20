@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 )
 
 type RepositoryMock struct {

@@ -5,7 +5,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.0
 // - protoc             v6.33.5
-// source: internal/protobuf/services.proto
+// source: pkg/protobuf/services.proto
 
 package protobuf
 
@@ -353,5 +353,5 @@ var Comin_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "internal/protobuf/services.proto",
+	Metadata: "pkg/protobuf/services.proto",
 }
