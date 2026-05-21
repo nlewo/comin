@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -206,7 +206,7 @@ func (s *Store) DeploymentStarted(uuid, bootedStorepath, currentStorepath string
 	d.StartedAt = timestamppb.New(time.Now().UTC())
 	d.Status = StatusToString(Running)
 	e := &protobuf.Event_DeploymentStarted{Deployment: d}
-	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentStartedType{DeploymentStartedType: e}})
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentStartedType{DeploymentStartedType: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
 	return nil
 }
@@ -229,7 +229,7 @@ func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRe
 	d.RestartComin = wrapperspb.Bool(cominNeedRestart)
 	d.ProfilePath = profilePath
 	e := &protobuf.Event_DeploymentFinished{Deployment: d}
-	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: e}})
+	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
 	return nil
 }

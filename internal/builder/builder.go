@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/executor"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/wrapperspb"

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/broker"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -134,7 +134,7 @@ func (c *Confirmer) start() {
 				logrus.Infof("confirmer: generation %s has been confirmed", command.uuid)
 				c.state.Confirmed = command.uuid
 				e := &protobuf.Event_ConfirmationConfirmed{Uuid: command.uuid}
-				c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationConfirmedType{ConfirmationConfirmedType: e}})
+				c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationConfirmedType{ConfirmationConfirmedType: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			case "cancel":
 				logrus.Infof("confirmer: confirmation of generation %s has been cancelled", command.uuid)
 				c.state.Confirmed = ""
@@ -143,7 +143,7 @@ func (c *Confirmer) start() {
 					c.timer.Stop()
 				}
 				e := &protobuf.Event_ConfirmationCancelled{Uuid: command.uuid}
-				c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationCancelledType{ConfirmationCancelledType: e}})
+				c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationCancelledType{ConfirmationCancelledType: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			}
 		case <-timer:
 			logrus.Infof("confirmer: timer confirmed generation %s", c.state.Submitted)

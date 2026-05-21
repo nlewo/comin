@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

@@ -10,7 +10,7 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
 option features.field_presence = IMPLICIT;
-option go_package = "github.com/nlewo/comin/internal/protobuf";
+option go_package = "github.com/nlewo/comin/pkg/protobuf";
 
 service Comin {
   rpc GetState(google.protobuf.Empty) returns (State) {}
@@ -85,6 +85,7 @@ message Event {
     ManagerState managerState = 13;
     Fetched fetched = 14;
   }
+  google.protobuf.Timestamp createdAt = 15;
 }
 
 message ConfirmRequest {

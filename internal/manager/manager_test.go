@@ -12,7 +12,7 @@ import (
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/prometheus"
-	"github.com/nlewo/comin/internal/protobuf"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/utils"
