@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/builder"
@@ -18,6 +19,7 @@ import (
 	"github.com/nlewo/comin/internal/prometheus"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -131,7 +133,7 @@ func (m *Manager) Suspend() error {
 	m.isSuspended = true
 	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 	m.prometheus.SetIsSuspended(m.isSuspended)
-	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}})
+	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
 }
 
@@ -146,7 +148,7 @@ func (m *Manager) Resume(ctx context.Context) error {
 	m.isSuspended = false
 	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 	m.prometheus.SetIsSuspended(m.isSuspended)
-	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}})
+	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
 }
 
@@ -253,7 +255,7 @@ func (m *Manager) Run(ctx context.Context) {
 			m.needToReboot = m.executor.NeedToReboot(dpl.Generation.OutPath, dpl.Operation)
 			if m.needToReboot {
 				e := &protobuf.Event_RebootRequired{Deployment: dpl}
-				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}})
+				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			}
 			m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 			m.prometheus.SetNeedToReboot(m.needToReboot)

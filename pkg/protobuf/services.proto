@@ -85,6 +85,7 @@ message Event {
     ManagerState managerState = 13;
     Fetched fetched = 14;
   }
+  google.protobuf.Timestamp createdAt = 15;
 }
 
 message ConfirmRequest {

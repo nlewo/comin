@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/manager"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"google.golang.org/grpc"
 )
@@ -29,7 +31,7 @@ func (s *cominServer) Events(_ *emptypb.Empty, stream grpc.ServerStreamingServer
 
 	subscriber := s.broker.Subscribe()
 	state := s.manager.GetState()
-	stateEvent := &protobuf.Event{Type: &protobuf.Event_ManagerState_{ManagerState: &protobuf.Event_ManagerState{State: state}}}
+	stateEvent := &protobuf.Event{Type: &protobuf.Event_ManagerState_{ManagerState: &protobuf.Event_ManagerState{State: state}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 	if err := stream.Send(stateEvent); err != nil {
 		logrus.Infof("server: failed to send stream: %s", err)
 		s.broker.Unsubscribe(subscriber)

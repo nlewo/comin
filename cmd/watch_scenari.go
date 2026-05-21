@@ -5,6 +5,7 @@ import (
 
 	"github.com/nlewo/comin/internal/client"
 	"github.com/nlewo/comin/pkg/protobuf"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -20,7 +21,7 @@ func dStarted(status string) *protobuf.Event {
 			SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
 			SelectedCommitMsg:  "commit message\nmulti line",
 		},
-	}}}}
+	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
 func dFinished(status string) *protobuf.Event {
 	return &protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: &protobuf.Event_DeploymentFinished{Deployment: &protobuf.Deployment{
@@ -34,7 +35,7 @@ func dFinished(status string) *protobuf.Event {
 			SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
 			SelectedCommitMsg:  "commit message\nmulti line",
 		},
-	}}}}
+	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
 func bStarted(status string) *protobuf.Event {
 	return &protobuf.Event{Type: &protobuf.Event_BuildStartedType{BuildStartedType: &protobuf.Event_BuildStarted{Generation: &protobuf.Generation{
@@ -44,7 +45,7 @@ func bStarted(status string) *protobuf.Event {
 		SelectedBranchName: "main",
 		SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
 		SelectedCommitMsg:  "commit message\nmulti line",
-	}}}}
+	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
 func bFinished(status string) *protobuf.Event {
 	return &protobuf.Event{Type: &protobuf.Event_BuildFinishedType{BuildFinishedType: &protobuf.Event_BuildFinished{Generation: &protobuf.Generation{
@@ -54,7 +55,7 @@ func bFinished(status string) *protobuf.Event {
 		SelectedBranchName: "main",
 		SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
 		SelectedCommitMsg:  "commit message\nmulti line",
-	}}}}
+	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
 
 func watchScenario() chan client.Streamer {
@@ -65,7 +66,7 @@ func watchScenario() chan client.Streamer {
 			Deployment:  dFinished("done").GetDeploymentFinishedType().Deployment,
 		},
 	}
-	init := &protobuf.Event{Type: &protobuf.Event_ManagerState_{ManagerState: &protobuf.Event_ManagerState{State: state}}}
+	init := &protobuf.Event{Type: &protobuf.Event_ManagerState_{ManagerState: &protobuf.Event_ManagerState{State: state}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 
 	events := []client.Streamer{
 		{Event: init},

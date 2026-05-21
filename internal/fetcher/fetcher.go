@@ -11,6 +11,7 @@ import (
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -74,7 +75,7 @@ func (f *Fetcher) Start(ctx context.Context) {
 				remotes = union(remotes, submittedRemotes)
 			case rs := <-workerRepositoryStatusCh:
 				f.isFetching.Store(false)
-				f.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Fetched_{Fetched: &protobuf.Event_Fetched{RepositoryStatus: rs}}})
+				f.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Fetched_{Fetched: &protobuf.Event_Fetched{RepositoryStatus: rs}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 				f.mu.Lock()
 				if rs.SelectedCommitId != f.repositoryStatus.SelectedCommitId || rs.SelectedBranchIsTesting.GetValue() != f.repositoryStatus.SelectedBranchIsTesting.GetValue() {
 					f.repositoryStatus = rs
