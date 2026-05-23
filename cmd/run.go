@@ -133,7 +133,7 @@ var runCmd = &cobra.Command{
 			configurationOperations[r.Name][r.Branches.Main.Name] = r.Branches.Main.Operation
 			configurationOperations[r.Name][r.Branches.Testing.Name] = r.Branches.Testing.Operation
 		}
-		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, executor, buildConfirmer, deployConfirmer, broker, configurationOperations)
+		manager := manager.New(store, metrics, sched, fetcher, builder, deployer, machineId, cfg.Hostname, executor, buildConfirmer, deployConfirmer, broker, configurationOperations)
 
 		http.Serve(manager,
 			metrics,
