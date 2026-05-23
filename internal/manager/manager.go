@@ -17,11 +17,11 @@ import (
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/prometheus"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -73,7 +73,7 @@ func New(s *store.Store,
 
 	m := &Manager{
 		machineId: machineId,
-		Hostname:   hostname,
+		Hostname:  hostname,
 
 		stateRequestCh:          make(chan struct{}),
 		stateResultCh:           make(chan *protobuf.State),
@@ -136,7 +136,6 @@ func (m *Manager) Suspend() error {
 	}
 	m.deployer.Suspend("manager has been manually suspended")
 	m.isSuspended = true
-	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
@@ -151,7 +150,6 @@ func (m *Manager) Resume(ctx context.Context) error {
 	}
 	m.deployer.Resume()
 	m.isSuspended = false
-	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
@@ -244,7 +242,6 @@ func (m *Manager) Run(ctx context.Context) {
 	if lastDpl != nil {
 		m.needToReboot = m.executor.NeedToReboot(lastDpl.Generation.OutPath, lastDpl.Operation)
 	}
-	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 	m.prometheus.SetNeedToReboot(m.needToReboot)
 	m.prometheus.SetIsSuspended(m.isSuspended)
 
@@ -262,7 +259,6 @@ func (m *Manager) Run(ctx context.Context) {
 				e := &protobuf.Event_RebootRequired{Deployment: dpl}
 				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			}
-			m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
 			m.prometheus.SetNeedToReboot(m.needToReboot)
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
