@@ -132,9 +132,9 @@ func (m Prometheus) SetlastFetchFailed(lastFetchFailed bool) {
 func (m Prometheus) SetLastEvalFailed(lastEvalFailed bool) {
 	m.lastEvalFailed.Set(boolToFloat64(lastEvalFailed))
 }
-func (m Prometheus) SetlastBuildFailed(lastBuildFailed bool) {
+func (m Prometheus) SetLastBuildFailed(lastBuildFailed bool) {
 	m.lastBuildFailed.Set(boolToFloat64(lastBuildFailed))
 }
-func (m Prometheus) SetlastDeploymentFailed(lastDeploymentFailed bool) {
+func (m Prometheus) SetLastDeploymentFailed(lastDeploymentFailed bool) {
 	m.lastDeploymentFailed.Set(boolToFloat64(lastDeploymentFailed))
 }
