@@ -8,15 +8,15 @@ import (
 )
 
 type Prometheus struct {
-	promRegistry             *prometheus.Registry
-	buildInfo                *prometheus.GaugeVec
-	deploymentInfo           *prometheus.GaugeVec
-	fetchCounter             *prometheus.CounterVec
-	isSuspended              prometheus.Gauge
-	needToReboot             prometheus.Gauge
-	lastFetchSuccessful      prometheus.Gauge
-	lastBuildSuccessful      prometheus.Gauge
-	lastDeploymentSuccessful prometheus.Gauge
+	promRegistry         *prometheus.Registry
+	buildInfo            *prometheus.GaugeVec
+	deploymentInfo       *prometheus.GaugeVec
+	fetchCounter         *prometheus.CounterVec
+	isSuspended          prometheus.Gauge
+	needToReboot         prometheus.Gauge
+	lastFetchFailed      prometheus.Gauge
+	lastBuildFailed      prometheus.Gauge
+	lastDeploymentFailed prometheus.Gauge
 }
 
 func New() Prometheus {
@@ -42,36 +42,36 @@ func New() Prometheus {
 		Help: "Whether the host needs to reboot (1) or not (0).",
 	})
 
-	lastFetchSuccessful := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_fetch_successful",
-		Help: "Whether the last fetch (any of the repositories) was successful (1) or not (0).",
+	lastFetchFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "last_fetch_failed",
+		Help: "Whether the last fetch (all of the repositories) failed (1) or not (0).",
 	})
-	lastBuildSuccessful := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_build_successful",
-		Help: "Whether the last build was successful (1) or not (0).",
+	lastBuildFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "last_build_failed",
+		Help: "Whether the last build failed (1) or not (0).",
 	})
-	lastDeploymentSuccessful := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_deployment_successful",
-		Help: "Whether the last deployment was successful (1) or not (0).",
+	lastDeploymentFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "last_deployment_failed",
+		Help: "Whether the last deployment failed (1) or not (0).",
 	})
 	promReg.MustRegister(buildInfo)
 	promReg.MustRegister(deploymentInfo)
 	promReg.MustRegister(fetchCounter)
 	promReg.MustRegister(isSuspended)
 	promReg.MustRegister(needToReboot)
-	promReg.MustRegister(lastFetchSuccessful)
-	promReg.MustRegister(lastBuildSuccessful)
-	promReg.MustRegister(lastDeploymentSuccessful)
+	promReg.MustRegister(lastFetchFailed)
+	promReg.MustRegister(lastBuildFailed)
+	promReg.MustRegister(lastDeploymentFailed)
 	return Prometheus{
-		promRegistry:             promReg,
-		buildInfo:                buildInfo,
-		deploymentInfo:           deploymentInfo,
-		fetchCounter:             fetchCounter,
-		isSuspended:              isSuspended,
-		needToReboot:             needToReboot,
-		lastFetchSuccessful:      lastFetchSuccessful,
-		lastBuildSuccessful:      lastBuildSuccessful,
-		lastDeploymentSuccessful: lastDeploymentSuccessful,
+		promRegistry:         promReg,
+		buildInfo:            buildInfo,
+		deploymentInfo:       deploymentInfo,
+		fetchCounter:         fetchCounter,
+		isSuspended:          isSuspended,
+		needToReboot:         needToReboot,
+		lastFetchFailed:      lastFetchFailed,
+		lastBuildFailed:      lastBuildFailed,
+		lastDeploymentFailed: lastDeploymentFailed,
 	}
 }
 
@@ -119,12 +119,12 @@ func (m Prometheus) SetNeedToReboot(needToReboot bool) {
 	m.needToReboot.Set(boolToFloat64(needToReboot))
 }
 
-func (m Prometheus) SetLastFetchSuccessful(lastFetchSuccessful bool) {
-	m.lastFetchSuccessful.Set(boolToFloat64(lastFetchSuccessful))
+func (m Prometheus) SetlastFetchFailed(lastFetchFailed bool) {
+	m.lastFetchFailed.Set(boolToFloat64(lastFetchFailed))
 }
-func (m Prometheus) SetLastBuildSuccessful(lastBuildSuccessful bool) {
-	m.lastBuildSuccessful.Set(boolToFloat64(lastBuildSuccessful))
+func (m Prometheus) SetlastBuildFailed(lastBuildFailed bool) {
+	m.lastBuildFailed.Set(boolToFloat64(lastBuildFailed))
 }
-func (m Prometheus) SetLastDeploymentSuccessful(lastDeploymentSuccessful bool) {
-	m.lastDeploymentSuccessful.Set(boolToFloat64(lastDeploymentSuccessful))
+func (m Prometheus) SetlastDeploymentFailed(lastDeploymentFailed bool) {
+	m.lastDeploymentFailed.Set(boolToFloat64(lastDeploymentFailed))
 }
