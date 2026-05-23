@@ -136,7 +136,6 @@ func (m *Manager) Suspend() error {
 	}
 	m.deployer.Suspend("manager has been manually suspended")
 	m.isSuspended = true
-	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
 }
@@ -150,7 +149,6 @@ func (m *Manager) Resume(ctx context.Context) error {
 	}
 	m.deployer.Resume()
 	m.isSuspended = false
-	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
 }
@@ -242,8 +240,6 @@ func (m *Manager) Run(ctx context.Context) {
 	if lastDpl != nil {
 		m.needToReboot = m.executor.NeedToReboot(lastDpl.Generation.OutPath, lastDpl.Operation)
 	}
-	m.prometheus.SetNeedToReboot(m.needToReboot)
-	m.prometheus.SetIsSuspended(m.isSuspended)
 
 	m.FetchAndBuild(ctx)
 	m.deployer.Run(ctx)
@@ -253,13 +249,11 @@ func (m *Manager) Run(ctx context.Context) {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
 		case dpl := <-m.deployer.DeploymentDoneCh:
-			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, dpl.Status)
 			m.needToReboot = m.executor.NeedToReboot(dpl.Generation.OutPath, dpl.Operation)
 			if m.needToReboot {
 				e := &protobuf.Event_RebootRequired{Deployment: dpl}
 				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			}
-			m.prometheus.SetNeedToReboot(m.needToReboot)
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
 				logrus.Infof("manager: comin needs to be restarted")
