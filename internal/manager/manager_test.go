@@ -100,7 +100,7 @@ func TestBuild(t *testing.T) {
 	bc.Start()
 	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e, bc, dc, bk, emptyConfigurationOperations)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "", e, bc, dc, bk, emptyConfigurationOperations)
 	go m.Run(t.Context())
 	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
 	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
@@ -214,7 +214,7 @@ func TestDeploy(t *testing.T) {
 	bc.Start()
 	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", e, bc, dc, bk, emptyConfigurationOperations)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "", "", e, bc, dc, bk, emptyConfigurationOperations)
 	go m.Run(t.Context())
 	assert.False(t, m.Fetcher.GetState().IsFetching.GetValue())
 	assert.False(t, m.Builder.State().IsEvaluating.GetValue())
@@ -244,7 +244,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	bc.Start()
 	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e, bc, dc, bk, emptyConfigurationOperations)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", "", e, bc, dc, bk, emptyConfigurationOperations)
 	go m.Run(t.Context())
 
 	f.TriggerFetch([]string{"remote"})
@@ -276,7 +276,7 @@ func TestCorrectMachineId(t *testing.T) {
 	bc.Start()
 	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", e, bc, dc, bk, emptyConfigurationOperations)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "the-test-machine-id", "", e, bc, dc, bk, emptyConfigurationOperations)
 	go m.Run(t.Context())
 
 	f.TriggerFetch([]string{"remote"})
@@ -308,7 +308,7 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	bc.Start()
 	dc := NewConfirmer(bk, Without, 0, "")
 	dc.Start()
-	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", e, bc, dc, bk, emptyConfigurationOperations)
+	m := New(s, prometheus.New(), scheduler.New(), f, b, d, "darwin-machine-id", "", e, bc, dc, bk, emptyConfigurationOperations)
 
 	// Verify the manager was created with the correct configuration attribute
 	assert.Equal(t, "darwin-machine-id", m.machineId)

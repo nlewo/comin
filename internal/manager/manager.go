@@ -31,6 +31,9 @@ type Manager struct {
 	// corresponds to the machine-id of this host.
 	machineId string
 
+	// The hostname of the current host.
+	Hostname string
+
 	stateRequestCh chan struct{}
 	stateResultCh  chan *protobuf.State
 
@@ -60,6 +63,7 @@ func New(s *store.Store,
 	builder *builder.Builder,
 	deployer *deployer.Deployer,
 	machineId string,
+	hostname string,
 	executor executor.Executor,
 	buildConfirmer *Confirmer,
 	deployConfirmer *Confirmer,
@@ -69,6 +73,7 @@ func New(s *store.Store,
 
 	m := &Manager{
 		machineId: machineId,
+		Hostname:   hostname,
 
 		stateRequestCh:          make(chan struct{}),
 		stateResultCh:           make(chan *protobuf.State),
