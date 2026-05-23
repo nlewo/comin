@@ -15,6 +15,7 @@ type Prometheus struct {
 	isSuspended          prometheus.Gauge
 	needToReboot         prometheus.Gauge
 	lastFetchFailed      prometheus.Gauge
+	lastEvalFailed       prometheus.Gauge
 	lastBuildFailed      prometheus.Gauge
 	lastDeploymentFailed prometheus.Gauge
 }
@@ -46,6 +47,10 @@ func New() Prometheus {
 		Name: "last_fetch_failed",
 		Help: "Whether the last fetch (all of the repositories) failed (1) or not (0).",
 	})
+	lastEvalFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "last_eval_failed",
+		Help: "Whether the last evaluation failed (1) or not (0).",
+	})
 	lastBuildFailed := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "last_build_failed",
 		Help: "Whether the last build failed (1) or not (0).",
@@ -60,6 +65,7 @@ func New() Prometheus {
 	promReg.MustRegister(isSuspended)
 	promReg.MustRegister(needToReboot)
 	promReg.MustRegister(lastFetchFailed)
+	promReg.MustRegister(lastEvalFailed)
 	promReg.MustRegister(lastBuildFailed)
 	promReg.MustRegister(lastDeploymentFailed)
 	return Prometheus{
@@ -70,6 +76,7 @@ func New() Prometheus {
 		isSuspended:          isSuspended,
 		needToReboot:         needToReboot,
 		lastFetchFailed:      lastFetchFailed,
+		lastEvalFailed:       lastEvalFailed,
 		lastBuildFailed:      lastBuildFailed,
 		lastDeploymentFailed: lastDeploymentFailed,
 	}
@@ -121,6 +128,9 @@ func (m Prometheus) SetNeedToReboot(needToReboot bool) {
 
 func (m Prometheus) SetlastFetchFailed(lastFetchFailed bool) {
 	m.lastFetchFailed.Set(boolToFloat64(lastFetchFailed))
+}
+func (m Prometheus) SetLastEvalFailed(lastEvalFailed bool) {
+	m.lastEvalFailed.Set(boolToFloat64(lastEvalFailed))
 }
 func (m Prometheus) SetlastBuildFailed(lastBuildFailed bool) {
 	m.lastBuildFailed.Set(boolToFloat64(lastBuildFailed))
