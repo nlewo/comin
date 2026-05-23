@@ -3,6 +3,8 @@ package prometheus
 import (
 	"net/http"
 
+	brokerPkg "github.com/nlewo/comin/internal/broker"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -80,6 +82,59 @@ func New() Prometheus {
 		lastBuildFailed:      lastBuildFailed,
 		lastDeploymentFailed: lastDeploymentFailed,
 	}
+}
+
+func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
+	go (func() {
+		c := broker.Subscribe()
+
+		for {
+			m := <-c
+
+			if fetched := m.GetFetched(); fetched != nil {
+				updateFetched(fetched, metrics)
+			}
+			if evalFinished := m.GetEvalFinishedType(); evalFinished != nil {
+				metrics.SetLastEvalFailed(
+					evalFinished.GetGeneration().GetEvalStatus() == "failed",
+				)
+			}
+			if buildFinished := m.GetBuildFinishedType(); buildFinished != nil {
+				metrics.SetLastBuildFailed(
+					buildFinished.GetGeneration().GetBuildStatus() == "failed",
+				)
+			}
+			if deploymentFinished := m.GetDeploymentFinishedType(); deploymentFinished != nil {
+				metrics.SetLastDeploymentFailed(
+					deploymentFinished.GetDeployment().GetStatus() == "failed",
+				)
+			}
+			if m.GetSuspend() != nil {
+				metrics.SetIsSuspended(true)
+			}
+			if m.GetResume() != nil {
+				metrics.SetIsSuspended(false)
+			}
+			if m.GetRebootRequired() != nil {
+				metrics.SetNeedToReboot(true)
+			}
+		}
+	})()
+}
+
+func updateFetched(fetched *protobuf.Event_Fetched, metrics *Prometheus) {
+	allFailed := true
+	for _, repo := range fetched.RepositoryStatus.GetRemotes() {
+		status := "failed"
+		success := repo.GetFetched().GetValue()
+		if success {
+			status = "succeeded"
+			allFailed = false
+		}
+
+		metrics.IncFetchCounter(repo.GetName(), status)
+	}
+	metrics.SetlastFetchFailed(allFailed)
 }
 
 func (m Prometheus) Handler() http.Handler {
