@@ -46,19 +46,19 @@ func New() Prometheus {
 	})
 
 	lastFetchFailed := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_fetch_failed",
+		Name: "comin_last_fetch_failed",
 		Help: "Whether the last fetch (all of the repositories) failed (1) or not (0).",
 	})
 	lastEvalFailed := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_eval_failed",
+		Name: "comin_last_eval_failed",
 		Help: "Whether the last evaluation failed (1) or not (0).",
 	})
 	lastBuildFailed := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_build_failed",
+		Name: "comin_last_build_failed",
 		Help: "Whether the last build failed (1) or not (0).",
 	})
 	lastDeploymentFailed := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "last_deployment_failed",
+		Name: "comin_last_deployment_failed",
 		Help: "Whether the last deployment failed (1) or not (0).",
 	})
 	promReg.MustRegister(buildInfo)
