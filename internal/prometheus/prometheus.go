@@ -95,28 +95,28 @@ func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
 				updateFetched(fetched, metrics)
 			}
 			if evalFinished := m.GetEvalFinishedType(); evalFinished != nil {
-				metrics.SetLastEvalFailed(
+				metrics.lastEvalFailed.Set(boolToFloat64(
 					evalFinished.GetGeneration().GetEvalStatus() == "failed",
-				)
+				))
 			}
 			if buildFinished := m.GetBuildFinishedType(); buildFinished != nil {
-				metrics.SetLastBuildFailed(
-					buildFinished.GetGeneration().GetBuildStatus() == "failed",
+				metrics.lastBuildFailed.Set(boolToFloat64(
+					buildFinished.GetGeneration().GetBuildStatus() == "failed"),
 				)
 			}
 			if deploymentFinished := m.GetDeploymentFinishedType(); deploymentFinished != nil {
-				metrics.SetLastDeploymentFailed(
-					deploymentFinished.GetDeployment().GetStatus() == "failed",
+				metrics.lastDeploymentFailed.Set(boolToFloat64(
+					deploymentFinished.GetDeployment().GetStatus() == "failed"),
 				)
 			}
 			if m.GetSuspend() != nil {
-				metrics.SetIsSuspended(true)
+				metrics.isSuspended.Set(boolToFloat64(true))
 			}
 			if m.GetResume() != nil {
-				metrics.SetIsSuspended(false)
+				metrics.isSuspended.Set(boolToFloat64(false))
 			}
 			if m.GetRebootRequired() != nil {
-				metrics.SetNeedToReboot(true)
+				metrics.needToReboot.Set(boolToFloat64(true))
 			}
 		}
 	})()
@@ -134,7 +134,7 @@ func updateFetched(fetched *protobuf.Event_Fetched, metrics *Prometheus) {
 
 		metrics.IncFetchCounter(repo.GetName(), status)
 	}
-	metrics.SetlastFetchFailed(allFailed)
+	metrics.lastFetchFailed.Set(boolToFloat64(allFailed))
 }
 
 func (m Prometheus) Handler() http.Handler {
@@ -171,25 +171,4 @@ func boolToFloat64(b bool) float64 {
 		return 1
 	}
 	return 0
-}
-
-func (m Prometheus) SetIsSuspended(isSuspended bool) {
-	m.isSuspended.Set(boolToFloat64(isSuspended))
-}
-
-func (m Prometheus) SetNeedToReboot(needToReboot bool) {
-	m.needToReboot.Set(boolToFloat64(needToReboot))
-}
-
-func (m Prometheus) SetlastFetchFailed(lastFetchFailed bool) {
-	m.lastFetchFailed.Set(boolToFloat64(lastFetchFailed))
-}
-func (m Prometheus) SetLastEvalFailed(lastEvalFailed bool) {
-	m.lastEvalFailed.Set(boolToFloat64(lastEvalFailed))
-}
-func (m Prometheus) SetLastBuildFailed(lastBuildFailed bool) {
-	m.lastBuildFailed.Set(boolToFloat64(lastBuildFailed))
-}
-func (m Prometheus) SetLastDeploymentFailed(lastDeploymentFailed bool) {
-	m.lastDeploymentFailed.Set(boolToFloat64(lastDeploymentFailed))
 }
