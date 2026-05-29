@@ -104,9 +104,14 @@ func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
 					buildFinished.GetGeneration().GetBuildStatus() == "failed"),
 				)
 			}
-			if deploymentFinished := m.GetDeploymentFinishedType(); deploymentFinished != nil {
+			if lastDeployment := m.GetDeploymentFinishedType(); lastDeployment != nil {
 				metrics.lastDeploymentFailed.Set(boolToFloat64(
-					deploymentFinished.GetDeployment().GetStatus() == "failed"),
+					lastDeployment.GetDeployment().GetStatus() == "failed"),
+				)
+
+				metrics.SetDeploymentInfo(
+					lastDeployment.GetDeployment().GetGeneration().GetMainCommitId(),
+					lastDeployment.GetDeployment().GetStatus(),
 				)
 			}
 			if m.GetSuspend() != nil {
