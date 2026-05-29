@@ -16,7 +16,7 @@ type Prometheus struct {
 	fetchCounter         *prometheus.CounterVec
 	isSuspended          prometheus.Gauge
 	needToReboot         prometheus.Gauge
-	lastFetchFailed      prometheus.Gauge
+	lastFetchFailed      *prometheus.GaugeVec
 	lastEvalFailed       prometheus.Gauge
 	lastBuildFailed      prometheus.Gauge
 	lastDeploymentFailed prometheus.Gauge
@@ -45,10 +45,10 @@ func New() Prometheus {
 		Help: "Whether the host needs to reboot (1) or not (0).",
 	})
 
-	lastFetchFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+	lastFetchFailed := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "comin_last_fetch_failed",
 		Help: "Whether the last fetch (all of the repositories) failed (1) or not (0).",
-	})
+	}, []string{"remote_name"})
 	lastEvalFailed := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "comin_last_eval_failed",
 		Help: "Whether the last evaluation failed (1) or not (0).",
@@ -128,18 +128,16 @@ func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
 }
 
 func updateFetched(fetched *protobuf.Event_Fetched, metrics *Prometheus) {
-	allFailed := true
 	for _, repo := range fetched.RepositoryStatus.GetRemotes() {
 		status := "failed"
 		success := repo.GetFetched().GetValue()
 		if success {
 			status = "succeeded"
-			allFailed = false
 		}
 
 		metrics.IncFetchCounter(repo.GetName(), status)
+		metrics.SetLastFetchFailed(repo.GetName(), !success)
 	}
-	metrics.lastFetchFailed.Set(boolToFloat64(allFailed))
 }
 
 func (m Prometheus) Handler() http.Handler {
@@ -162,6 +160,11 @@ func (m Prometheus) SetBuildInfo(version string) {
 func (m Prometheus) SetDeploymentInfo(commitId, status string) {
 	m.deploymentInfo.Reset()
 	m.deploymentInfo.With(prometheus.Labels{"commit_id": commitId, "status": status}).Set(1)
+}
+
+func (m Prometheus) SetLastFetchFailed(remoteName string, failed bool) {
+	m.lastFetchFailed.Reset()
+	m.lastFetchFailed.With(prometheus.Labels{"remote_name": remoteName}).Set(boolToFloat64(failed))
 }
 
 func boolToString(b bool) string {
