@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/executor"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -246,6 +246,7 @@ func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error
 	return nil
 }
 
+// Suspend only suspends the build. If an evaluation is running, it won't be stopped.
 func (b *Builder) Suspend() error {
 	if b.isSuspended {
 		return fmt.Errorf("the builder is already suspended")
@@ -266,6 +267,10 @@ func (b *Builder) Resume(ctx context.Context) error {
 		return fmt.Errorf("the builder is not suspended")
 	} else {
 		b.isSuspended = false
+		// When the builder is freshly initialized, no generation exists yet.
+		if b.GenerationUuid == "" {
+			return nil
+		}
 		generation, err := b.store.GenerationGet(b.GenerationUuid)
 		if err != nil {
 			return err
