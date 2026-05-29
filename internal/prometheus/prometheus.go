@@ -90,37 +90,32 @@ func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
 
 		for {
 			m := <-c
+			switch {
+			case m.GetFetched() != nil:
+				updateFetched(m.GetFetched(), metrics)
 
-			if fetched := m.GetFetched(); fetched != nil {
-				updateFetched(fetched, metrics)
-			}
-			if evalFinished := m.GetEvalFinishedType(); evalFinished != nil {
+			case m.GetEvalFinishedType() != nil:
 				metrics.lastEvalFailed.Set(boolToFloat64(
-					evalFinished.GetGeneration().GetEvalStatus() == "failed",
+					m.GetEvalFinishedType().GetGeneration().GetEvalStatus() == "failed",
 				))
-			}
-			if buildFinished := m.GetBuildFinishedType(); buildFinished != nil {
-				metrics.lastBuildFailed.Set(boolToFloat64(
-					buildFinished.GetGeneration().GetBuildStatus() == "failed"),
-				)
-			}
-			if lastDeployment := m.GetDeploymentFinishedType(); lastDeployment != nil {
-				metrics.lastDeploymentFailed.Set(boolToFloat64(
-					lastDeployment.GetDeployment().GetStatus() == "failed"),
-				)
 
-				metrics.SetDeploymentInfo(
-					lastDeployment.GetDeployment().GetGeneration().GetMainCommitId(),
-					lastDeployment.GetDeployment().GetStatus(),
-				)
-			}
-			if m.GetSuspend() != nil {
+			case m.GetBuildFinishedType() != nil:
+				metrics.lastBuildFailed.Set(boolToFloat64(
+					m.GetBuildFinishedType().GetGeneration().GetBuildStatus() == "failed",
+				))
+
+			case m.GetDeploymentFinishedType() != nil:
+				d := m.GetDeploymentFinishedType().GetDeployment()
+				metrics.lastDeploymentFailed.Set(boolToFloat64(d.GetStatus() == "failed"))
+				metrics.SetDeploymentInfo(d.GetGeneration().GetMainCommitId(), d.GetStatus())
+
+			case m.GetSuspend() != nil:
 				metrics.isSuspended.Set(boolToFloat64(true))
-			}
-			if m.GetResume() != nil {
+
+			case m.GetResume() != nil:
 				metrics.isSuspended.Set(boolToFloat64(false))
-			}
-			if m.GetRebootRequired() != nil {
+
+			case m.GetRebootRequired() != nil:
 				metrics.needToReboot.Set(boolToFloat64(true))
 			}
 		}
