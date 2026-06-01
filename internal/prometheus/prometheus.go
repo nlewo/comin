@@ -162,13 +162,6 @@ func (m Prometheus) SetLastFetchFailed(remoteName string, failed bool) {
 	m.lastFetchFailed.With(prometheus.Labels{"remote_name": remoteName}).Set(boolToFloat64(failed))
 }
 
-func boolToString(b bool) string {
-	if b {
-		return "1"
-	}
-	return "0"
-}
-
 func boolToFloat64(b bool) float64 {
 	if b {
 		return 1
