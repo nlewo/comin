@@ -132,7 +132,7 @@ func updateFetched(fetched *protobuf.Event_Fetched, metrics *Prometheus) {
 		}
 
 		metrics.IncFetchCounter(repo.GetName(), status)
-		metrics.lastFetchFailed.With(prometheus.Labels{"remote_name": remoteName}).Set(boolToFloat64(!success))
+		metrics.lastFetchFailed.With(prometheus.Labels{"remote_name": repo.GetName()}).Set(boolToFloat64(!success))
 	}
 }
 
