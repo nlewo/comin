@@ -123,6 +123,7 @@ func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
 }
 
 func updateFetched(fetched *protobuf.Event_Fetched, metrics *Prometheus) {
+	metrics.lastFetchFailed.Reset()
 	for _, repo := range fetched.RepositoryStatus.GetRemotes() {
 		status := "failed"
 		success := repo.GetFetched().GetValue()
@@ -131,7 +132,7 @@ func updateFetched(fetched *protobuf.Event_Fetched, metrics *Prometheus) {
 		}
 
 		metrics.IncFetchCounter(repo.GetName(), status)
-		metrics.SetLastFetchFailed(repo.GetName(), !success)
+		metrics.lastFetchFailed.With(prometheus.Labels{"remote_name": remoteName}).Set(boolToFloat64(!success))
 	}
 }
 
@@ -155,11 +156,6 @@ func (m Prometheus) SetBuildInfo(version string) {
 func (m Prometheus) SetDeploymentInfo(commitId, status string) {
 	m.deploymentInfo.Reset()
 	m.deploymentInfo.With(prometheus.Labels{"commit_id": commitId, "status": status}).Set(1)
-}
-
-func (m Prometheus) SetLastFetchFailed(remoteName string, failed bool) {
-	m.lastFetchFailed.Reset()
-	m.lastFetchFailed.With(prometheus.Labels{"remote_name": remoteName}).Set(boolToFloat64(failed))
 }
 
 func boolToFloat64(b bool) float64 {
