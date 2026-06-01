@@ -3,19 +3,23 @@ package prometheus
 import (
 	"net/http"
 
+	brokerPkg "github.com/nlewo/comin/internal/broker"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Prometheus struct {
-	promRegistry   *prometheus.Registry
-	buildInfo      *prometheus.GaugeVec
-	deploymentInfo *prometheus.GaugeVec
-	fetchCounter   *prometheus.CounterVec
-	// TODO: deprecated: remove for the next release
-	hostInfo     *prometheus.GaugeVec
-	isSuspended  prometheus.Gauge
-	needToReboot prometheus.Gauge
+	promRegistry         *prometheus.Registry
+	buildInfo            *prometheus.GaugeVec
+	deploymentInfo       *prometheus.GaugeVec
+	fetchCounter         *prometheus.CounterVec
+	isSuspended          prometheus.Gauge
+	needToReboot         prometheus.Gauge
+	lastFetchFailed      *prometheus.GaugeVec
+	lastEvalFailed       prometheus.Gauge
+	lastBuildFailed      prometheus.Gauge
+	lastDeploymentFailed prometheus.Gauge
 }
 
 func New() Prometheus {
@@ -32,11 +36,6 @@ func New() Prometheus {
 		Name: "comin_fetch_count",
 		Help: "Number of fetches per status",
 	}, []string{"remote_name", "status"})
-	// TODO: deprecated: remove for the next release
-	hostInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "comin_host_info",
-		Help: "(DEPRECATED) Info of the host.",
-	}, []string{"is_suspended", "need_to_reboot"})
 	isSuspended := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "comin_is_suspended",
 		Help: "Whether the host is suspended (1) or not (0).",
@@ -45,22 +44,95 @@ func New() Prometheus {
 		Name: "comin_need_to_reboot",
 		Help: "Whether the host needs to reboot (1) or not (0).",
 	})
+
+	lastFetchFailed := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "comin_last_fetch_failed",
+		Help: "Whether the last fetch (all of the repositories) failed (1) or not (0).",
+	}, []string{"remote_name"})
+	lastEvalFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "comin_last_eval_failed",
+		Help: "Whether the last evaluation failed (1) or not (0).",
+	})
+	lastBuildFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "comin_last_build_failed",
+		Help: "Whether the last build failed (1) or not (0).",
+	})
+	lastDeploymentFailed := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "comin_last_deployment_failed",
+		Help: "Whether the last deployment failed (1) or not (0).",
+	})
 	promReg.MustRegister(buildInfo)
 	promReg.MustRegister(deploymentInfo)
 	promReg.MustRegister(fetchCounter)
-	// TODO: deprecated: remove for the next release
-	promReg.MustRegister(hostInfo)
 	promReg.MustRegister(isSuspended)
 	promReg.MustRegister(needToReboot)
+	promReg.MustRegister(lastFetchFailed)
+	promReg.MustRegister(lastEvalFailed)
+	promReg.MustRegister(lastBuildFailed)
+	promReg.MustRegister(lastDeploymentFailed)
 	return Prometheus{
-		promRegistry:   promReg,
-		buildInfo:      buildInfo,
-		deploymentInfo: deploymentInfo,
-		fetchCounter:   fetchCounter,
-		// TODO: deprecated: remove for the next release
-		hostInfo:     hostInfo,
-		isSuspended:  isSuspended,
-		needToReboot: needToReboot,
+		promRegistry:         promReg,
+		buildInfo:            buildInfo,
+		deploymentInfo:       deploymentInfo,
+		fetchCounter:         fetchCounter,
+		isSuspended:          isSuspended,
+		needToReboot:         needToReboot,
+		lastFetchFailed:      lastFetchFailed,
+		lastEvalFailed:       lastEvalFailed,
+		lastBuildFailed:      lastBuildFailed,
+		lastDeploymentFailed: lastDeploymentFailed,
+	}
+}
+
+func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
+	go (func() {
+		c := broker.Subscribe()
+
+		for {
+			m := <-c
+			switch {
+			case m.GetFetched() != nil:
+				updateFetched(m.GetFetched(), metrics)
+
+			case m.GetEvalFinishedType() != nil:
+				metrics.lastEvalFailed.Set(boolToFloat64(
+					m.GetEvalFinishedType().GetGeneration().GetEvalStatus() == "failed",
+				))
+
+			case m.GetBuildFinishedType() != nil:
+				metrics.lastBuildFailed.Set(boolToFloat64(
+					m.GetBuildFinishedType().GetGeneration().GetBuildStatus() == "failed",
+				))
+
+			case m.GetDeploymentFinishedType() != nil:
+				d := m.GetDeploymentFinishedType().GetDeployment()
+				metrics.lastDeploymentFailed.Set(boolToFloat64(d.GetStatus() == "failed"))
+				metrics.SetDeploymentInfo(d.GetGeneration().GetMainCommitId(), d.GetStatus())
+
+			case m.GetSuspend() != nil:
+				metrics.isSuspended.Set(boolToFloat64(true))
+
+			case m.GetResume() != nil:
+				metrics.isSuspended.Set(boolToFloat64(false))
+
+			case m.GetRebootRequired() != nil:
+				metrics.needToReboot.Set(boolToFloat64(true))
+			}
+		}
+	})()
+}
+
+func updateFetched(fetched *protobuf.Event_Fetched, metrics *Prometheus) {
+	metrics.lastFetchFailed.Reset()
+	for _, repo := range fetched.RepositoryStatus.GetRemotes() {
+		status := "failed"
+		success := repo.GetFetched().GetValue()
+		if success {
+			status = "succeeded"
+		}
+
+		metrics.IncFetchCounter(repo.GetName(), status)
+		metrics.lastFetchFailed.With(prometheus.Labels{"remote_name": repo.GetName()}).Set(boolToFloat64(!success))
 	}
 }
 
@@ -86,33 +158,9 @@ func (m Prometheus) SetDeploymentInfo(commitId, status string) {
 	m.deploymentInfo.With(prometheus.Labels{"commit_id": commitId, "status": status}).Set(1)
 }
 
-func boolToString(b bool) string {
-	if b {
-		return "1"
-	}
-	return "0"
-}
-
 func boolToFloat64(b bool) float64 {
 	if b {
 		return 1
 	}
 	return 0
-}
-
-// TODO: deprecated: remove for the next release
-func (m Prometheus) SetHostInfo(needToReboot bool, isSuspended bool) {
-	m.hostInfo.Reset()
-	m.hostInfo.With(prometheus.Labels{
-		"need_to_reboot": boolToString(needToReboot),
-		"is_suspended":   boolToString(isSuspended),
-	}).Set(1)
-}
-
-func (m Prometheus) SetIsSuspended(isSuspended bool) {
-	m.isSuspended.Set(boolToFloat64(isSuspended))
-}
-
-func (m Prometheus) SetNeedToReboot(needToReboot bool) {
-	m.needToReboot.Set(boolToFloat64(needToReboot))
 }

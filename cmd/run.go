@@ -141,6 +141,9 @@ var runCmd = &cobra.Command{
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
 		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath)
 		srv.Start()
+
+		prometheus.Subscribe(broker, &metrics)
+
 		manager.Run(cmd.Context())
 	},
 }
