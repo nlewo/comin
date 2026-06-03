@@ -30,7 +30,7 @@ func (n *NixLocal) NeedToReboot(outPath, operation string) bool {
 	return utils.NeedToRebootLinux(outPath, operation)
 }
 
-func (n *NixLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
+func (n *NixLocal) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
 	tempDir, err := cloneRepoToTemp(repositoryPath, commitId, submodules)
 	defer os.RemoveAll(tempDir) // nolint: errcheck
 	if err != nil {

@@ -458,16 +458,15 @@ in
                       default = "";
                       description = "Hydra project name.";
                     };
-                    jobsets = mkOption {
-                      type = listOf str;
-                      default = [ ];
+                    jobset_prefix = mkOption {
+                      type = str;
+                      default = "";
                       description = ''
-                        List of Hydra jobset names to scan. Each tick the
-                        executor walks every jobset in order and returns the
-                        first finished-success build of the current commit.
-                        Use multiple jobsets when production and testing
-                        branches are evaluated by different jobsets (e.g.
-                        `[ "nixos-config-deploy" "nixos-config-deploy-testing" ]`).
+                        Optional prefix prepended to the deployed branch name
+                        to form the Hydra jobset name to scan. For example,
+                        prefix `nixos-` with branch `main` scans jobset
+                        `nixos-main`. When empty, the jobset name equals the
+                        branch name.
                       '';
                     };
                     job_name = mkOption {

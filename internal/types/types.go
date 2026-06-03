@@ -70,12 +70,12 @@ type GarnixConfig struct {
 }
 
 type HydraConfig struct {
-	BaseUrl       string   `yaml:"base_url"`
-	Project       string   `yaml:"project"`
-	Jobsets       []string `yaml:"jobsets"`
-	JobName       string   `yaml:"job_name"`
-	RetryInterval int      `yaml:"retry_interval"`
-	MaxEvalPages  int      `yaml:"max_eval_pages"`
+	BaseUrl       string `yaml:"base_url"`
+	Project       string `yaml:"project"`
+	JobsetPrefix  string `yaml:"jobset_prefix"`
+	JobName       string `yaml:"job_name"`
+	RetryInterval int    `yaml:"retry_interval"`
+	MaxEvalPages  int    `yaml:"max_eval_pages"`
 }
 
 type ExecutorConfig struct {
