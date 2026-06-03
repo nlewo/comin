@@ -102,7 +102,7 @@ func (g *Garnix) expectedPackageType() string {
 // cache. The returned machineId is always empty: deriving the expected
 // machine-id would require a local flake evaluation, which defeats the
 // purpose of the Garnix executor.
-func (g *Garnix) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
+func (g *Garnix) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
 	machineId = ""
 	if commitId == "" {
 		err = errors.New("garnix: commitId is required")
