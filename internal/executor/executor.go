@@ -41,3 +41,9 @@ func NewNixOSNix() (e Executor, err error) {
 	e, err = NewNixExecutor()
 	return
 }
+
+func NewSystemManagerFlake() (e Executor, err error) {
+	logrus.Info("executor: creating a system-manager flake executor")
+	e, err = NewSystemManagerFlakeExecutor()
+	return
+}
