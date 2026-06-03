@@ -252,6 +252,314 @@ string
 
 
 
+## services\.comin\.executor
+
+
+
+Select which executor will be used for evaluating and building the system configuration\.
+
+The ` garnix ` executor delegates evaluation and building to garnix\.io and fetches
+the result from its binary cache\. For this to work, the user must add
+` cache.garnix.io ` to ` nix.settings.substituters ` and the corresponding
+` cache.garnix.io-1:... ` key to ` nix.settings.trusted-public-keys `\.
+
+The ` hydra ` executor delegates evaluation and building to a Hydra CI instance and
+fetches the result from its binary cache\. For this to work, the user must add the
+corresponding cache URL to ` nix.settings.substituters ` and the matching public key
+to ` nix.settings.trusted-public-keys `\. Only flake-based jobsets are supported\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.executor\.garnix
+
+
+
+Configuration for the Garnix executor\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.executor\.garnix\.baseUrl
+
+
+
+Base URL for the Garnix API\. Defaults to https://garnix\.io/ when empty\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.garnix\.cacheUrl
+
+
+
+URL of the Garnix binary cache\. Defaults to https://cache\.garnix\.io/ when empty\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.garnix\.cache_size
+
+
+
+LRU cache size for drvPath -> outPath mappings\. Defaults to 2 when 0\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
+## services\.comin\.executor\.garnix\.retry_interval
+
+
+
+Polling interval (in seconds) when waiting for a Garnix build\. Defaults to 60 when 0\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
+## services\.comin\.executor\.hydra
+
+
+
+Configuration for the Hydra executor\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.executor\.hydra\.base_url
+
+
+
+Base URL of the Hydra instance, e\.g\. https://hydra\.example\.org\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.hydra\.job_name
+
+
+
+Job name to fetch from each evaluation\. Defaults to the hostname when empty\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.hydra\.jobset_prefix
+
+
+
+Optional prefix prepended to the deployed branch name
+to form the Hydra jobset name to scan\. For example,
+prefix ` nixos- ` with branch ` main ` scans jobset
+` nixos-main `\. When empty, the jobset name equals the
+branch name\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.hydra\.max_eval_pages
+
+
+
+Number of evaluation pages to scan per poll cycle\. Defaults to 5 when 0\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
+## services\.comin\.executor\.hydra\.project
+
+
+
+Hydra project name\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.executor\.hydra\.retry_interval
+
+
+
+Polling interval (in seconds) when waiting for a Hydra build\. Defaults to 60 when 0\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
+## services\.comin\.executor\.type
+
+
+
+Type of executor to use (nix, garnix or hydra)\.
+
+
+
+*Type:*
+one of “nix”, “garnix”, “hydra”
+
+
+
+*Default:*
+
+```nix
+"nix"
+```
+
+
+
 ## services\.comin\.exporter
 
 
