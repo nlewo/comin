@@ -1574,17 +1574,20 @@ func (x *DeployerState) GetSuspendReason() string {
 }
 
 type Store struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Deployments           []*Deployment          `protobuf:"bytes,1,rep,name=deployments" json:"deployments,omitempty"`
-	Generations           []*Generation          `protobuf:"bytes,2,rep,name=generations" json:"generations,omitempty"`
-	DeploymentSwitched    string                 `protobuf:"bytes,3,opt,name=deployment_switched,json=deploymentSwitched" json:"deployment_switched,omitempty"`
-	DeploymentBooted      string                 `protobuf:"bytes,4,opt,name=deployment_booted,json=deploymentBooted" json:"deployment_booted,omitempty"`
-	DeploymentsBootEntry  []string               `protobuf:"bytes,5,rep,name=deployments_boot_entry,json=deploymentsBootEntry" json:"deployments_boot_entry,omitempty"`
-	DeploymentsSuccessful []string               `protobuf:"bytes,6,rep,name=deployments_successful,json=deploymentsSuccessful" json:"deployments_successful,omitempty"`
-	DeploymentsAny        []string               `protobuf:"bytes,7,rep,name=deployments_any,json=deploymentsAny" json:"deployments_any,omitempty"`
-	Deployer              *DeployerState         `protobuf:"bytes,8,opt,name=deployer" json:"deployer,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"open.v1"`
+	Deployments                  []*Deployment          `protobuf:"bytes,1,rep,name=deployments" json:"deployments,omitempty"`
+	Generations                  []*Generation          `protobuf:"bytes,2,rep,name=generations" json:"generations,omitempty"`
+	DeploymentSwitched           string                 `protobuf:"bytes,3,opt,name=deployment_switched,json=deploymentSwitched" json:"deployment_switched,omitempty"`
+	DeploymentBooted             string                 `protobuf:"bytes,4,opt,name=deployment_booted,json=deploymentBooted" json:"deployment_booted,omitempty"`
+	DeploymentsBootEntry         []string               `protobuf:"bytes,5,rep,name=deployments_boot_entry,json=deploymentsBootEntry" json:"deployments_boot_entry,omitempty"`
+	DeploymentsSuccessful        []string               `protobuf:"bytes,6,rep,name=deployments_successful,json=deploymentsSuccessful" json:"deployments_successful,omitempty"`
+	DeploymentsAny               []string               `protobuf:"bytes,7,rep,name=deployments_any,json=deploymentsAny" json:"deployments_any,omitempty"`
+	Deployer                     *DeployerState         `protobuf:"bytes,8,opt,name=deployer" json:"deployer,omitempty"`
+	DeploymentBootEntryCapacity  int32                  `protobuf:"varint,9,opt,name=deployment_boot_entry_capacity,json=deploymentBootEntryCapacity" json:"deployment_boot_entry_capacity,omitempty"`
+	DeploymentSuccessfulCapacity int32                  `protobuf:"varint,10,opt,name=deployment_successful_capacity,json=deploymentSuccessfulCapacity" json:"deployment_successful_capacity,omitempty"`
+	DeploymentAnyCapacity        int32                  `protobuf:"varint,11,opt,name=deployment_any_capacity,json=deploymentAnyCapacity" json:"deployment_any_capacity,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Store) Reset() {
@@ -1671,6 +1674,27 @@ func (x *Store) GetDeployer() *DeployerState {
 		return x.Deployer
 	}
 	return nil
+}
+
+func (x *Store) GetDeploymentBootEntryCapacity() int32 {
+	if x != nil {
+		return x.DeploymentBootEntryCapacity
+	}
+	return 0
+}
+
+func (x *Store) GetDeploymentSuccessfulCapacity() int32 {
+	if x != nil {
+		return x.DeploymentSuccessfulCapacity
+	}
+	return 0
+}
+
+func (x *Store) GetDeploymentAnyCapacity() int32 {
+	if x != nil {
+		return x.DeploymentAnyCapacity
+	}
+	return 0
 }
 
 type Event_EvalStarted struct {
@@ -2491,7 +2515,7 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"\terror_msg\x18\r \x01(\tR\berrorMsg\"Y\n" +
 	"\rDeployerState\x12!\n" +
 	"\fis_suspended\x18\x01 \x01(\bR\visSuspended\x12%\n" +
-	"\x0esuspend_reason\x18\x02 \x01(\tR\rsuspendReason\"\xa0\x03\n" +
+	"\x0esuspend_reason\x18\x02 \x01(\tR\rsuspendReason\"\xe3\x04\n" +
 	"\x05Store\x126\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x14.protobuf.DeploymentR\vdeployments\x126\n" +
 	"\vgenerations\x18\x02 \x03(\v2\x14.protobuf.GenerationR\vgenerations\x12/\n" +
@@ -2500,7 +2524,11 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"\x16deployments_boot_entry\x18\x05 \x03(\tR\x14deploymentsBootEntry\x125\n" +
 	"\x16deployments_successful\x18\x06 \x03(\tR\x15deploymentsSuccessful\x12'\n" +
 	"\x0fdeployments_any\x18\a \x03(\tR\x0edeploymentsAny\x123\n" +
-	"\bdeployer\x18\b \x01(\v2\x17.protobuf.DeployerStateR\bdeployer2\xaf\x03\n" +
+	"\bdeployer\x18\b \x01(\v2\x17.protobuf.DeployerStateR\bdeployer\x12C\n" +
+	"\x1edeployment_boot_entry_capacity\x18\t \x01(\x05R\x1bdeploymentBootEntryCapacity\x12D\n" +
+	"\x1edeployment_successful_capacity\x18\n" +
+	" \x01(\x05R\x1cdeploymentSuccessfulCapacity\x126\n" +
+	"\x17deployment_any_capacity\x18\v \x01(\x05R\x15deploymentAnyCapacity2\xaf\x03\n" +
 	"\x05Comin\x125\n" +
 	"\bGetState\x12\x16.google.protobuf.Empty\x1a\x0f.protobuf.State\"\x00\x129\n" +
 	"\x05Fetch\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12;\n" +

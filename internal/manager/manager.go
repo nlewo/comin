@@ -123,7 +123,8 @@ func (m *Manager) DeploymentLatestSubmit(operation string) error {
 			operation = "switch"
 		}
 	}
-	m.deployer.Submit(latest.Generation, operation, true)
+	reason := fmt.Sprintf("The latest deployment %s has been resubmitted", latest.Uuid)
+	m.deployer.Submit(latest.Generation, operation, true, reason)
 	return nil
 }
 
@@ -208,7 +209,8 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					continue
 				}
 				operation := m.getOperationFromConfigurationOperations(generation.SelectedRemoteName, generation.SelectedBranchName)
-				m.deployer.Submit(&generation, operation, false)
+				reason := fmt.Sprintf("The generation %s needs to be deployed", generationUUID)
+				m.deployer.Submit(&generation, operation, false, reason)
 			}
 		}
 	}()

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -11,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func retentionUuids(current, booted string, bootEntries, successful, any []string) []string {
+func retentionUuids(current, booted *protobuf.Deployment, bootEntries, successful, any []*protobuf.Deployment) []string {
 	seen := make(map[string]struct{})
 	var uuids []string
 
@@ -24,16 +25,20 @@ func retentionUuids(current, booted string, bootEntries, successful, any []strin
 		}
 	}
 
-	add(current)
-	add(booted)
-	for _, uuid := range bootEntries {
-		add(uuid)
+	if current != nil {
+		add(current.Uuid)
 	}
-	for _, uuid := range successful {
-		add(uuid)
+	if booted != nil {
+		add(booted.Uuid)
 	}
-	for _, uuid := range any {
-		add(uuid)
+	for _, d := range bootEntries {
+		add(d.Uuid)
+	}
+	for _, d := range successful {
+		add(d.Uuid)
+	}
+	for _, d := range any {
+		add(d.Uuid)
 	}
 
 	slices.Sort(uuids)
@@ -55,23 +60,68 @@ func TestDeploymentRetentionMinimal(t *testing.T) {
 		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
 	}
 
-	current, booted, bootEntries, successful, any := retention(dpls, nil, "st1", "", 1, 1, 1)
+	_, current, booted, bootEntries, successful, any := retention(dpls, nil, "st1", "st1", 1, 1, 1)
 	result := retentionUuids(current, booted, bootEntries, successful, any)
 	expected := []string{"4", "5"}
 	slices.Sort(expected)
 	assert.Equal(t, expected, result)
 
-	current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "", 1, 2, 2)
+	_, current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "st1", 1, 2, 2)
 	result = retentionUuids(current, booted, bootEntries, successful, any)
 	expected = []string{"4", "5"}
 	slices.Sort(expected)
 	assert.Equal(t, expected, result)
 
-	current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "", 1, 3, 3)
+	_, current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "st1", 1, 3, 3)
 	result = retentionUuids(current, booted, bootEntries, successful, any)
 	expected = []string{"3", "4", "5"}
 	slices.Sort(expected)
 	assert.Equal(t, expected, result)
+}
+
+func TestDeploymentRetentionInitialization(t *testing.T) {
+	newDpls, current, booted, bootEntries, successful, any := retention([]*protobuf.Deployment{}, nil, "st1", "st2", 3, 3, 5)
+	assert.Equal(t, 2, len(bootEntries))
+	assert.Equal(t, 2, len(successful))
+	assert.Equal(t, 2, len(any))
+	assert.NotNil(t, current)
+	assert.NotNil(t, booted)
+	assert.Equal(t, "st1", booted.Generation.OutPath)
+	assert.Equal(t, "st2", current.Generation.OutPath)
+	assert.Equal(t, 2, len(newDpls))
+
+	// Ensure this is stable across execution
+	newDpls, current, booted, bootEntries, successful, any = retention(newDpls, nil, "st1", "st2", 3, 3, 5)
+	assert.Equal(t, 2, len(bootEntries))
+	assert.Equal(t, 2, len(successful))
+	assert.Equal(t, 2, len(any))
+	assert.NotNil(t, current)
+	assert.NotNil(t, booted)
+	assert.Equal(t, "st1", booted.Generation.OutPath)
+	assert.Equal(t, "st2", current.Generation.OutPath)
+	assert.Equal(t, 2, len(newDpls))
+
+	test := &protobuf.Deployment{
+		Uuid:      "1",
+		Operation: "test",
+		Status:    "done",
+		Generation: &protobuf.Generation{
+			OutPath: "st3",
+		},
+	}
+	newDpls, current, booted, bootEntries, successful, any = retention(newDpls, test, "st1", "st3", 3, 3, 5)
+	assert.Equal(t, 2, len(bootEntries))
+	assert.Equal(t, 3, len(successful))
+	assert.Equal(t, 3, len(any))
+	assert.NotNil(t, current)
+	assert.NotNil(t, booted)
+	assert.Equal(t, "st1", booted.Generation.OutPath)
+	assert.Equal(t, "st3", current.Generation.OutPath)
+	for _, d := range newDpls {
+		fmt.Printf("HEEEEERE: %#v\n", d)
+	}
+	assert.Equal(t, 3, len(newDpls))
+
 }
 
 func TestDeploymentRetention(t *testing.T) {
@@ -90,19 +140,19 @@ func TestDeploymentRetention(t *testing.T) {
 		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
 	}
 
-	current, booted, bootEntries, successful, any := retention(dpls, new, "st1", "", 2, 2, 2)
+	_, current, booted, bootEntries, successful, any := retention(dpls, new, "st1", "st1", 2, 2, 2)
 	result := retentionUuids(current, booted, bootEntries, successful, any)
 	expected := []string{"1", "4", "5", "6"}
 	slices.Sort(expected)
 	assert.Equal(t, expected, result)
 
-	current, booted, bootEntries, successful, any = retention(dpls, new, "st2", "", 2, 2, 2)
+	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st2", "st2", 2, 2, 2)
 	result = retentionUuids(current, booted, bootEntries, successful, any)
 	expected = []string{"1", "4", "5", "6"}
 	slices.Sort(expected)
 	assert.Equal(t, expected, result)
 
-	current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "st2", 1, 1, 1)
+	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "st2", 1, 1, 1)
 	result = retentionUuids(current, booted, bootEntries, successful, any)
 	expected = []string{"1", "4", "6"}
 	slices.Sort(expected)
@@ -121,7 +171,7 @@ func TestDeploymentRetention(t *testing.T) {
 		{Uuid: "2", Operation: "boot", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(2)},
 		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
 	}
-	current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "", 2, 7, 7)
+	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "st1", 2, 7, 7)
 	result = retentionUuids(current, booted, bootEntries, successful, any)
 	expected = []string{"1", "4", "5", "6", "7", "8", "9", "10", "11"}
 	slices.Sort(expected)
@@ -140,13 +190,13 @@ func TestDeploymentCommitAndLoad(t *testing.T) {
 	s1, _ := New(bk, filename, tmp+"/gcroots", 2, 2, 5)
 	err := s1.Load()
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(s.data.Deployments))
+	assert.Equal(t, 0, len(s.persisted.Deployments))
 
 	s.NewDeployment(&protobuf.Generation{}, "", "", "", "")
 	s1, _ = New(bk, filename, tmp+"/gcroots", 2, 2, 5)
 	err = s1.Load()
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(s.data.Deployments))
+	assert.Equal(t, 2, len(s.persisted.Deployments))
 }
 
 func TestLastDeployment(t *testing.T) {

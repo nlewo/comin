@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/types"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -73,47 +73,40 @@ func logDiff(name string, old, new []string) {
 
 // updateDataDeployments is not thread safe
 func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, new *protobuf.Deployment) {
-	current, booted, bootEntries, successful, any := retention(s.data.Deployments, new, bootedStorepath, currentStorepath, s.bootEntryCapacity, s.successfulCapacity, s.anyCapacity)
+	dpls, current, booted, bootEntries, successful, any := retention(s.persisted.Deployments, new, bootedStorepath, currentStorepath, int(s.persisted.DeploymentBootEntryCapacity), int(s.persisted.DeploymentSuccessfulCapacity), int(s.persisted.DeploymentAnyCapacity))
 
-	if current != s.data.DeploymentSwitched {
-		logrus.Infof("store: retention: the current deployment has been updated from %s to %s", s.data.DeploymentSwitched, current)
-		s.data.DeploymentSwitched = current
+	s.persisted.Deployments = dpls
+	if current.Uuid != s.persisted.DeploymentSwitched {
+		logrus.Infof("store: retention: the current deployment has been updated from %s to %s", s.persisted.DeploymentSwitched, current.Uuid)
+		s.persisted.DeploymentSwitched = current.Uuid
 	}
-	if booted != s.data.DeploymentBooted {
-		logrus.Infof("store: retention: the booted deployment has been updated from %s to %s", s.data.DeploymentSwitched, current)
-		s.data.DeploymentBooted = booted
+	if booted.Uuid != s.persisted.DeploymentBooted {
+		logrus.Infof("store: retention: the booted deployment has been updated from %s to %s", s.persisted.DeploymentBooted, booted.Uuid)
+		s.persisted.DeploymentBooted = booted.Uuid
 	}
-	logDiff("boot entries", s.data.DeploymentsBootEntry, bootEntries)
-	s.data.DeploymentsBootEntry = bootEntries
 
-	logDiff("deployments successful", s.data.DeploymentsSuccessful, successful)
-	s.data.DeploymentsSuccessful = successful
+	// Convert deployment slices to UUID slices for the persisted state
+	bootEntriesUuids := make([]string, len(bootEntries))
+	for i, d := range bootEntries {
+		bootEntriesUuids[i] = d.Uuid
+	}
+	logDiff("boot entries", s.persisted.DeploymentsBootEntry, bootEntriesUuids)
+	s.persisted.DeploymentsBootEntry = bootEntriesUuids
 
-	logDiff("any deployments", s.data.DeploymentsAny, any)
-	s.data.DeploymentsAny = any
+	successfulUuids := make([]string, len(successful))
+	for i, d := range successful {
+		successfulUuids[i] = d.Uuid
+	}
+	logDiff("deployments successful", s.persisted.DeploymentsSuccessful, successfulUuids)
+	s.persisted.DeploymentsSuccessful = successfulUuids
 
-	dpls := s.data.Deployments
-	if new != nil {
-		dpls = append(s.data.Deployments, new)
+	anyUuids := make([]string, len(any))
+	for i, d := range any {
+		anyUuids[i] = d.Uuid
 	}
-	allUuids := []string{}
-	for _, uuid := range slices.Concat([]string{current, booted}, s.data.DeploymentsBootEntry, s.data.DeploymentsSuccessful, s.data.DeploymentsAny) {
-		if !slices.Contains(allUuids, uuid) {
-			allUuids = append(allUuids, uuid)
-		}
-	}
-	acc := make([]*protobuf.Deployment, 0)
-	for _, d := range dpls {
-		if slices.Contains(allUuids, d.Uuid) && !slices.ContainsFunc(acc, func(a *protobuf.Deployment) bool { return a.Uuid == d.Uuid }) {
-			acc = append(acc, d)
-		}
-	}
-	endedAtCmp := func(a, b *protobuf.Deployment) int {
-		return -a.CreatedAt.AsTime().Compare(b.CreatedAt.AsTime())
-	}
-	slices.SortFunc(acc, endedAtCmp)
+	logDiff("any deployments", s.persisted.DeploymentsAny, anyUuids)
+	s.persisted.DeploymentsAny = anyUuids
 
-	s.data.Deployments = acc
 	s.Commit()
 }
 
@@ -159,12 +152,23 @@ func (s *Store) NewDeployment(g *protobuf.Generation, operationSubmitted, reason
 }
 
 func (s *Store) deploymentGet(uuid string) (g *protobuf.Deployment, err error) {
-	for _, d := range s.data.Deployments {
+	for _, d := range s.persisted.Deployments {
 		if d.Uuid == uuid {
 			return d, nil
 		}
 	}
 	return nil, fmt.Errorf("store: no deployment with uuid %s has been found", uuid)
+}
+
+func (s *Store) GetDeploymentByOutpath(outpath string) (d *protobuf.Deployment) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, d := range s.persisted.Deployments {
+		if d.Generation.OutPath == outpath {
+			return d
+		}
+	}
+	return
 }
 
 func (s *Store) GetDeployment(uuid string) (g *protobuf.Deployment, err error) {
@@ -176,7 +180,7 @@ func (s *Store) GetDeployment(uuid string) (g *protobuf.Deployment, err error) {
 func (s *Store) GetDeploymentLastest() (latest *protobuf.Deployment) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, d := range s.data.Deployments {
+	for _, d := range s.persisted.Deployments {
 		if latest == nil || d.EndedAt != nil && d.CreatedAt.AsTime().After(latest.CreatedAt.AsTime()) {
 			latest = d
 		}
@@ -188,7 +192,7 @@ func (s *Store) GetDeploymentProfilePaths() []string {
 	m := make(map[string]struct{})
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, d := range s.data.Deployments {
+	for _, d := range s.persisted.Deployments {
 		if d.ProfilePath != "" {
 			m[d.ProfilePath] = struct{}{}
 		}
@@ -238,11 +242,12 @@ func isBootEntry(d *protobuf.Deployment) bool {
 	return d.Operation == "boot" || d.Operation == "switch"
 }
 
-func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStorepath, switchedStorepath string, bootEntryCapacity, successfulCapacity, allCapacity int) (string, string, []string, []string, []string) {
-	var current, booted string
-	deploymentsBootEntry := make([]string, 0)
-	deploymentsSuccessful := make([]string, 0)
-	deploymentsAny := make([]string, 0)
+func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStorepath, switchedStorepath string, bootEntryCapacity, successfulCapacity, allCapacity int) ([]*protobuf.Deployment, *protobuf.Deployment, *protobuf.Deployment, []*protobuf.Deployment, []*protobuf.Deployment, []*protobuf.Deployment) {
+	var current, booted *protobuf.Deployment
+	deploymentsBootEntry := make([]*protobuf.Deployment, 0)
+	deploymentsSuccessful := make([]*protobuf.Deployment, 0)
+	deploymentsAny := make([]*protobuf.Deployment, 0)
+	result := make([]*protobuf.Deployment, 0)
 
 	if new != nil {
 		dpls = append(dpls, new)
@@ -257,17 +262,61 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 	// 1. Always keep the current booted system
 	for _, d := range dpls {
 		if isBootEntry(d) && d.Status == "done" && d.Generation.OutPath == bootedStorepath {
-			booted = d.Uuid
+			booted = d
+			if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+				result = append(result, d)
+			}
 			break
 		}
 	}
 
+	// If no deployment has been found for the boot storepath, we create a dummy one. This could happen when the store.jon file has been deleted or at first comin run.
+	if booted == nil {
+		d := &protobuf.Deployment{
+			Uuid: uuid.New().String(),
+			Generation: &protobuf.Generation{
+				OutPath: bootedStorepath,
+			},
+			Operation: types.OperationBoot,
+			Reason:    fmt.Sprintf("Empty deployment because the booted storepath %s has not be found in the deployment list", bootedStorepath),
+			Status:    StatusToString(Done),
+		}
+		logrus.Infof("store: dummy deployment %s created for the currently booted storepath %s", d.Uuid, d.Generation.OutPath)
+		booted = d
+		dpls = append(dpls, d)
+		result = append(result, d)
+		slices.SortFunc(dpls, endedAtCmp)
+	}
+
 	// 2. Always keep the current switched system
 	for _, d := range dpls {
-		if d.Operation == "switch" && d.Status == "done" && d.Generation.OutPath == switchedStorepath {
-			current = d.Uuid
+		if d.Status == "done" && d.Generation.OutPath == switchedStorepath {
+			current = d
+			if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+				result = append(result, d)
+			}
 			break
 		}
+	}
+
+	// If no deployment has been found for the switched storepath, we create a dummy one. This could happen when the store.jon file has been deleted or at first comin run.
+	if current == nil {
+		d := &protobuf.Deployment{
+			Uuid: uuid.New().String(),
+			Generation: &protobuf.Generation{
+				OutPath: switchedStorepath,
+			},
+			// We don't know if the currently switched storepath is comin from a test operation or switch operation.
+			// So, we consider it comes from a switch opeartion in order to preserve it in the bootloader.
+			Operation: types.OperationSwitch,
+			Reason:    fmt.Sprintf("Empty deployment because the switched storepath %s has not be found in the deployment list", switchedStorepath),
+			Status:    StatusToString(Done),
+		}
+		logrus.Infof("store: dummy deployment %s created for the currently switched storepath %s", d.Uuid, d.Generation.OutPath)
+		current = d
+		result = append(result, d)
+		dpls = append(dpls, d)
+		slices.SortFunc(dpls, endedAtCmp)
 	}
 
 	// 3. Boot entries with storepath deduplication
@@ -283,7 +332,12 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 			continue
 		}
 		storepaths[d.Generation.OutPath] = struct{}{}
-		deploymentsBootEntry = append(deploymentsBootEntry, d.Uuid)
+		if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+			result = append(result, d)
+		}
+		if !slices.ContainsFunc(deploymentsBootEntry, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+			deploymentsBootEntry = append(deploymentsBootEntry, d)
+		}
 	}
 
 	// 4. Successful deployments (any operation)
@@ -296,7 +350,12 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 			break
 		}
 		counter++
-		deploymentsSuccessful = append(deploymentsSuccessful, d.Uuid)
+		if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+			result = append(result, d)
+		}
+		if !slices.ContainsFunc(deploymentsSuccessful, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+			deploymentsSuccessful = append(deploymentsSuccessful, d)
+		}
 	}
 
 	// 5. All deployments (any status)
@@ -306,10 +365,17 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 			break
 		}
 		counter++
-		deploymentsAny = append(deploymentsAny, d.Uuid)
+		if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+			result = append(result, d)
+		}
+		if !slices.ContainsFunc(deploymentsAny, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
+			deploymentsAny = append(deploymentsAny, d)
+		}
 	}
 
-	return current, booted, deploymentsBootEntry, deploymentsSuccessful, deploymentsAny
+	slices.SortFunc(result, endedAtCmp)
+
+	return result, current, booted, deploymentsBootEntry, deploymentsSuccessful, deploymentsAny
 }
 
 type inhibitorChange struct {
