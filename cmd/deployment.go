@@ -135,6 +135,65 @@ var deploymentLatestCmd = &cobra.Command{
 	},
 }
 
+func getDeployment(store *protobuf.Store, uuid string) (dpl *protobuf.Deployment) {
+	for _, d := range store.Deployments {
+		if d.Uuid == uuid {
+			return d
+		}
+	}
+	return
+}
+
+func printDeployments(store *protobuf.Store, uuids []string) {
+	for _, u := range uuids {
+		dpl := getDeployment(store, u)
+		str := fmt.Sprintf(" deployment with %s doesn't exist in the store, this should never happen.", u)
+		if dpl != nil {
+			str = fmt.Sprintf("ended_at=%s operation=%s status=%s reason=%s", dpl.EndedAt.AsTime().Format(time.DateTime), dpl.Operation, dpl.Status, dpl.Reason)
+		}
+		fmt.Printf("  - %s: %s\n", u, str)
+	}
+}
+
+var deploymentRetentionList = &cobra.Command{
+	Use:  "retention-list",
+	Args: cobra.MinimumNArgs(0),
+	Run: func(cmd *cobra.Command, args []string) {
+		opts := client.ClientOpts{
+			UnixSocketPath: "/var/lib/comin/grpc.sock",
+		}
+		c, err := client.New(opts)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		status, err := c.GetManagerState()
+		if err != nil {
+			logrus.Fatal(err)
+		}
+		st := status.Store
+
+		fmt.Printf("Currently booted deployment:\n")
+		printDeployments(st, []string{st.DeploymentBooted})
+		fmt.Printf("\n")
+
+		fmt.Printf("Currently switched deployment:\n")
+		printDeployments(st, []string{st.DeploymentSwitched})
+		fmt.Printf("\n")
+
+		fmt.Printf("Retention for the boot entries deployments (capacity: %d)\n", st.DeploymentBootEntryCapacity)
+		printDeployments(st, st.DeploymentsBootEntry)
+		fmt.Printf("\n")
+
+		fmt.Printf("Retention for the successful deployments (capacity: %d)\n", st.DeploymentSuccessfulCapacity)
+		printDeployments(st, st.DeploymentsSuccessful)
+		fmt.Printf("\n")
+
+		fmt.Printf("Retention for the deployments history (capacity: %d)\n", st.DeploymentAnyCapacity)
+		printDeployments(st, st.DeploymentsAny)
+		fmt.Printf("\n")
+	},
+}
+
 var deploymentLatestSubmitCmd = &cobra.Command{
 	Use:   "submit-latest",
 	Short: "Submit the latest deployment",
@@ -175,4 +234,5 @@ func init() {
 	deploymentLatestSubmitCmd.Flags().StringP("operation", "", "", "the deployment operation: [boot, test, switch]")
 	deploymentCmd.AddCommand(deploymentLatestSubmitCmd)
 	deploymentCmd.AddCommand(deploymentLatestSwitchCmd)
+	deploymentCmd.AddCommand(deploymentRetentionList)
 }

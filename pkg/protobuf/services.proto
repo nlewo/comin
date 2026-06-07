@@ -243,5 +243,9 @@ message Store {
   repeated string deployments_boot_entry = 5;
   repeated string deployments_successful = 6;
   repeated string deployments_any = 7;
+
   DeployerState deployer = 8;
+  int32 deployment_boot_entry_capacity = 9;
+  int32 deployment_successful_capacity = 10;
+  int32 deployment_any_capacity = 11;
 }
