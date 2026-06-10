@@ -12,6 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
@@ -81,6 +82,26 @@ func fetch(r repository, remote types.Remote) (err error) {
 			Username: remote.Auth.Username,
 			Password: remote.Auth.AccessToken,
 		}
+	} else if remote.Auth.SshDeployKeyPath != "" {
+		sshPubKeyAuth, err := ssh.NewPublicKeysFromFile(remote.Auth.Username, remote.Auth.SshDeployKeyPath, "")
+		if err != nil {
+			logrus.Errorf("Failed to load SSH private key from '%s': %s", remote.Auth.SshDeployKeyPath, err)
+			return fmt.Errorf("loading SSH private key failed: %s", err)
+		}
+		// Set the host key callback explicitly. Otherwise go-git builds a
+		// default one from $HOME/.ssh/known_hosts, which fails with
+		// "$HOME is not defined" when running as a systemd service.
+		knownHostsPath := remote.Auth.SshKnownHostsPath
+		if knownHostsPath == "" {
+			knownHostsPath = "/etc/ssh/ssh_known_hosts"
+		}
+		hostKeyCallback, err := ssh.NewKnownHostsCallback(knownHostsPath)
+		if err != nil {
+			logrus.Errorf("Failed to load SSH known_hosts from '%s'", knownHostsPath)
+			return fmt.Errorf("loading SSH known_hosts file failed: %s", knownHostsPath)
+		}
+		sshPubKeyAuth.HostKeyCallback = hostKeyCallback
+		fetchOptions.Auth = sshPubKeyAuth
 	}
 
 	// TODO: we should get a parent context
