@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 	"os"
+	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
@@ -15,34 +15,6 @@ import (
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
-
-func RepositoryClone(directory, url, commitId, accessToken string) error {
-	options := &git.CloneOptions{
-		URL:        url,
-		NoCheckout: true,
-	}
-	if accessToken != "" {
-		options.Auth = &http.BasicAuth{
-			Username: "comin",
-			Password: accessToken,
-		}
-	}
-	repository, err := git.PlainClone(directory, false, options)
-	if err != nil {
-		return err
-	}
-	worktree, err := repository.Worktree()
-	if err != nil {
-		return err
-	}
-	err = worktree.Checkout(&git.CheckoutOptions{
-		Hash: plumbing.NewHash(commitId),
-	})
-	if err != nil {
-		return fmt.Errorf("cannot checkout the commit ID %s: '%s'", commitId, err)
-	}
-	return nil
-}
 
 func getRemoteCommitHash(r repository, remote, branch string) *plumbing.Hash {
 	remoteBranch := fmt.Sprintf("refs/remotes/%s/%s", remote, branch)
