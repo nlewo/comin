@@ -1,11 +1,11 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/nlewo/comin/pkg/client"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -18,16 +18,16 @@ var eventsCmd = &cobra.Command{
 		opts := client.ClientOpts{
 			UnixSocketPath: "/var/lib/comin/grpc.sock",
 		}
-		client, err := client.New(opts)
+		c, err := client.New(opts)
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		err = client.Events(func(event *protobuf.Event) error {
-			fmt.Println(event)
-			return nil
-		})
-		if err != nil {
-			log.Fatalf("failed to consume to the event stream: %s", err)
+		ch := c.Stream(context.Background())
+		for streamer := range ch {
+			if streamer.FailureMsg != "" {
+				log.Fatalf("failed to consume to the event stream: %s", streamer.FailureMsg)
+			}
+			fmt.Println(streamer.Event)
 		}
 	},
 }
