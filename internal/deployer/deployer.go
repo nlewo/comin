@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/nlewo/comin/internal/utils"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -182,7 +182,7 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation 
 // running, this generation will be deployed once the current
 // deployment is finished. If this generation is the same than the one
 // of the last deployment, this generation is skipped.
-func (d *Deployer) Submit(generation *protobuf.Generation, operation string, force bool) {
+func (d *Deployer) Submit(generation *protobuf.Generation, operation string, force bool, reason string) {
 	forceStr := "false"
 	if force {
 		forceStr = "true"
@@ -194,6 +194,7 @@ func (d *Deployer) Submit(generation *protobuf.Generation, operation string, for
 	if force || !d.IsAlreadyDeployed(generation, operation) {
 		d.GenerationToDeploy = generation
 		d.Operation = operation
+		d.Reason = reason
 		select {
 		case d.generationAvailableCh <- struct{}{}:
 		default:
