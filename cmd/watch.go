@@ -12,7 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/nlewo/comin/internal/client"
+	"github.com/nlewo/comin/pkg/client"
 	"github.com/nlewo/comin/pkg/tui"
 	"github.com/spf13/cobra"
 )

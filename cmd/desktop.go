@@ -1,13 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/gen2brain/beeep"
 	"github.com/nlewo/comin/internal/builder"
-	"github.com/nlewo/comin/internal/client"
+	"github.com/nlewo/comin/pkg/client"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/sirupsen/logrus"
@@ -38,12 +39,19 @@ var desktopCmd = &cobra.Command{
 			opts := client.ClientOpts{
 				UnixSocketPath: unixSocketPath,
 			}
-			client, err := client.New(opts)
+			c, err := client.New(opts)
 			if err != nil {
 				logrus.Fatal(err)
 			}
-			err = client.Events(handler)
-			log.Fatalf("failed to consume to the event stream: %s", err)
+			ch := c.Stream(context.Background())
+			for streamer := range ch {
+				if streamer.FailureMsg != "" {
+					log.Fatalf("failed to consume to the event stream: %s", streamer.FailureMsg)
+				}
+				if err := handler(streamer.Event); err != nil {
+					log.Fatalf("handler error: %s", err)
+				}
+			}
 		}
 	},
 }
