@@ -229,7 +229,6 @@ func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRe
 		d.Status = StatusToString(Done)
 	}
 	d.EndedAt = timestamppb.New(time.Now().UTC())
-	d.Status = StatusToString(Done)
 	d.RestartComin = wrapperspb.Bool(cominNeedRestart)
 	d.ProfilePath = profilePath
 	e := &protobuf.Event_DeploymentFinished{Deployment: d}
