@@ -30,11 +30,9 @@ type GitConfig struct {
 }
 
 type Auth struct {
-	AccessToken       string
-	AccessTokenPath   string `yaml:"access_token_path"`
-	SshDeployKeyPath  string `yaml:"ssh_deploy_key_path"`
-	SshKnownHostsPath string `yaml:"ssh_known_hosts_path"`
-	Username          string
+	AccessToken     string
+	AccessTokenPath string `yaml:"access_token_path"`
+	Username        string
 }
 
 type Branch struct {

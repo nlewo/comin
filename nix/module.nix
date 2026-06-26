@@ -37,11 +37,7 @@ in
         assertion = package == null -> lib.elem system (lib.attrNames self.packages);
         message = "comin: ${system} is not supported by the Flake.";
       }
-    ]
-    ++ lib.forEach cfg.services.comin.remotes (remote: {
-      assertion = !(remote.auth.access_token_path != "" && remote.auth.ssh_deploy_key_path != "");
-      message = "comin: remote `${remote.name}` sets both `auth.access_token_path` and `auth.ssh_deploy_key_path`; set at most one.";
-    });
+    ];
 
     systemd.user.services.comin-desktop = lib.mkIf cfg.services.comin.desktop.enable {
       wantedBy = [ "graphical-session.target" ];

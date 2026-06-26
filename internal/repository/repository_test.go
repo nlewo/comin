@@ -715,29 +715,6 @@ func TestTestingHardReset(t *testing.T) {
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 }
 
-func TestFetchSshBadKeyPath(t *testing.T) {
-	r1Dir := t.TempDir()
-	cominRepositoryDir := t.TempDir()
-	_, _ = initRemoteRepostiory(r1Dir, true)
-	gitConfig := types.GitConfig{
-		Path: cominRepositoryDir,
-		Remotes: []types.Remote{{
-			Name: "r1",
-			URL:  r1Dir,
-			Auth: types.Auth{
-				SshDeployKeyPath: "/nonexistent/key",
-				Username:         "git",
-			},
-			Branches: types.Branches{Main: types.Branch{Name: "main"}},
-			Timeout:  30,
-		}},
-	}
-	r, err := New(gitConfig, "", prometheus.New())
-	assert.Nil(t, err)
-	r.Fetch([]string{"r1"})
-	assert.NotEmpty(t, r.RepositoryStatus.Remotes[0].FetchErrorMsg)
-}
-
 func TestUpdateGpg(t *testing.T) {
 	dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()

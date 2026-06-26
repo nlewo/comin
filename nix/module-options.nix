@@ -158,23 +158,6 @@ in
                         username is valid on GitLab and GitHub.
                       '';
                     };
-                    ssh_deploy_key_path = mkOption {
-                      type = nullOr path;
-                      default = null;
-                      description = ''
-                        Path to the SSH private key used to authenticate to the Git remote.
-                      '';
-                    };
-                    ssh_known_hosts_path = mkOption {
-                      type = nullOr path;
-                      default = null;
-                      description = ''
-                        Path to the known_hosts file used to verify the SSH
-                        host key of the Git remote. Defaults to
-                        /etc/ssh/ssh_known_hosts when unset. The remote's host
-                        key must be present in this file.
-                      '';
-                    };
                   };
                 };
               };
