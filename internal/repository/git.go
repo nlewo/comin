@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 	"os"
+	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
@@ -12,37 +12,10 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
 )
-
-func RepositoryClone(directory, url, commitId, accessToken string) error {
-	options := &git.CloneOptions{
-		URL:        url,
-		NoCheckout: true,
-	}
-	if accessToken != "" {
-		options.Auth = &http.BasicAuth{
-			Username: "comin",
-			Password: accessToken,
-		}
-	}
-	repository, err := git.PlainClone(directory, false, options)
-	if err != nil {
-		return err
-	}
-	worktree, err := repository.Worktree()
-	if err != nil {
-		return err
-	}
-	err = worktree.Checkout(&git.CheckoutOptions{
-		Hash: plumbing.NewHash(commitId),
-	})
-	if err != nil {
-		return fmt.Errorf("cannot checkout the commit ID %s: '%s'", commitId, err)
-	}
-	return nil
-}
 
 func getRemoteCommitHash(r repository, remote, branch string) *plumbing.Hash {
 	remoteBranch := fmt.Sprintf("refs/remotes/%s/%s", remote, branch)
@@ -109,6 +82,26 @@ func fetch(r repository, remote types.Remote) (err error) {
 			Username: remote.Auth.Username,
 			Password: remote.Auth.AccessToken,
 		}
+	} else if remote.Auth.SshDeployKeyPath != "" {
+		sshPubKeyAuth, err := ssh.NewPublicKeysFromFile(remote.Auth.Username, remote.Auth.SshDeployKeyPath, "")
+		if err != nil {
+			logrus.Errorf("Failed to load SSH private key from '%s': %s", remote.Auth.SshDeployKeyPath, err)
+			return fmt.Errorf("loading SSH private key failed: %s", err)
+		}
+		// Set the host key callback explicitly. Otherwise go-git builds a
+		// default one from $HOME/.ssh/known_hosts, which fails with
+		// "$HOME is not defined" when running as a systemd service.
+		knownHostsPath := remote.Auth.SshKnownHostsPath
+		if knownHostsPath == "" {
+			knownHostsPath = "/etc/ssh/ssh_known_hosts"
+		}
+		hostKeyCallback, err := ssh.NewKnownHostsCallback(knownHostsPath)
+		if err != nil {
+			logrus.Errorf("Failed to load SSH known_hosts from '%s'", knownHostsPath)
+			return fmt.Errorf("loading SSH known_hosts file failed: %s", knownHostsPath)
+		}
+		sshPubKeyAuth.HostKeyCallback = hostKeyCallback
+		fetchOptions.Auth = sshPubKeyAuth
 	}
 
 	// TODO: we should get a parent context
