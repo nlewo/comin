@@ -87,6 +87,7 @@ var runCmd = &cobra.Command{
 		if err := store.Load(); err != nil {
 			logrus.Errorf("Ignoring the state file %s because of the loading error: %s", storeFilename, err)
 		}
+		prometheus.Subscribe(broker, &metrics)
 		metrics.SetBuildInfo(cmd.Version)
 
 		// We get the last mainCommitId to avoid useless
@@ -141,8 +142,6 @@ var runCmd = &cobra.Command{
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
 		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath)
 		srv.Start()
-
-		prometheus.Subscribe(broker, &metrics)
 
 		manager.Run(cmd.Context())
 	},
