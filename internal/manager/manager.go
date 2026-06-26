@@ -241,6 +241,10 @@ func (m *Manager) Run(ctx context.Context) {
 	lastDpl := m.deployer.State().Deployment
 	if lastDpl != nil {
 		m.needToReboot = m.executor.NeedToReboot(lastDpl.Generation.OutPath, lastDpl.Operation)
+		if m.needToReboot {
+			e := &protobuf.Event_RebootRequired{Deployment: lastDpl}
+			m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
+		}
 	}
 
 	m.FetchAndBuild(ctx)
