@@ -1,10 +1,17 @@
 package repository
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/pem"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
@@ -14,6 +21,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/ssh"
 )
 
 func getRemoteCommitHash(r repository, remote, branch string) *plumbing.Hash {
@@ -207,4 +215,355 @@ func commitSignedBy(r *git.Repository, commitId string, publicKeys []string) (si
 		}
 	}
 	return nil, fmt.Errorf("commit %s is not signed", commitId)
+}
+
+func commitSignedByTrustedKey(r *git.Repository, commitId string, gpgPublicKeys []string, sshAllowedSigners string) (string, error) {
+	var verifyErr error
+	if len(gpgPublicKeys) > 0 {
+		entity, err := commitSignedBy(r, commitId, gpgPublicKeys)
+		if err == nil {
+			return entity.PrimaryIdentity().Name, nil
+		}
+		verifyErr = err
+	}
+	if sshAllowedSigners != "" {
+		signedBy, err := commitSignedBySSH(r, commitId, sshAllowedSigners)
+		if err == nil {
+			return signedBy, nil
+		}
+		verifyErr = err
+	}
+	if verifyErr != nil {
+		return "", verifyErr
+	}
+	return "", fmt.Errorf("commit %s is not signed", commitId)
+}
+
+type sshAllowedSigner struct {
+	principal  string
+	key        ssh.PublicKey
+	namespaces []string
+}
+
+func commitSignedBySSH(r *git.Repository, commitId string, allowedSigners string) (string, error) {
+	commit, err := r.CommitObject(plumbing.NewHash(commitId))
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(allowedSigners) == "" {
+		return "", fmt.Errorf("commit %s is not signed", commitId)
+	}
+	if !strings.HasPrefix(strings.TrimSpace(commit.PGPSignature), "-----BEGIN SSH SIGNATURE-----") {
+		return "", fmt.Errorf("commit %s is not signed", commitId)
+	}
+
+	signature, err := parseSSHSignature(commit.PGPSignature)
+	if err != nil {
+		return "", fmt.Errorf("commit %s has an invalid SSH signature: %w", commitId, err)
+	}
+	if signature.namespace != "git" {
+		return "", fmt.Errorf("commit %s has SSH signature namespace %q instead of git", commitId, signature.namespace)
+	}
+
+	encoded := &plumbing.MemoryObject{}
+	if err := commit.EncodeWithoutSignature(encoded); err != nil {
+		return "", err
+	}
+	reader, err := encoded.Reader()
+	if err != nil {
+		return "", err
+	}
+	defer reader.Close() // nolint:errcheck
+	payload, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	signedData, err := sshSignedData(signature.namespace, signature.reserved, signature.hashAlgorithm, payload)
+	if err != nil {
+		return "", err
+	}
+
+	signers, err := parseSSHAllowedSigners(allowedSigners)
+	if err != nil {
+		return "", err
+	}
+	for _, signer := range signers {
+		if !signer.allowsNamespace(signature.namespace) {
+			continue
+		}
+		if !bytes.Equal(signer.key.Marshal(), signature.publicKey) {
+			continue
+		}
+		if err := signer.key.Verify(signedData, signature.signature); err == nil {
+			logrus.Debugf("Commit %s signed by %s", commitId, signer.principal)
+			return signer.principal, nil
+		}
+	}
+	return "", fmt.Errorf("commit %s is not signed", commitId)
+}
+
+func parseSSHAllowedSigners(allowedSigners string) ([]sshAllowedSigner, error) {
+	signers := []sshAllowedSigner{}
+	for lineNumber, line := range strings.Split(allowedSigners, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		principalField, rest, ok := splitFirstField(line)
+		if !ok {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d", lineNumber+1)
+		}
+		principal, err := sshPrincipalFromPatternList(principalField)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d: %w", lineNumber+1, err)
+		}
+		options, keyInput, err := splitSSHAllowedSignersRest(rest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d: %w", lineNumber+1, err)
+		}
+		namespaces, err := sshNamespacesFromOptions(options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d: %w", lineNumber+1, err)
+		}
+		key, _, keyOptions, keyRest, err := ssh.ParseAuthorizedKey([]byte(keyInput))
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d: %w", lineNumber+1, err)
+		}
+		if len(keyOptions) > 0 {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d: unsupported SSH allowed signer option %q", lineNumber+1, keyOptions[0])
+		}
+		if strings.TrimSpace(string(keyRest)) != "" {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d: unsupported trailing data", lineNumber+1)
+		}
+		if _, ok := key.(*ssh.Certificate); ok {
+			return nil, fmt.Errorf("failed to read the SSH allowed signer on line %d: SSH certificates are not supported", lineNumber+1)
+		}
+		signers = append(signers, sshAllowedSigner{
+			principal:  principal,
+			key:        key,
+			namespaces: namespaces,
+		})
+	}
+	if len(signers) == 0 {
+		return nil, fmt.Errorf("no SSH allowed signers found")
+	}
+	return signers, nil
+}
+
+func splitFirstField(line string) (string, string, bool) {
+	i := strings.IndexFunc(line, unicode.IsSpace)
+	if i < 0 {
+		return "", "", false
+	}
+	return line[:i], strings.TrimLeftFunc(line[i:], unicode.IsSpace), true
+}
+
+func splitSSHAllowedSignersRest(rest string) (string, string, error) {
+	first, remaining, err := splitSSHToken(rest)
+	if err != nil {
+		return "", "", err
+	}
+	if first == "" {
+		return "", "", fmt.Errorf("missing SSH public key")
+	}
+	if isSSHPublicKeyType(first) {
+		return "", rest, nil
+	}
+	if remaining == "" {
+		return "", "", fmt.Errorf("missing SSH public key")
+	}
+	return first, remaining, nil
+}
+
+func splitSSHToken(s string) (string, string, error) {
+	inQuote := false
+	for i, r := range s {
+		if r == '"' {
+			inQuote = !inQuote
+			continue
+		}
+		if unicode.IsSpace(r) && !inQuote {
+			return s[:i], strings.TrimLeftFunc(s[i:], unicode.IsSpace), nil
+		}
+	}
+	if inQuote {
+		return "", "", fmt.Errorf("unterminated quote")
+	}
+	return s, "", nil
+}
+
+func isSSHPublicKeyType(token string) bool {
+	return strings.HasPrefix(token, "ssh-") ||
+		strings.HasPrefix(token, "ecdsa-") ||
+		strings.HasPrefix(token, "sk-")
+}
+
+func sshPrincipalFromPatternList(patternList string) (string, error) {
+	principals := strings.Split(patternList, ",")
+	for _, principal := range principals {
+		if !isSupportedSSHPattern(principal) {
+			return "", fmt.Errorf("unsupported SSH principal pattern %q", principal)
+		}
+	}
+	return principals[0], nil
+}
+
+func sshNamespacesFromOptions(options string) ([]string, error) {
+	var namespaces []string
+	if options == "" {
+		return nil, nil
+	}
+	seenNamespaces := false
+	optionTokens, err := splitSSHOptionTokens(options)
+	if err != nil {
+		return nil, err
+	}
+	for _, option := range optionTokens {
+		if strings.HasPrefix(option, "namespaces=") {
+			if seenNamespaces {
+				return nil, fmt.Errorf("duplicate SSH namespaces option")
+			}
+			seenNamespaces = true
+			value, err := parseSSHOptionValue(strings.TrimPrefix(option, "namespaces="))
+			if err != nil {
+				return nil, err
+			}
+			namespaces = []string{}
+			for _, namespace := range strings.Split(value, ",") {
+				if !isSupportedSSHPattern(namespace) {
+					return nil, fmt.Errorf("unsupported SSH namespace pattern %q", namespace)
+				}
+				namespaces = append(namespaces, namespace)
+			}
+			continue
+		}
+		return nil, fmt.Errorf("unsupported SSH allowed signer option %q", option)
+	}
+	return namespaces, nil
+}
+
+func splitSSHOptionTokens(options string) ([]string, error) {
+	tokens := []string{}
+	start := 0
+	inQuote := false
+	for i, r := range options {
+		if r == '"' {
+			inQuote = !inQuote
+			continue
+		}
+		if r == ',' && !inQuote {
+			token := options[start:i]
+			if token == "" {
+				return nil, fmt.Errorf("unsupported SSH allowed signer option %q", token)
+			}
+			tokens = append(tokens, token)
+			start = i + 1
+		}
+	}
+	if inQuote {
+		return nil, fmt.Errorf("unterminated quote")
+	}
+	token := options[start:]
+	if token == "" {
+		return nil, fmt.Errorf("unsupported SSH allowed signer option %q", token)
+	}
+	return append(tokens, token), nil
+}
+
+func parseSSHOptionValue(value string) (string, error) {
+	if !strings.HasPrefix(value, "\"") || !strings.HasSuffix(value, "\"") || strings.Contains(value, "\\") {
+		return "", fmt.Errorf("unsupported SSH namespace pattern %q", value)
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(value, "\""), "\""), nil
+}
+
+func isSupportedSSHPattern(pattern string) bool {
+	return pattern != "" && pattern == strings.TrimSpace(pattern) && (pattern == "*" || !strings.ContainsAny(pattern, "*?!\"'"))
+}
+
+func (s sshAllowedSigner) allowsNamespace(namespace string) bool {
+	if len(s.namespaces) == 0 {
+		return true
+	}
+	for _, allowed := range s.namespaces {
+		if allowed == namespace || allowed == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+type sshCommitSignature struct {
+	publicKey     []byte
+	namespace     string
+	reserved      string
+	hashAlgorithm string
+	signature     *ssh.Signature
+}
+
+func parseSSHSignature(signature string) (*sshCommitSignature, error) {
+	block, _ := pem.Decode([]byte(strings.TrimSpace(signature)))
+	if block == nil || block.Type != "SSH SIGNATURE" {
+		return nil, fmt.Errorf("not an SSH signature")
+	}
+	if !bytes.HasPrefix(block.Bytes, []byte("SSHSIG")) {
+		return nil, fmt.Errorf("missing SSH signature magic")
+	}
+
+	var wire struct {
+		Version       uint32
+		PublicKey     []byte
+		Namespace     string
+		Reserved      string
+		HashAlgorithm string
+		Signature     []byte
+	}
+	if err := ssh.Unmarshal(block.Bytes[len("SSHSIG"):], &wire); err != nil {
+		return nil, err
+	}
+	if wire.Version != 1 {
+		return nil, fmt.Errorf("unsupported SSH signature version %d", wire.Version)
+	}
+	if _, err := ssh.ParsePublicKey(wire.PublicKey); err != nil {
+		return nil, err
+	}
+
+	sshSignature := &ssh.Signature{}
+	if err := ssh.Unmarshal(wire.Signature, sshSignature); err != nil {
+		return nil, err
+	}
+
+	return &sshCommitSignature{
+		publicKey:     wire.PublicKey,
+		namespace:     wire.Namespace,
+		reserved:      wire.Reserved,
+		hashAlgorithm: wire.HashAlgorithm,
+		signature:     sshSignature,
+	}, nil
+}
+
+func sshSignedData(namespace, reserved, hashAlgorithm string, payload []byte) ([]byte, error) {
+	var digest []byte
+	switch hashAlgorithm {
+	case "sha256":
+		sum := sha256.Sum256(payload)
+		digest = sum[:]
+	case "sha512":
+		sum := sha512.Sum512(payload)
+		digest = sum[:]
+	default:
+		return nil, fmt.Errorf("unsupported SSH signature hash algorithm %q", hashAlgorithm)
+	}
+
+	return append([]byte("SSHSIG"), ssh.Marshal(struct {
+		Namespace     string
+		Reserved      string
+		HashAlgorithm string
+		Hash          []byte
+	}{
+		Namespace:     namespace,
+		Reserved:      reserved,
+		HashAlgorithm: hashAlgorithm,
+		Hash:          digest,
+	})...), nil
 }

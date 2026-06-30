@@ -266,6 +266,11 @@ in
           type = listOf str;
           default = [ ];
         };
+        sshAllowedSignersPath = mkOption {
+          description = "An OpenSSH allowed signers file path used to verify SSH-signed Git commits.";
+          type = nullOr str;
+          default = null;
+        };
         postDeploymentCommand = mkOption {
           description = "A path to a script executed after each
         deployment. comin provides to the script the following

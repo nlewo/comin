@@ -65,10 +65,22 @@ configuration to the new machine.
 ## Check Git commit signatures
 
 The option `services.comin.gpgPublicKeyPaths` allows to declare a list
-of GPG public keys. If `services.comin.gpgPublicKeyPaths != []`, comin **only** evaluates commits signed
-by one of these GPG keys. Note only the last commit needs to be signed.
+of GPG public keys. If `services.comin.gpgPublicKeyPaths != []` or
+`services.comin.sshAllowedSignersPath` is set, comin only evaluates commits
+signed by a configured commit-signing trust source. Note only the last commit
+needs to be signed.
 
 The file containing a GPG public key has to be created with `gpg --armor  --export alice@cyb.org`.
+
+The option `services.comin.sshAllowedSignersPath` can also be used to verify
+SSH-signed commits with an OpenSSH allowed signers file. For example:
+
+```text
+alice@example.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...
+```
+
+comin supports public key entries and the optional `namespaces=` restriction;
+other allowed signers options are rejected.
 
 
 ## How to deploy a nix-darwin configuration

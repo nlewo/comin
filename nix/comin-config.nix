@@ -26,6 +26,9 @@ rec {
     deploy_confirmer = cfg.services.comin.deployConfirmer;
     retention = cfg.services.comin.retention;
   }
+  // (lib.optionalAttrs (cfg.services.comin.sshAllowedSignersPath != null) {
+    ssh_allowed_signers_path = cfg.services.comin.sshAllowedSignersPath;
+  })
   // (lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null) {
     post_deployment_command = cfg.services.comin.postDeploymentCommand;
   });
