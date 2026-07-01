@@ -1,10 +1,12 @@
 package repository
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/pem"
+	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/ssh"
 )
 
 const testSSHPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDL18Zw2FkReAMqtgjNAvTr0il/FmljJnOtEGApGqZcp ssh@example.com"
@@ -102,65 +105,99 @@ func HeadCommitId(r *git.Repository) string {
 
 func initSSHSignedRemoteRepository(t *testing.T) (dir, allowedSignersPath, commitId string) {
 	t.Helper()
-	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git is required for SSH signed commit tests")
-	}
-	if _, err := exec.LookPath("ssh-keygen"); err != nil {
-		t.Skip("ssh-keygen is required for SSH signed commit tests")
-	}
 
 	dir = t.TempDir()
-	runTestCommand(t, dir, "git", "init", "-q")
-	runTestCommand(t, dir, "git", "checkout", "-q", "-b", "main")
-	runTestCommand(t, dir, "git", "config", "user.name", "SSH Test")
-	runTestCommand(t, dir, "git", "config", "user.email", "ssh@example.com")
-	runTestCommand(t, dir, "git", "config", "gpg.format", "ssh")
-
-	signingKeyPath := filepath.Join(dir, "signing_key")
-	runTestCommand(t, dir, "ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "ssh@example.com", "-f", signingKeyPath)
-	runTestCommand(t, dir, "git", "config", "user.signingkey", signingKeyPath+".pub")
+	remoteRepository, err := git.PlainInit(dir, false)
+	assert.Nil(t, err)
+	worktree, err := remoteRepository.Worktree()
+	assert.Nil(t, err)
 
 	filename := filepath.Join(dir, "file-1")
 	assert.Nil(t, os.WriteFile(filename, []byte("file-1"), 0644))
-	runTestCommand(t, dir, "git", "add", "file-1")
-	runTestCommand(t, dir, "git", "commit", "-q", "-S", "-m", "file-1")
-	commitId = runTestCommand(t, dir, "git", "rev-parse", "HEAD")
-
-	publicKey, err := os.ReadFile(signingKeyPath + ".pub")
+	_, err = worktree.Add("file-1")
 	assert.Nil(t, err)
+	hash, err := worktree.Commit("file-1", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "SSH Test",
+			Email: "ssh@example.com",
+			When:  time.Unix(0, 0),
+		},
+	})
+	assert.Nil(t, err)
+
+	commit, err := remoteRepository.CommitObject(hash)
+	assert.Nil(t, err)
+	signer := testSSHSigner(t)
+	signedHash := signCommitWithSSH(t, remoteRepository, commit, signer)
+	assert.Nil(t, remoteRepository.Storer.SetReference(
+		plumbing.NewHashReference(plumbing.NewBranchReferenceName("main"), signedHash),
+	))
+	assert.Nil(t, remoteRepository.Storer.SetReference(
+		plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName("main")),
+	))
+	commitId = signedHash.String()
+
 	allowedSignersPath = filepath.Join(dir, "allowed_signers")
-	assert.Nil(t, os.WriteFile(allowedSignersPath, []byte("ssh@example.com "+string(publicKey)), 0644))
+	assert.Nil(t, os.WriteFile(allowedSignersPath, []byte("ssh@example.com "+string(ssh.MarshalAuthorizedKey(signer.PublicKey()))), 0644))
 
 	return dir, allowedSignersPath, commitId
 }
 
-func runTestCommand(t *testing.T, dir, command string, args ...string) string {
+func testSSHSigner(t *testing.T) ssh.Signer {
 	t.Helper()
-	cmd := exec.Command(command, args...)
-	cmd.Dir = dir
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("%s %s failed: %s\n%s", command, strings.Join(args, " "), err, string(output))
-	}
-	return strings.TrimSpace(string(output))
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	assert.Nil(t, err)
+	signer, err := ssh.NewSignerFromKey(privateKey)
+	assert.Nil(t, err)
+	return signer
+}
+
+func signCommitWithSSH(t *testing.T, repository *git.Repository, commit *object.Commit, signer ssh.Signer) plumbing.Hash {
+	t.Helper()
+	encoded := &plumbing.MemoryObject{}
+	assert.Nil(t, commit.EncodeWithoutSignature(encoded))
+	reader, err := encoded.Reader()
+	assert.Nil(t, err)
+	defer reader.Close() // nolint:errcheck
+	payload, err := io.ReadAll(reader)
+	assert.Nil(t, err)
+
+	signedData, err := sshSignedData("git", "", "sha512", payload)
+	assert.Nil(t, err)
+	signature, err := signer.Sign(rand.Reader, signedData)
+	assert.Nil(t, err)
+	commit.PGPSignature = string(pem.EncodeToMemory(&pem.Block{
+		Type: "SSH SIGNATURE",
+		Bytes: append([]byte("SSHSIG"), ssh.Marshal(sshSignatureWire{
+			Version:       1,
+			PublicKey:     signer.PublicKey().Marshal(),
+			Namespace:     "git",
+			Reserved:      "",
+			HashAlgorithm: "sha512",
+			Signature:     ssh.Marshal(signature),
+		})...),
+	}))
+
+	obj := repository.Storer.NewEncodedObject()
+	assert.Nil(t, commit.Encode(obj))
+	hash, err := repository.Storer.SetEncodedObject(obj)
+	assert.Nil(t, err)
+	return hash
 }
 
 func testSSHCertificatePublicKey(t *testing.T) string {
 	t.Helper()
-	if _, err := exec.LookPath("ssh-keygen"); err != nil {
-		t.Skip("ssh-keygen is required for SSH certificate tests")
+	caSigner := testSSHSigner(t)
+	cert := &ssh.Certificate{
+		Key:             testSSHSigner(t).PublicKey(),
+		Serial:          1,
+		CertType:        ssh.UserCert,
+		KeyId:           "test-cert",
+		ValidPrincipals: []string{"ssh@example.com"},
+		ValidBefore:     ssh.CertTimeInfinity,
 	}
-
-	dir := t.TempDir()
-	caKeyPath := filepath.Join(dir, "ca_key")
-	userKeyPath := filepath.Join(dir, "user_key")
-	runTestCommand(t, dir, "ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "ca@example.com", "-f", caKeyPath)
-	runTestCommand(t, dir, "ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "ssh@example.com", "-f", userKeyPath)
-	runTestCommand(t, dir, "ssh-keygen", "-q", "-s", caKeyPath, "-I", "test-cert", "-n", "ssh@example.com", userKeyPath+".pub")
-
-	cert, err := os.ReadFile(userKeyPath + "-cert.pub")
-	assert.Nil(t, err)
-	return strings.TrimSpace(string(cert))
+	assert.Nil(t, cert.SignCert(rand.Reader, caSigner))
+	return string(ssh.MarshalAuthorizedKey(cert))
 }
 
 func TestIsAncestor(t *testing.T) {
@@ -204,16 +241,16 @@ func TestHeadSignedBy(t *testing.T) {
 
 	failPublic, _ := os.ReadFile("./fail.public")
 	testPublic, _ := os.ReadFile("./test.public")
-	signedBy, err := commitSignedBy(remoteRepository, commitId, []string{string(failPublic), string(testPublic)})
+	signedBy, err := commitSignedByGPG(remoteRepository, commitId, []string{string(failPublic), string(testPublic)})
 	assert.Nil(t, err)
 	assert.Equal(t, "test <test@comin.space>", signedBy.PrimaryIdentity().Name)
 
-	signedBy, err = commitSignedBy(remoteRepository, commitId, []string{string(failPublic)})
+	signedBy, err = commitSignedByGPG(remoteRepository, commitId, []string{string(failPublic)})
 	assert.ErrorContains(t, err, "is not signed")
 	assert.Nil(t, signedBy)
 
 	commitId, _ = commitFileAndSign(remoteRepository, dir, "main", "file-2", nil)
-	signedBy, err = commitSignedBy(remoteRepository, commitId, []string{string(failPublic), string(testPublic)})
+	signedBy, err = commitSignedByGPG(remoteRepository, commitId, []string{string(failPublic), string(testPublic)})
 	assert.ErrorContains(t, err, "is not signed")
 	assert.Nil(t, signedBy)
 
@@ -232,7 +269,7 @@ func TestHeadSignedBySSH(t *testing.T) {
 	assert.Equal(t, "ssh@example.com", signedBy)
 
 	signedBy, err = commitSignedBySSH(remoteRepository, commitId, "")
-	assert.ErrorContains(t, err, "is not signed")
+	assert.ErrorContains(t, err, "no SSH allowed signers found")
 	assert.Equal(t, "", signedBy)
 }
 

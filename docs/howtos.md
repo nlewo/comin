@@ -77,6 +77,7 @@ SSH-signed commits with an OpenSSH allowed signers file. For example:
 
 ```text
 alice@example.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA...
+bob@example.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5BBBB...
 ```
 
 comin supports public key entries and the optional `namespaces=` restriction;

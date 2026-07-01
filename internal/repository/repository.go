@@ -217,7 +217,7 @@ func (r *repository) Update() error {
 
 	if len(r.gpgPubliKeys) > 0 || r.sshAllowedSigners != "" {
 		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(true)
-		signedBy, err := commitSignedByTrustedKey(r.Repository, selectedCommitId, r.gpgPubliKeys, r.sshAllowedSigners)
+		signedBy, err := commitSignedBy(r.Repository, selectedCommitId, r.gpgPubliKeys, r.sshAllowedSigners)
 		if err != nil {
 			r.RepositoryStatus.ErrorMsg = err.Error()
 		}

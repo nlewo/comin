@@ -202,7 +202,7 @@ func manageRemote(r *git.Repository, remote types.Remote) error {
 	return nil
 }
 
-func commitSignedBy(r *git.Repository, commitId string, publicKeys []string) (signedBy *openpgp.Entity, err error) {
+func commitSignedByGPG(r *git.Repository, commitId string, publicKeys []string) (signedBy *openpgp.Entity, err error) {
 	commit, err := r.CommitObject(plumbing.NewHash(commitId))
 	if err != nil {
 		return nil, err
@@ -217,10 +217,10 @@ func commitSignedBy(r *git.Repository, commitId string, publicKeys []string) (si
 	return nil, fmt.Errorf("commit %s is not signed", commitId)
 }
 
-func commitSignedByTrustedKey(r *git.Repository, commitId string, gpgPublicKeys []string, sshAllowedSigners string) (string, error) {
+func commitSignedBy(r *git.Repository, commitId string, gpgPublicKeys []string, sshAllowedSigners string) (string, error) {
 	var verifyErr error
 	if len(gpgPublicKeys) > 0 {
-		entity, err := commitSignedBy(r, commitId, gpgPublicKeys)
+		entity, err := commitSignedByGPG(r, commitId, gpgPublicKeys)
 		if err == nil {
 			return entity.PrimaryIdentity().Name, nil
 		}
@@ -250,11 +250,8 @@ func commitSignedBySSH(r *git.Repository, commitId string, allowedSigners string
 	if err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(allowedSigners) == "" {
-		return "", fmt.Errorf("commit %s is not signed", commitId)
-	}
 	if !strings.HasPrefix(strings.TrimSpace(commit.PGPSignature), "-----BEGIN SSH SIGNATURE-----") {
-		return "", fmt.Errorf("commit %s is not signed", commitId)
+		return "", fmt.Errorf("commit %s is not signed with SSH", commitId)
 	}
 
 	signature, err := parseSSHSignature(commit.PGPSignature)
@@ -501,6 +498,22 @@ type sshCommitSignature struct {
 	signature     *ssh.Signature
 }
 
+type sshSignatureWire struct {
+	Version       uint32
+	PublicKey     []byte
+	Namespace     string
+	Reserved      string
+	HashAlgorithm string
+	Signature     []byte
+}
+
+type sshSignedDataWire struct {
+	Namespace     string
+	Reserved      string
+	HashAlgorithm string
+	Hash          []byte
+}
+
 func parseSSHSignature(signature string) (*sshCommitSignature, error) {
 	block, _ := pem.Decode([]byte(strings.TrimSpace(signature)))
 	if block == nil || block.Type != "SSH SIGNATURE" {
@@ -510,14 +523,7 @@ func parseSSHSignature(signature string) (*sshCommitSignature, error) {
 		return nil, fmt.Errorf("missing SSH signature magic")
 	}
 
-	var wire struct {
-		Version       uint32
-		PublicKey     []byte
-		Namespace     string
-		Reserved      string
-		HashAlgorithm string
-		Signature     []byte
-	}
+	var wire sshSignatureWire
 	if err := ssh.Unmarshal(block.Bytes[len("SSHSIG"):], &wire); err != nil {
 		return nil, err
 	}
@@ -555,12 +561,7 @@ func sshSignedData(namespace, reserved, hashAlgorithm string, payload []byte) ([
 		return nil, fmt.Errorf("unsupported SSH signature hash algorithm %q", hashAlgorithm)
 	}
 
-	return append([]byte("SSHSIG"), ssh.Marshal(struct {
-		Namespace     string
-		Reserved      string
-		HashAlgorithm string
-		Hash          []byte
-	}{
+	return append([]byte("SSHSIG"), ssh.Marshal(sshSignedDataWire{
 		Namespace:     namespace,
 		Reserved:      reserved,
 		HashAlgorithm: hashAlgorithm,
