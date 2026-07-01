@@ -23,10 +23,11 @@ type GitConfig struct {
 	// The repository Path
 	Path string
 	// The directory in the repository
-	Dir               string
-	Remotes           []Remote
-	GpgPublicKeyPaths []string
-	Submodules        bool
+	Dir                   string
+	Remotes               []Remote
+	GpgPublicKeyPaths     []string
+	SshAllowedSignersPath string
+	Submodules            bool
 }
 
 type Auth struct {
@@ -81,6 +82,7 @@ type Configuration struct {
 	Grpc                  Grpc       `yaml:"grpc"`
 	Exporter              HttpServer `yaml:"exporter"`
 	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
+	SshAllowedSignersPath string     `yaml:"ssh_allowed_signers_path"`
 	PostDeploymentCommand string     `yaml:"post_deployment_command"`
 	BuildConfirmer        Confirmer  `yaml:"build_confirmer"`
 	DeployConfirmer       Confirmer  `yaml:"deploy_confirmer"`

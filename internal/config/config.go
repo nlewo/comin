@@ -78,10 +78,11 @@ func Read(path string) (config types.Configuration, err error) {
 
 func MkGitConfig(config types.Configuration) types.GitConfig {
 	return types.GitConfig{
-		Path:              filepath.Join(config.StateDir, "repository"),
-		Dir:               config.RepositorySubdir,
-		Remotes:           config.Remotes,
-		GpgPublicKeyPaths: config.GpgPublicKeyPaths,
-		Submodules:        config.Submodules,
+		Path:                  filepath.Join(config.StateDir, "repository"),
+		Dir:                   config.RepositorySubdir,
+		Remotes:               config.Remotes,
+		GpgPublicKeyPaths:     config.GpgPublicKeyPaths,
+		SshAllowedSignersPath: config.SshAllowedSignersPath,
+		Submodules:            config.Submodules,
 	}
 }
