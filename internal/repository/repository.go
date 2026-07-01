@@ -25,7 +25,7 @@ type repository struct {
 	RepositoryStatus  *pb.RepositoryStatus
 	prometheus        prometheus.Prometheus
 	gpgPubliKeys      []string
-	sshAllowedSigners string
+	sshAllowedSigners []sshAllowedSigner
 }
 
 type Repository interface {
@@ -48,14 +48,14 @@ func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prom
 		}
 		gpgPublicKeys[i] = string(k)
 	}
-	sshAllowedSigners := ""
+	var sshAllowedSigners []sshAllowedSigner
 	if config.SshAllowedSignersPath != "" {
 		k, err := os.ReadFile(config.SshAllowedSignersPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open the SSH allowed signers file %s: %w", config.SshAllowedSignersPath, err)
 		}
-		sshAllowedSigners = string(k)
-		if _, err := parseSSHAllowedSigners(sshAllowedSigners); err != nil {
+		sshAllowedSigners, err = parseSSHAllowedSigners(string(k))
+		if err != nil {
 			return nil, fmt.Errorf("failed to read the SSH allowed signers file %s: %w", config.SshAllowedSignersPath, err)
 		}
 	}
@@ -215,7 +215,7 @@ func (r *repository) Update() error {
 		r.RepositoryStatus.SelectedCommitId = selectedCommitId
 	}
 
-	if len(r.gpgPubliKeys) > 0 || r.sshAllowedSigners != "" {
+	if len(r.gpgPubliKeys) > 0 || len(r.sshAllowedSigners) > 0 {
 		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(true)
 		signedBy, err := commitSignedBy(r.Repository, selectedCommitId, r.gpgPubliKeys, r.sshAllowedSigners)
 		if err != nil {

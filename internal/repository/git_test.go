@@ -264,13 +264,33 @@ func TestHeadSignedBySSH(t *testing.T) {
 	allowedSigners, err := os.ReadFile(allowedSignersPath)
 	assert.Nil(t, err)
 
-	signedBy, err := commitSignedBySSH(remoteRepository, commitId, string(allowedSigners))
+	signers, err := parseSSHAllowedSigners(string(allowedSigners))
+	assert.Nil(t, err)
+
+	signedBy, err := commitSignedBySSH(remoteRepository, commitId, signers)
 	assert.Nil(t, err)
 	assert.Equal(t, "ssh@example.com", signedBy)
 
-	signedBy, err = commitSignedBySSH(remoteRepository, commitId, "")
+	_, err = parseSSHAllowedSigners("")
 	assert.ErrorContains(t, err, "no SSH allowed signers found")
-	assert.Equal(t, "", signedBy)
+}
+
+func TestSSHSignatureRejectsSHA1Algorithms(t *testing.T) {
+	publicKey := testSSHSigner(t).PublicKey()
+	for _, format := range []string{"ssh-rsa", "ssh-dss"} {
+		signature := pem.EncodeToMemory(&pem.Block{
+			Type: "SSH SIGNATURE",
+			Bytes: append([]byte("SSHSIG"), ssh.Marshal(sshSignatureWire{
+				Version:       1,
+				PublicKey:     publicKey.Marshal(),
+				Namespace:     "git",
+				HashAlgorithm: "sha512",
+				Signature:     ssh.Marshal(ssh.Signature{Format: format, Blob: []byte("signature")}),
+			})...),
+		})
+		_, err := parseSSHSignature(string(signature))
+		assert.ErrorContains(t, err, "unsupported SSH signature algorithm")
+	}
 }
 
 func TestSSHAllowedSignersRejectUnsupportedOptions(t *testing.T) {

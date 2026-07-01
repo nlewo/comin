@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -217,21 +218,21 @@ func commitSignedByGPG(r *git.Repository, commitId string, publicKeys []string) 
 	return nil, fmt.Errorf("commit %s is not signed", commitId)
 }
 
-func commitSignedBy(r *git.Repository, commitId string, gpgPublicKeys []string, sshAllowedSigners string) (string, error) {
+func commitSignedBy(r *git.Repository, commitId string, gpgPublicKeys []string, sshAllowedSigners []sshAllowedSigner) (string, error) {
 	var verifyErr error
 	if len(gpgPublicKeys) > 0 {
 		entity, err := commitSignedByGPG(r, commitId, gpgPublicKeys)
 		if err == nil {
 			return entity.PrimaryIdentity().Name, nil
 		}
-		verifyErr = err
+		verifyErr = errors.Join(verifyErr, err)
 	}
-	if sshAllowedSigners != "" {
+	if len(sshAllowedSigners) > 0 {
 		signedBy, err := commitSignedBySSH(r, commitId, sshAllowedSigners)
 		if err == nil {
 			return signedBy, nil
 		}
-		verifyErr = err
+		verifyErr = errors.Join(verifyErr, err)
 	}
 	if verifyErr != nil {
 		return "", verifyErr
@@ -245,7 +246,7 @@ type sshAllowedSigner struct {
 	namespaces []string
 }
 
-func commitSignedBySSH(r *git.Repository, commitId string, allowedSigners string) (string, error) {
+func commitSignedBySSH(r *git.Repository, commitId string, signers []sshAllowedSigner) (string, error) {
 	commit, err := r.CommitObject(plumbing.NewHash(commitId))
 	if err != nil {
 		return "", err
@@ -280,10 +281,6 @@ func commitSignedBySSH(r *git.Repository, commitId string, allowedSigners string
 		return "", err
 	}
 
-	signers, err := parseSSHAllowedSigners(allowedSigners)
-	if err != nil {
-		return "", err
-	}
 	for _, signer := range signers {
 		if !signer.allowsNamespace(signature.namespace) {
 			continue
@@ -537,6 +534,10 @@ func parseSSHSignature(signature string) (*sshCommitSignature, error) {
 	sshSignature := &ssh.Signature{}
 	if err := ssh.Unmarshal(wire.Signature, sshSignature); err != nil {
 		return nil, err
+	}
+	// OpenSSH refuses SHA-1 based signature algorithms for SSH signatures.
+	if sshSignature.Format == ssh.KeyAlgoRSA || sshSignature.Format == ssh.KeyAlgoDSA {
+		return nil, fmt.Errorf("unsupported SSH signature algorithm %q", sshSignature.Format)
 	}
 
 	return &sshCommitSignature{
