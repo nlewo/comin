@@ -5,6 +5,14 @@ const OperationSwitch = "switch"
 const OperationBoot = "boot"
 const OperationNull = "null"
 
+type Niks3Fetcher struct {
+	Remotes map[string]Niks3Remote
+}
+
+type Niks3Remote struct {
+	URL string
+}
+
 type Remote struct {
 	Name     string
 	URL      string

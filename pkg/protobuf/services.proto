@@ -71,6 +71,7 @@ message Event {
     bool verified = 2;
     oneof Type {
       GitRepositoryStatus gitRepositoryStatus = 3;
+      Niks3Status niks3Status = 4;
     }
   }
   message Log {
@@ -243,6 +244,8 @@ message Fetcher {
   google.protobuf.BoolValue is_fetching = 1;
   oneof status {
     GitRepositoryStatus git_repository_status = 2;
+    Niks3Status niks3_status = 3;
+    
   }
 }
 
@@ -262,6 +265,27 @@ message Remote {
   Branch testing = 5;
   google.protobuf.Timestamp fetched_at = 6;
   google.protobuf.BoolValue fetched = 7;
+}
+
+message Niks3Remote {
+  string name = 1;
+  string url = 2;
+  PinInfo pininfo = 3;
+  google.protobuf.Timestamp fetched_at = 4;
+  google.protobuf.BoolValue fetched = 5;
+  string fetch_error_msg = 6;
+  google.protobuf.BoolValue updated = 7;
+}
+
+message PinInfo {
+  string name = 1;
+  string store_path = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message Niks3Status {
+  repeated Niks3Remote remotes = 1;
 }
 
 message GitRepositoryStatus {
