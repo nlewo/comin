@@ -61,7 +61,7 @@ var runCmd = &cobra.Command{
 		}
 
 		var executor executorPkg.Executor
-		executor, err = executorPkg.New(cfg.RepositoryType, gitConfig.Path, gitConfig.Submodules)
+		executor, err = executorPkg.NewGit(cfg.Fetcher.Git.RepositoryType, gitConfig.Path, gitConfig.Submodules)
 		if err != nil {
 			logrus.Error(err)
 			os.Exit(1)
@@ -107,9 +107,9 @@ var runCmd = &cobra.Command{
 		fetcher := fetcher.NewGitFetcher(repository, broker)
 		fetcher.Start(cmd.Context())
 		sched := scheduler.New()
-		sched.FetchRemotes(fetcher, cfg.Remotes)
+		sched.FetchRemotes(fetcher, gitConfig.Remotes)
 
-		builder := builder.New(store, executor, broker, gitConfig.Path, gitConfig.Dir, cfg.SystemAttr, cfg.Hostname, gitConfig.Submodules, time.Duration(cfg.EvalTimeout)*time.Second, time.Duration(cfg.BuildTimeout)*time.Second)
+		builder := builder.New(store, executor, broker, gitConfig.Path, gitConfig.Dir, gitConfig.SystemAttr, cfg.Hostname, gitConfig.Submodules, time.Duration(cfg.EvalTimeout)*time.Second, time.Duration(cfg.BuildTimeout)*time.Second)
 		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand, broker)
 
 		mode, err := manager.ParseMode(cfg.BuildConfirmer.Mode)
@@ -128,7 +128,7 @@ var runCmd = &cobra.Command{
 		deployConfirmer.Start()
 
 		configurationOperations := manager.ConfigurationOperations{}
-		for _, r := range cfg.Remotes {
+		for _, r := range gitConfig.Remotes {
 			configurationOperations[r.Name] = make(map[string]string)
 			configurationOperations[r.Name][r.Branches.Main.Name] = r.Branches.Main.Operation
 			configurationOperations[r.Name][r.Branches.Testing.Name] = r.Branches.Testing.Operation

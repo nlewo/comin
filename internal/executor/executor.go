@@ -13,7 +13,7 @@ import (
 type EvalFunc func(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
 type BuildFunc func(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) error
 
-func New(repositoryType, repositoryPath string, submodules bool) (e Executor, err error) {
+func NewGit(repositoryType, repositoryPath string, submodules bool) (e Executor, err error) {
 	switch repositoryType {
 	case "flake":
 		if runtime.GOOS == "darwin" {
