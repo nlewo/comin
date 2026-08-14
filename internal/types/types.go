@@ -10,7 +10,8 @@ type Niks3Fetcher struct {
 }
 
 type Niks3Remote struct {
-	URL string
+	URL    string
+	Poller Poller `yaml:"poller"`
 }
 
 type Remote struct {
@@ -36,6 +37,7 @@ type GitConfig struct {
 	GpgPublicKeyPaths     []string
 	SshAllowedSignersPath string
 	Submodules            bool
+	SystemAttr            string
 }
 
 type Auth struct {
@@ -78,25 +80,36 @@ type Retention struct {
 	DeploymentAnyCapacity        int `yaml:"deployment_any_capacity"`
 }
 
+type GitFetcher struct {
+	RepositoryType        string   `yaml:"repository_type"`
+	RepositorySubdir      string   `yaml:"repository_subdir"`
+	Submodules            bool     `yaml:"submodules"`
+	SystemAttr            string   `yaml:"system_attr"`
+	Remotes               []Remote `yaml:"remotes"`
+	GpgPublicKeyPaths     []string `yaml:"gpg_public_key_paths"`
+	SshAllowedSignersPath string   `yaml:"ssh_allowed_signers_path"`
+}
+
+type Fetcher struct {
+	// The fetcher can currently only be of one type, either Git or Niks3
+	Type  string       `yaml:"type"`
+	Niks3 Niks3Fetcher `yaml:"niks3"`
+	Git   GitFetcher   `yaml:"git"`
+}
+
 type Configuration struct {
 	Hostname      string `yaml:"hostname"`
 	StateDir      string `yaml:"state_dir"`
 	StateFilepath string `yaml:"state_filepath"`
 	// RepositoryType describes type of the repository. It can currently only be "flake"
-	RepositoryType        string     `yaml:"repository_type"`
-	RepositorySubdir      string     `yaml:"repository_subdir"`
-	Submodules            bool       `yaml:"submodules"`
-	SystemAttr            string     `yaml:"system_attr"`
-	Remotes               []Remote   `yaml:"remotes"`
 	ApiServer             HttpServer `yaml:"api_server"`
 	Grpc                  Grpc       `yaml:"grpc"`
 	Exporter              HttpServer `yaml:"exporter"`
-	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
-	SshAllowedSignersPath string     `yaml:"ssh_allowed_signers_path"`
 	PostDeploymentCommand string     `yaml:"post_deployment_command"`
 	BuildConfirmer        Confirmer  `yaml:"build_confirmer"`
 	DeployConfirmer       Confirmer  `yaml:"deploy_confirmer"`
 	Retention             Retention  `yaml:"retention"`
 	EvalTimeout           int        `yaml:"eval_timeout"`
 	BuildTimeout          int        `yaml:"build_timeout"`
+	Fetcher               Fetcher    `yaml:"fetcher"`
 }

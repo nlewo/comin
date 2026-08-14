@@ -1,22 +1,41 @@
 hostname: machine
 state_dir: /var/lib/comin
-repository_type: "flake"
 post_deployment_command: "/some/path"
-remotes:
-  - name: origin
-    type: https
-    url: https://framagit.org/owner/infra
-    auth:
-      access_token_path: ./secret
-  - name: local
-    type: local
-    url: /home/owner/git/infra
-branches:
-  main:
-    name: main
-    protected: true
-  testing:
-    name: testing-machine
-    protected: false
-poller:
-  period: 10
+fetcher:
+  type: git
+  git:
+    repository_type: "flake"
+    repository_subdir: "."
+    remotes:
+      - name: origin
+        url: https://framagit.org/owner/infra
+        auth:
+          access_token_path: ./secret
+        branches:
+          main:
+            operation: switch
+          testing:
+            operation: test
+        poller:
+          period: 10
+      - name: local
+        url: /home/owner/git/infra
+        auth:
+          username: comin
+        branches:
+          main:
+            operation: switch
+          testing:
+            operation: test
+        poller:
+          period: 10
+api_server:
+  listen_address: "127.0.0.1"
+  port: 4242
+exporter:
+  listen_address: "0.0.0.0"
+  port: 4243
+grpc:
+  unix_socket_path: /var/lib/comin/grpc.sock
+eval_timeout: 1800
+build_timeout: 1800
