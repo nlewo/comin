@@ -137,6 +137,7 @@ message Git {
 message Source {
   oneof source {
     Git git = 1;
+    PinInfo niks3 = 2;
   }
 }
 

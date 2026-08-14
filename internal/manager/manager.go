@@ -164,20 +164,32 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 		for {
 			select {
 			case e := <-m.brokerEvents:
+				var eval bool
+				var generation protobuf.Generation
 				if fetched := e.GetFetched(); fetched != nil {
 					if !fetched.Updated {
 						continue
 					}
-					rs := fetched.GetGitRepositoryStatus()
-					if fetched.Verified {
-						logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-						generation := m.storage.NewGeneration(m.Builder.GetHostname(), m.Builder.GetRepositoryDir(), m.Builder.GetSystemAttr(), rs)
+					switch t := fetched.Type.(type) {
+					case *protobuf.Event_Fetched_GitRepositoryStatus:
+						if fetched.Verified {
+							logrus.Infof("manager: a generation is evaluating for commit %s", t.GitRepositoryStatus.SelectedCommitId)
+							generation = m.storage.NewGenerationFromGit(m.Builder.GetHostname(), m.Builder.GetRepositoryDir(), m.Builder.GetSystemAttr(), t.GitRepositoryStatus)
+							eval = true
+						} else {
+							logrus.Infof("manager: the commit %s is not evaluated because it is not signed", t.GitRepositoryStatus.SelectedCommitId)
+						}
+					case *protobuf.Event_Fetched_Niks3Status:
+						if fetched.Updated {
+							generation = m.storage.NewGenerationFromNiks3(m.Builder.GetHostname(), m.Builder.GetRepositoryDir(), m.Builder.GetSystemAttr(), t.Niks3Status)
+							eval = true
+						}
+					}
+					if eval {
 						err := m.Builder.Eval(ctx, &generation)
 						if err != nil {
 							logrus.Error(err)
 						}
-					} else {
-						logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
 					}
 				}
 			case generationUUID := <-m.Builder.EvaluationDone:

@@ -91,7 +91,31 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *protobuf.GitRepositoryStatus) (g protobuf.Generation) {
+func (s *Store) NewGenerationFromNiks3(hostname, repositoryDir, systemAttr string, niks3 *protobuf.Niks3Status) (g protobuf.Generation) {
+	var updatedAt time.Time
+	var selectedRemote *protobuf.PinInfo
+	for _, remote := range niks3.Remotes {
+		if remote.Pininfo.UpdatedAt.AsTime().After(updatedAt) {
+			updatedAt = remote.Pininfo.UpdatedAt.AsTime()
+			selectedRemote = remote.Pininfo
+		}
+	}
+
+	g = protobuf.Generation{
+		Uuid: uuid.New().String(),
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Niks3{
+				Niks3: selectedRemote,
+			},
+		},
+		EvalStatus:  EvalInit.String(),
+		BuildStatus: BuildInit.String(),
+	}
+	s.persisted.Generations = append(s.persisted.Generations, &g)
+	return
+}
+
+func (s *Store) NewGenerationFromGit(hostname, repositoryDir, systemAttr string, rs *protobuf.GitRepositoryStatus) (g protobuf.Generation) {
 	// Find the selected remote URL
 	selectedRemoteUrl := ""
 	for _, remote := range rs.Remotes {
@@ -102,7 +126,7 @@ func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *pr
 	}
 
 	g = protobuf.Generation{
-		Uuid:   uuid.New().String(),
+		Uuid: uuid.New().String(),
 		Source: &protobuf.Source{
 			Source: &protobuf.Source_Git{
 				Git: &protobuf.Git{
@@ -121,7 +145,7 @@ func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *pr
 				},
 			},
 		},
-		EvalStatus: EvalInit.String(),
+		EvalStatus:  EvalInit.String(),
 		BuildStatus: BuildInit.String(),
 	}
 	s.persisted.Generations = append(s.persisted.Generations, &g)
