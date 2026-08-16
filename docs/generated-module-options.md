@@ -379,6 +379,547 @@ signed integer
 
 
 
+## services\.comin\.fetcher
+
+
+
+Options for the fetcher\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.fetcher\.git
+
+
+
+Configuration for the git fetcher\.
+
+
+
+*Type:*
+submodule
+
+
+
+## services\.comin\.fetcher\.git\.remotes
+
+
+
+Ordered list of repositories to pull\.
+
+
+
+*Type:*
+list of (submodule)
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.auth
+
+
+
+Authentication options\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.auth\.access_token_path
+
+
+
+The path of the auth file\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.auth\.ssh_deploy_key_path
+
+
+
+Path to the SSH private key used to authenticate to the Git remote\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.auth\.ssh_known_hosts_path
+
+
+
+Path to the known_hosts file used to verify the SSH
+host key of the Git remote\. Defaults to
+/etc/ssh/ssh_known_hosts when unset\. The remote’s host
+key must be present in this file\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.auth\.username
+
+
+
+The username used to authenticate to the Git
+remote repository\. Note that any non empty
+username is valid on GitLab and GitHub\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"comin"
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.branches
+
+
+
+Branches to pull\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.branches\.main
+
+
+
+The main branch to fetch\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.branches\.main\.name
+
+
+
+The name of the main branch\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"main"
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.branches\.main\.operation
+
+
+
+The switch-to-configuration operation to do on this branch\.
+
+
+
+*Type:*
+one of “switch”, “test”, “boot”
+
+
+
+*Default:*
+
+```nix
+"switch"
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.branches\.testing
+
+
+
+The testing branch to fetch\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.branches\.testing\.name
+
+
+
+The name of the testing branch\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+testing-${config.services.comin.hostname}
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.branches\.testing\.operation
+
+
+
+The switch-to-configuration operation to do on this branch\.
+
+
+
+*Type:*
+one of “switch”, “test”, “boot”
+
+
+
+*Default:*
+
+```nix
+"test"
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.name
+
+
+
+The name of the remote\.
+
+
+
+*Type:*
+string
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.poller
+
+
+
+The poller options\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.poller\.period
+
+
+
+The poller period in seconds\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+60
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.timeout
+
+
+
+Git fetch timeout in seconds\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+300
+```
+
+
+
+## services\.comin\.fetcher\.git\.remotes\.\*\.url
+
+
+
+The URL of the repository\.
+
+
+
+*Type:*
+string
+
+
+
+## services\.comin\.fetcher\.git\.repositorySubdir
+
+
+
+Subdirectory in the repository, containing a default\.nix or a flake\.nix file\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"."
+```
+
+
+
+## services\.comin\.fetcher\.git\.repositoryType
+
+
+
+The type of the repository to fetch\. It can either contains a flake or a classical Nix expression\.
+
+
+
+*Type:*
+one of “flake”, “nix”
+
+
+
+*Default:*
+
+```nix
+"flake"
+```
+
+
+
+## services\.comin\.fetcher\.git\.submodules
+
+
+
+Whether to fetch and include Git submodules when cloning the repository\.
+When enabled, this adds ?submodules=1 to the flake URL\.
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+
+```nix
+false
+```
+
+
+
+## services\.comin\.fetcher\.git\.systemAttr
+
+
+
+This is the attribute containing the machine toplevel
+attribute\. Note this is only used when the repositoryType is
+‘nix’\. When the repository type is ‘flake’, the attribute is
+derived from the hostname\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+
+```nix
+null
+```
+
+
+
+## services\.comin\.fetcher\.niks3
+
+
+
+Configuration for the niks3 fetcher\.
+
+
+
+*Type:*
+submodule
+
+
+
+## services\.comin\.fetcher\.niks3\.remotes
+
+
+
+The nixks3 remotes\.
+
+
+
+*Type:*
+attribute set of (submodule)
+
+
+
+## services\.comin\.fetcher\.niks3\.remotes\.\<name>\.url
+
+
+
+The URL of the Niks3 pin\.
+
+
+
+*Type:*
+string
+
+
+
+## services\.comin\.fetcher\.type
+
+
+
+Either a git or nixks3 fetcher\. Currently, it is not possible to use two fetchers at the same time\.
+
+
+
+*Type:*
+one of “git”, “niks3”
+
+
+
+*Default:*
+
+```nix
+"git"
+```
+
+
+
 ## services\.comin\.gpgPublicKeyPaths
 
 
@@ -488,407 +1029,6 @@ pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
 
 
 
-## services\.comin\.remotes
-
-
-
-Ordered list of repositories to pull\.
-
-
-
-*Type:*
-list of (submodule)
-
-
-
-## services\.comin\.remotes\.\*\.auth
-
-
-
-Authentication options\.
-
-
-
-*Type:*
-submodule
-
-
-
-*Default:*
-
-```nix
-{ }
-```
-
-
-
-## services\.comin\.remotes\.\*\.auth\.access_token_path
-
-
-
-The path of the auth file\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-
-```nix
-""
-```
-
-
-
-## services\.comin\.remotes\.\*\.auth\.ssh_deploy_key_path
-
-
-
-Path to the SSH private key used to authenticate to the Git remote\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-
-```nix
-""
-```
-
-
-
-## services\.comin\.remotes\.\*\.auth\.ssh_known_hosts_path
-
-
-
-Path to the known_hosts file used to verify the SSH
-host key of the Git remote\. Defaults to
-/etc/ssh/ssh_known_hosts when unset\. The remote’s host
-key must be present in this file\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-
-```nix
-""
-```
-
-
-
-## services\.comin\.remotes\.\*\.auth\.username
-
-
-
-The username used to authenticate to the Git
-remote repository\. Note that any non empty
-username is valid on GitLab and GitHub\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-
-```nix
-"comin"
-```
-
-
-
-## services\.comin\.remotes\.\*\.branches
-
-
-
-Branches to pull\.
-
-
-
-*Type:*
-submodule
-
-
-
-*Default:*
-
-```nix
-{ }
-```
-
-
-
-## services\.comin\.remotes\.\*\.branches\.main
-
-
-
-The main branch to fetch\.
-
-
-
-*Type:*
-submodule
-
-
-
-*Default:*
-
-```nix
-{ }
-```
-
-
-
-## services\.comin\.remotes\.\*\.branches\.main\.name
-
-
-
-The name of the main branch\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-
-```nix
-"main"
-```
-
-
-
-## services\.comin\.remotes\.\*\.branches\.main\.operation
-
-
-
-The switch-to-configuration operation to do on this branch\.
-
-
-
-*Type:*
-one of “switch”, “test”, “boot”
-
-
-
-*Default:*
-
-```nix
-"switch"
-```
-
-
-
-## services\.comin\.remotes\.\*\.branches\.testing
-
-
-
-The testing branch to fetch\.
-
-
-
-*Type:*
-submodule
-
-
-
-*Default:*
-
-```nix
-{ }
-```
-
-
-
-## services\.comin\.remotes\.\*\.branches\.testing\.name
-
-
-
-The name of the testing branch\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-
-```nix
-testing-${config.services.comin.hostname}
-```
-
-
-
-## services\.comin\.remotes\.\*\.branches\.testing\.operation
-
-
-
-The switch-to-configuration operation to do on this branch\.
-
-
-
-*Type:*
-one of “switch”, “test”, “boot”
-
-
-
-*Default:*
-
-```nix
-"test"
-```
-
-
-
-## services\.comin\.remotes\.\*\.name
-
-
-
-The name of the remote\.
-
-
-
-*Type:*
-string
-
-
-
-## services\.comin\.remotes\.\*\.poller
-
-
-
-The poller options\.
-
-
-
-*Type:*
-submodule
-
-
-
-*Default:*
-
-```nix
-{ }
-```
-
-
-
-## services\.comin\.remotes\.\*\.poller\.period
-
-
-
-The poller period in seconds\.
-
-
-
-*Type:*
-signed integer
-
-
-
-*Default:*
-
-```nix
-60
-```
-
-
-
-## services\.comin\.remotes\.\*\.timeout
-
-
-
-Git fetch timeout in seconds\.
-
-
-
-*Type:*
-signed integer
-
-
-
-*Default:*
-
-```nix
-300
-```
-
-
-
-## services\.comin\.remotes\.\*\.url
-
-
-
-The URL of the repository\.
-
-
-
-*Type:*
-string
-
-
-
-## services\.comin\.repositorySubdir
-
-
-
-Subdirectory in the repository, containing a default\.nix or a flake\.nix file\.
-
-
-
-*Type:*
-string
-
-
-
-*Default:*
-
-```nix
-"."
-```
-
-
-
-## services\.comin\.repositoryType
-
-
-
-The type of the repository to fetch\. It can either contains a flake or a classical Nix expression\.
-
-
-
-*Type:*
-one of “flake”, “nix”
-
-
-
-*Default:*
-
-```nix
-"flake"
-```
-
-
-
 ## services\.comin\.retention
 
 
@@ -982,52 +1122,6 @@ signed integer
 
 
 An OpenSSH allowed signers file path used to verify SSH-signed Git commits\.
-
-
-
-*Type:*
-null or string
-
-
-
-*Default:*
-
-```nix
-null
-```
-
-
-
-## services\.comin\.submodules
-
-
-
-Whether to fetch and include Git submodules when cloning the repository\.
-When enabled, this adds ?submodules=1 to the flake URL\.
-
-
-
-*Type:*
-boolean
-
-
-
-*Default:*
-
-```nix
-false
-```
-
-
-
-## services\.comin\.systemAttr
-
-
-
-This is the attribute containing the machine toplevel
-attribute\. Note this is only used when the repositoryType is
-‘nix’\. When the repository type is ‘flake’, the attribute is
-derived from the hostname\.
 
 
 

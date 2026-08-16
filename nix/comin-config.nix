@@ -12,11 +12,16 @@ rec {
   cominConfig = {
     hostname = cfg.services.comin.hostname;
     state_dir = "/var/lib/comin";
-    repository_type = cfg.services.comin.repositoryType;
-    repository_subdir = cfg.services.comin.repositorySubdir;
-    submodules = cfg.services.comin.submodules;
-    system_attr = cfg.services.comin.systemAttr;
-    remotes = cfg.services.comin.remotes;
+
+    fetcher.type = cfg.services.comin.fetcher.type;
+    fetcher.git.repository_type = cfg.services.comin.fetcher.git.repositoryType;
+    fetcher.git.repository_subdir = cfg.services.comin.fetcher.git.repositorySubdir;
+    fetcher.git.submodules = cfg.services.comin.fetcher.git.submodules;
+    fetcher.git.system_attr = cfg.services.comin.fetcher.git.systemAttr;
+    fetcher.git.remotes = cfg.services.comin.fetcher.git.remotes;
+
+    fetcher.nixk3.remotes = cfg.services.comin.fetcher.niks3.remotes;
+
     exporter = {
       listen_address = cfg.services.comin.exporter.listen_address;
       port = cfg.services.comin.exporter.port;

@@ -57,6 +57,11 @@
           pkgs = nixpkgsFor."${system}";
           comin = self.packages."${system}".comin;
         };
+        # Commented because we cant run NixOS vm on GitHub
+        # vms = import ./nix/tests {
+        #   pkgs = nixpkgsFor."${system}";
+        #   module = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
+        # };
       });
       nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
       darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
