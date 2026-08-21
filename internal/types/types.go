@@ -70,6 +70,28 @@ type Retention struct {
 	DeploymentAnyCapacity        int `yaml:"deployment_any_capacity"`
 }
 
+type GarnixConfig struct {
+	BaseUrl       string `yaml:"baseUrl"`
+	CacheUrl      string `yaml:"cacheUrl"`
+	RetryInterval int    `yaml:"retry_interval"`
+	CacheSize     int    `yaml:"cache_size"`
+}
+
+type HydraConfig struct {
+	BaseUrl       string `yaml:"base_url"`
+	Project       string `yaml:"project"`
+	JobsetPrefix  string `yaml:"jobset_prefix"`
+	JobName       string `yaml:"job_name"`
+	RetryInterval int    `yaml:"retry_interval"`
+	MaxEvalPages  int    `yaml:"max_eval_pages"`
+}
+
+type ExecutorConfig struct {
+	Type         string       `yaml:"type"`
+	GarnixConfig GarnixConfig `yaml:"garnix"`
+	HydraConfig  HydraConfig  `yaml:"hydra"`
+}
+
 type Configuration struct {
 	Hostname      string `yaml:"hostname"`
 	StateDir      string `yaml:"state_dir"`
@@ -89,6 +111,7 @@ type Configuration struct {
 	BuildConfirmer        Confirmer  `yaml:"build_confirmer"`
 	DeployConfirmer       Confirmer  `yaml:"deploy_confirmer"`
 	Retention             Retention  `yaml:"retention"`
+	ExecutorConfig        ExecutorConfig `yaml:"executor"`
 	EvalTimeout           int        `yaml:"eval_timeout"`
 	BuildTimeout          int        `yaml:"build_timeout"`
 }

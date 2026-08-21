@@ -147,12 +147,13 @@ func (b *Builder) Stop() {
 }
 
 type Evaluator struct {
-	repositoryPath  string
-	repostorySubdir string
-	systemAttr      string
-	commitId        string
-	hostname        string
-	submodules      bool
+	repositoryPath     string
+	repostorySubdir    string
+	systemAttr         string
+	commitId           string
+	selectedBranchName string
+	hostname           string
+	submodules         bool
 
 	evalFunc executor.EvalFunc
 
@@ -165,7 +166,7 @@ type Evaluator struct {
 }
 
 func (r *Evaluator) Run(ctx context.Context) (err error) {
-	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.repositoryPath, r.repostorySubdir, r.commitId, r.systemAttr, r.hostname, r.submodules, r.stdout, r.stderr)
+	r.drvPath, r.outPath, r.machineId, err = r.evalFunc(ctx, r.repositoryPath, r.repostorySubdir, r.commitId, r.selectedBranchName, r.systemAttr, r.hostname, r.submodules, r.stdout, r.stderr)
 	return err
 }
 
@@ -211,6 +212,7 @@ func (b *Builder) Eval(ctx context.Context, rs *protobuf.RepositoryStatus) error
 		submodules:      b.submodules,
 
 		commitId: g.SelectedCommitId,
+		selectedBranchName: g.SelectedBranchName,
 		evalFunc: b.executor.Eval,
 		stdout:   stdout,
 		stderr:   stderr,

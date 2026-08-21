@@ -59,6 +59,9 @@ func TestConfig(t *testing.T) {
 		},
 		EvalTimeout:  1800,
 		BuildTimeout: 1800,
+		ExecutorConfig: types.ExecutorConfig{
+			Type: "nix",
+		},
 	}
 	config, err := Read(configPath)
 	assert.Nil(t, err)

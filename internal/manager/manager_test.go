@@ -54,7 +54,7 @@ func (n ExecutorMock) IsStorePathExist(storePath string) bool {
 func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
 	return false, "", nil
 }
-func (n ExecutorMock) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
+func (n ExecutorMock) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
 	ok := <-n.evalOk
 	if ok {
 		return "drv-path", "out-path", n.machineId, nil

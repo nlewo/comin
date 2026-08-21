@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type EvalFunc func(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
+type EvalFunc func(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
 type BuildFunc func(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) error
 
 // Executor contains the function used by comin to actually do actions
@@ -16,7 +16,7 @@ type BuildFunc func(ctx context.Context, drvPath string, stdout, stdin io.WriteC
 // Garnix implementation (such as proposed in
 // https://github.com/nlewo/comin/pull/74)
 type Executor interface {
-	Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
+	Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
 	Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error)
 	Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error)
 	NeedToReboot(outPath, operation string) bool
