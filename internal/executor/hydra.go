@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -123,7 +124,7 @@ func (h *Hydra) getJSON(ctx context.Context, u string, out any) error {
 // scans jobset "nixos-main"). The returned machineId is always empty:
 // deriving the expected machine-id would require a local flake evaluation,
 // which defeats the purpose of the Hydra executor.
-func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
+func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
 	machineId = ""
 	if commitId == "" {
 		err = errors.New("hydra: commitId is required")
@@ -207,7 +208,7 @@ func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, comm
 	}
 }
 
-func (h *Hydra) Build(ctx context.Context, drvPath string) (err error) {
+func (h *Hydra) Build(ctx context.Context, drvPath string, stdout, stderr io.WriteCloser) (err error) {
 	logrus.Infof("hydra: fetching build for %s", drvPath)
 	h.mu.Lock()
 	outPath, ok := h.drv2Out[drvPath]
@@ -218,8 +219,8 @@ func (h *Hydra) Build(ctx context.Context, drvPath string) (err error) {
 	return fetchBuild(ctx, outPath)
 }
 
-func (h *Hydra) Deploy(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation, h.systemAttr, profilePaths)
+func (h *Hydra) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
+	return deploy(ctx, outPath, operation, h.systemAttr, profilePaths, stdout, stderr)
 }
 
 func (h *Hydra) IsStorePathExist(storePath string) bool {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -102,7 +103,7 @@ func (g *Garnix) expectedPackageType() string {
 // cache. The returned machineId is always empty: deriving the expected
 // machine-id would require a local flake evaluation, which defeats the
 // purpose of the Garnix executor.
-func (g *Garnix) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool) (drvPath string, outPath string, machineId string, err error) {
+func (g *Garnix) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
 	machineId = ""
 	if commitId == "" {
 		err = errors.New("garnix: commitId is required")
@@ -158,7 +159,7 @@ func (g *Garnix) Eval(ctx context.Context, repositoryPath, repositorySubdir, com
 	}
 }
 
-func (g *Garnix) Build(ctx context.Context, drvPath string) (err error) {
+func (g *Garnix) Build(ctx context.Context, drvPath string, stdout, stderr io.WriteCloser) (err error) {
 	logrus.Infof("garnix: fetching build for %s", drvPath)
 	value, ok := g.drv2Out.Get(drvPath)
 	if !ok {
@@ -171,8 +172,8 @@ func (g *Garnix) Build(ctx context.Context, drvPath string) (err error) {
 	return fetchBuild(ctx, outPath)
 }
 
-func (g *Garnix) Deploy(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation, g.systemAttr, profilePaths)
+func (g *Garnix) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
+	return deploy(ctx, outPath, operation, g.systemAttr, profilePaths, stdout, stderr)
 }
 
 func (g *Garnix) IsStorePathExist(storePath string) bool {
