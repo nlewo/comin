@@ -53,8 +53,8 @@ func (n *GitNix) Eval(ctx context.Context, source *protobuf.Source, stdout, stde
 	return showDerivationWithNix(ctx, nixDir, gitSource.SystemAttr, stdout, stderr)
 }
 
-func (n *GitNix) Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
-	return buildWithNix(ctx, drvPath, stdout, stdin)
+func (n *GitNix) Build(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) (err error) {
+	return buildWithNix(ctx, drvPath, outPath, stdout, stdin)
 }
 
 func (n *GitNix) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {

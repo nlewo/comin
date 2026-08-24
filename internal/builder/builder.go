@@ -182,13 +182,14 @@ func (r *Evaluator) Run(ctx context.Context) (err error) {
 
 type Buildator struct {
 	drvPath   string
+	outPath   string
 	buildFunc executor.BuildFunc
 	stdout    io.WriteCloser
 	stderr    io.WriteCloser
 }
 
 func (r *Buildator) Run(ctx context.Context) (err error) {
-	return r.buildFunc(ctx, r.drvPath, r.stdout, r.stderr)
+	return r.buildFunc(ctx, r.drvPath, r.outPath, r.stdout, r.stderr)
 }
 
 // Eval evaluates a generation. It cancels current any generation
@@ -355,6 +356,7 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 	stdout, stderr := b.broker.GetLogger("build", generation.Uuid)
 	buildator := &Buildator{
 		drvPath:   generation.DrvPath,
+		outPath:   generation.OutPath,
 		buildFunc: b.executor.Build,
 		stdout:    stdout,
 		stderr:    stderr,

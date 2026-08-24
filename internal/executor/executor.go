@@ -11,7 +11,7 @@ import (
 )
 
 type EvalFunc func(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
-type BuildFunc func(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) error
+type BuildFunc func(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) error
 
 func NewGit(repositoryType, repositoryPath string, submodules bool) (e Executor, err error) {
 	switch repositoryType {
@@ -35,7 +35,7 @@ func NewGit(repositoryType, repositoryPath string, submodules bool) (e Executor,
 // https://github.com/nlewo/comin/pull/74)
 type Executor interface {
 	Eval(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
-	Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error)
+	Build(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) (err error)
 	Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error)
 	NeedToReboot(outPath, operation string) bool
 	ReadMachineId() (string, error)

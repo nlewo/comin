@@ -70,8 +70,8 @@ func (n *GitNixFlake) Eval(ctx context.Context, source *protobuf.Source, stdout,
 	return
 }
 
-func (n *GitNixFlake) Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
-	return buildWithFlake(ctx, drvPath, stdout, stdin)
+func (n *GitNixFlake) Build(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) (err error) {
+	return buildWithFlake(ctx, drvPath, outPath, stdout, stdin)
 }
 
 func (n *GitNixFlake) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {

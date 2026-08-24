@@ -31,11 +31,11 @@ var buildCmd = &cobra.Command{
 		for _, host := range hosts {
 			logrus.Infof("Building the NixOS configuration of machine '%s'", host)
 
-			drvPath, _, err := executor.ShowDerivation(ctx, flakeUrl, host)
+			drvPath, outPath, err := executor.ShowDerivation(ctx, flakeUrl, host)
 			if err != nil {
 				logrus.Errorf("Failed to evaluate the configuration '%s': '%s'", host, err)
 			}
-			err = executor.Build(ctx, drvPath, os.Stdout, os.Stdin)
+			err = executor.Build(ctx, drvPath, outPath, os.Stdout, os.Stdin)
 			if err != nil {
 				logrus.Errorf("Failed to build the configuration '%s': '%s'", host, err)
 			}

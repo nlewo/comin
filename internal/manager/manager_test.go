@@ -62,7 +62,7 @@ func (n ExecutorMock) Eval(ctx context.Context, source *protobuf.Source, stdout,
 		return "", "", n.machineId, fmt.Errorf("An error occured")
 	}
 }
-func (n ExecutorMock) Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
+func (n ExecutorMock) Build(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) (err error) {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

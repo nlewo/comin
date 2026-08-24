@@ -175,7 +175,7 @@ func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr
 	return parseDerivationWithFlake(stdoutBuf)
 }
 
-func buildWithFlake(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
+func buildWithFlake(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) (err error) {
 	args := []string{
 		"build",
 		fmt.Sprintf("%s^*", drvPath),
@@ -190,7 +190,7 @@ func buildWithFlake(ctx context.Context, drvPath string, stdout, stdin io.WriteC
 	return
 }
 
-func buildWithNix(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
+func buildWithNix(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) (err error) {
 	args := []string{
 		"-r",
 		drvPath,

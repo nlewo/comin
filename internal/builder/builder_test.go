@@ -42,7 +42,7 @@ func (n ExecutorMock) Eval(ctx context.Context, source *protobuf.Source, stdout,
 		return "drv-path", "out-path", "", nil
 	}
 }
-func (n ExecutorMock) Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
+func (n ExecutorMock) Build(ctx context.Context, drvPath, outPath string, stdout, stdin io.WriteCloser) (err error) {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
