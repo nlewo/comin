@@ -13,6 +13,7 @@ import (
 	"github.com/golang/groupcache/lru"
 	"github.com/nlewo/comin/internal/types"
 	"github.com/nlewo/comin/internal/utils"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 )
 
@@ -103,7 +104,13 @@ func (g *Garnix) expectedPackageType() string {
 // cache. The returned machineId is always empty: deriving the expected
 // machine-id would require a local flake evaluation, which defeats the
 // purpose of the Garnix executor.
-func (g *Garnix) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
+func (g *Garnix) Eval(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
+	gitSource := source.GetGit()
+	if gitSource == nil {
+		return "", "", "", fmt.Errorf("garnix: expected Git source, got nil")
+	}
+	commitId := gitSource.SelectedCommitId
+	hostname := gitSource.Hostname
 	machineId = ""
 	if commitId == "" {
 		err = errors.New("garnix: commitId is required")
@@ -159,7 +166,7 @@ func (g *Garnix) Eval(ctx context.Context, repositoryPath, repositorySubdir, com
 	}
 }
 
-func (g *Garnix) Build(ctx context.Context, drvPath string, stdout, stderr io.WriteCloser) (err error) {
+func (g *Garnix) Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
 	logrus.Infof("garnix: fetching build for %s", drvPath)
 	value, ok := g.drv2Out.Get(drvPath)
 	if !ok {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/nlewo/comin/internal/types"
 	"github.com/nlewo/comin/internal/utils"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 )
 
@@ -124,7 +125,13 @@ func (h *Hydra) getJSON(ctx context.Context, u string, out any) error {
 // scans jobset "nixos-main"). The returned machineId is always empty:
 // deriving the expected machine-id would require a local flake evaluation,
 // which defeats the purpose of the Hydra executor.
-func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, commitId, selectedBranchName, systemAttr, hostname string, submodules bool, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
+func (h *Hydra) Eval(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
+	gitSource := source.GetGit()
+	if gitSource == nil {
+		return "", "", "", fmt.Errorf("hydra: expected Git source, got nil")
+	}
+	commitId := gitSource.SelectedCommitId
+	selectedBranchName := gitSource.SelectedBranchName
 	machineId = ""
 	if commitId == "" {
 		err = errors.New("hydra: commitId is required")
@@ -208,7 +215,7 @@ func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, comm
 	}
 }
 
-func (h *Hydra) Build(ctx context.Context, drvPath string, stdout, stderr io.WriteCloser) (err error) {
+func (h *Hydra) Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
 	logrus.Infof("hydra: fetching build for %s", drvPath)
 	h.mu.Lock()
 	outPath, ok := h.drv2Out[drvPath]
