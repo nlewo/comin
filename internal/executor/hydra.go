@@ -84,9 +84,16 @@ type hydraBuild struct {
 	BuildOutputs map[string]hydraBuildOutput `json:"buildoutputs"`
 }
 
-// extractRevFromFlakeUrl extracts the rev from a flake URL like
-// "github:owner/repo/<rev>?narHash=..." → "<rev>".
+// extractRevFromFlakeUrl extracts the rev from a flake URL. Hydra records
+// git+https inputs with the rev in the query string
+// ("git+https://host/org/repo?ref=main&rev=<rev>") and github: inputs with
+// the rev as the last path segment ("github:owner/repo/<rev>?narHash=...").
 func extractRevFromFlakeUrl(flake string) string {
+	if u, err := url.Parse(flake); err == nil {
+		if rev := u.Query().Get("rev"); rev != "" {
+			return rev
+		}
+	}
 	if i := strings.Index(flake, "?"); i >= 0 {
 		flake = flake[:i]
 	}
@@ -199,6 +206,9 @@ func (h *Hydra) Eval(ctx context.Context, repositoryPath, repositorySubdir, comm
 			}
 		}
 
+		if !matchedButNotFinished {
+			logrus.Infof("hydra: no eval for %s on pages 1-%d yet, retrying in %s", commitId, h.maxEvalPages, h.retryInterval)
+		}
 		select {
 		case <-time.After(h.retryInterval):
 		case <-ctx.Done():
