@@ -1,6 +1,8 @@
 package store
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -22,6 +24,9 @@ const (
 	Evaluating
 	Evaluated
 	EvalFailed
+	// EvalCanceled is an evaluation that was preempted by a newer
+	// commit rather than one that errored. See BuildCanceled.
+	EvalCanceled
 )
 
 func (s EvalStatus) String() string {
@@ -34,6 +39,8 @@ func (s EvalStatus) String() string {
 		return "evaluated"
 	case EvalFailed:
 		return "failed"
+	case EvalCanceled:
+		return "canceled"
 	}
 	return "unknown"
 }
@@ -48,6 +55,8 @@ func StringToEvalStatus(statusStr string) EvalStatus {
 		return Evaluated
 	case "failed":
 		return EvalFailed
+	case "canceled":
+		return EvalCanceled
 	default:
 		return EvalInit // Default value
 	}
@@ -60,6 +69,14 @@ const (
 	Building
 	Built
 	BuildFailed
+	// BuildCanceled is a build that was preempted by a newer commit.
+	// Builder.Eval calls Builder.Stop() before starting a new
+	// generation, which cancels the build context, so this is a
+	// routine part of operation and not an error: the newer
+	// generation is built immediately afterwards. Keeping it out of
+	// BuildFailed is what stops comin_last_build_failed from
+	// alarming every time two commits land close together.
+	BuildCanceled
 )
 
 func (s BuildStatus) String() string {
@@ -72,6 +89,8 @@ func (s BuildStatus) String() string {
 		return "built"
 	case BuildFailed:
 		return "failed"
+	case BuildCanceled:
+		return "canceled"
 	}
 	return "unknown"
 }
@@ -86,6 +105,8 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 		return Built
 	case "failed":
 		return BuildFailed
+	case "canceled":
+		return BuildCanceled
 	default:
 		return BuildInit
 	}
@@ -151,6 +172,8 @@ func GenerationShow(g *protobuf.Generation) {
 		fmt.Printf("%s  DrvPath: %s\n", padding, g.DrvPath)
 	case EvalFailed.String():
 		fmt.Printf("%sEvaluation failed %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
+	case EvalCanceled.String():
+		fmt.Printf("%sEvaluation canceled %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
 	}
 	if g.BuildStatus == BuildInit.String() {
 		fmt.Printf("%sNo build started\n", padding)
@@ -166,6 +189,8 @@ func GenerationShow(g *protobuf.Generation) {
 		fmt.Printf("%s  Outpath:  %s\n", padding, g.OutPath)
 	case BuildFailed.String():
 		fmt.Printf("%sBuild failed %s\n", padding, humanize.Time(g.BuildEndedAt.AsTime()))
+	case BuildCanceled.String():
+		fmt.Printf("%sBuild canceled %s\n", padding, humanize.Time(g.BuildEndedAt.AsTime()))
 	}
 }
 
@@ -210,7 +235,10 @@ func (s *Store) GenerationEvalFinished(uuid string, drvPath, outPath, machineId 
 	if err != nil {
 		return err
 	}
-	if evalErr != nil {
+	if errors.Is(evalErr, context.Canceled) {
+		g.EvalErr = evalErr.Error()
+		g.EvalStatus = EvalCanceled.String()
+	} else if evalErr != nil {
 		g.EvalErr = evalErr.Error()
 		g.EvalStatus = EvalFailed.String()
 	} else {
@@ -267,6 +295,9 @@ func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 		if err := os.Symlink(g.OutPath, s.generationGcRoot); err != nil {
 			logrus.Errorf("Could not create the gcroot symlink for the generation %s: %s", g.Uuid, err)
 		}
+	} else if errors.Is(buildErr, context.Canceled) {
+		g.BuildStatus = BuildCanceled.String()
+		g.BuildErr = buildErr.Error()
 	} else {
 		g.BuildStatus = BuildFailed.String()
 		g.BuildErr = buildErr.Error()
