@@ -158,6 +158,10 @@ func (bm BuilderModel) View() string {
 			b.WriteString("  " + labelStyle.Render("Eval:    ") +
 				errorStyle.Render("failed") +
 				fmt.Sprintf(" %s\n", formatTime(g.EvalEndedAt.AsTime())))
+		case store.EvalCanceled.String():
+			b.WriteString("  " + labelStyle.Render("Eval:    ") +
+				"canceled" +
+				fmt.Sprintf(" %s\n", formatTime(g.EvalEndedAt.AsTime())))
 		}
 
 		switch g.BuildStatus {
@@ -172,6 +176,10 @@ func (bm BuilderModel) View() string {
 		case store.BuildFailed.String():
 			b.WriteString("  " + labelStyle.Render("Build:   ") +
 				errorStyle.Render("failed") +
+				fmt.Sprintf(" %s\n", formatTime(g.BuildEndedAt.AsTime())))
+		case store.BuildCanceled.String():
+			b.WriteString("  " + labelStyle.Render("Build:   ") +
+				"canceled" +
 				fmt.Sprintf(" %s\n", formatTime(g.BuildEndedAt.AsTime())))
 		}
 	}
