@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"slices"
 	"time"
 
@@ -99,6 +100,7 @@ func (r *repository) Fetch(remoteNames []string) {
 	var err error
 	var status string
 	r.RepositoryStatus.ErrorMsg = ""
+	r.RepositoryStatus.ValidationHookErrorMsg = ""
 	logrus.Debugf("repository: fetching %s", remoteNames)
 	for _, remote := range r.GitConfig.Remotes {
 		repositoryStatusRemote := GetRemote(r.RepositoryStatus, remote.Name)
@@ -230,6 +232,38 @@ func (r *repository) Update() error {
 		}
 	} else {
 		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(false)
+	}
+
+	// Run the validation hook of the remote which provides the selected
+	// commit, only when the commit is trusted: the hook runs with comin
+	// privileges, so it must not operate on a commit which failed the
+	// signature check. A non-zero exit code makes the commit not verified,
+	// like a signature verification failure. The hook is executed with the
+	// comin repository (which is bare) as the working directory.
+	trusted := !r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue() || r.RepositoryStatus.SelectedCommitSigned.GetValue()
+	if trusted {
+		hook := ""
+		for _, remote := range r.GitConfig.Remotes {
+			if remote.Name == r.RepositoryStatus.SelectedRemoteName {
+				hook = remote.ValidationHook
+				break
+			}
+		}
+		if hook != "" {
+			if err := runValidationHook(r.GitConfig.Path, hook); err != nil {
+				r.RepositoryStatus.ValidationHookErrorMsg = err.Error()
+			}
+		}
+	}
+	return nil
+}
+
+func runValidationHook(repositoryPath, hook string) error {
+	cmd := exec.Command(hook)
+	cmd.Dir = repositoryPath
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("the validation hook '%s' failed: %s\n%s", hook, err, string(output))
 	}
 	return nil
 }

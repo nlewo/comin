@@ -847,6 +847,41 @@ string
 
 
 
+## services\.comin\.remotes\.\*\.validation_hook
+
+
+
+The path to an executable validation hook script\. When the
+remote provides the commit to evaluate, comin executes this
+script with the comin Git repository (which is bare) as the
+working directory, after commit signature verification\. A
+non-zero exit code makes the commit not verified: it is then
+not evaluated nor deployed, and the error is reported in the
+fetcher status\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+
+```nix
+null
+```
+
+
+
+*Example:*
+
+```nix
+/path/to/my/validation-hook
+```
+
+
+
 ## services\.comin\.repositorySubdir
 
 

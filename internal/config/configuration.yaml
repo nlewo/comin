@@ -8,6 +8,7 @@ remotes:
     url: https://framagit.org/owner/infra
     auth:
       access_token_path: ./secret
+    validation_hook: /some/validation/hook
   - name: local
     type: local
     url: /home/owner/git/infra

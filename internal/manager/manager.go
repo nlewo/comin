@@ -177,7 +177,12 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 							logrus.Error(err)
 						}
 					} else {
-						logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
+						if rs.ValidationHookErrorMsg != "" {
+							logrus.Infof("manager: the commit %s is not evaluated because its validation hook failed: %s", rs.SelectedCommitId, rs.ValidationHookErrorMsg)
+						}
+						if rs.SelectedCommitShouldBeSigned.GetValue() && !rs.SelectedCommitSigned.GetValue() {
+							logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
+						}
 					}
 				}
 			case generationUUID := <-m.Builder.EvaluationDone:
