@@ -116,7 +116,7 @@ func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
 				d := m.GetDeploymentFinishedType().GetDeployment()
 				metrics.lastDeploymentFailed.Set(boolToFloat64(d.GetStatus() == "failed"))
 				git := getGitFromGeneration(d.GetGeneration())
-				metrics.SetDeploymentInfo(git.GetMainCommitId(), d.GetStatus())
+				metrics.SetDeploymentInfo(git.GetSelectedCommitId(), d.GetStatus())
 
 			case m.GetSuspend() != nil:
 				metrics.isSuspended.Set(boolToFloat64(true))
