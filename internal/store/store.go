@@ -60,7 +60,7 @@ func New(broker *broker.Broker, filename, gcRootsDir string, bootEntryCapacity, 
 		persisted:          data,
 		broker:             broker,
 	}
-	if err := os.MkdirAll(gcRootsDir, os.ModeDir); err != nil {
+	if err := os.MkdirAll(gcRootsDir, 0755); err != nil {
 		return nil, err
 	}
 	logrus.Infof("store: init with generationGcRoot=%s deploymentBootEntryCapacity=%d deploymentSuccessfulCapacity=%d deploymentAnyCapacity=%d", st.generationGcRoot, bootEntryCapacity, successfulCapacity, anyCapacity)
