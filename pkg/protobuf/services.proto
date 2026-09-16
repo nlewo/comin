@@ -280,6 +280,8 @@ message GitRepositoryStatus {
   string main_branch_name = 11;
   repeated Remote remotes = 12;
   string error_msg = 13;
+  // Set when the selected remote has a validation hook and it failed
+  string validation_hook_error_msg = 14;
 }
 
 message DeployerState {

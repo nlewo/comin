@@ -84,6 +84,18 @@ comin supports public key entries and the optional `namespaces=` restriction;
 other allowed signers options are rejected.
 
 
+## Validate commits with a validation hook
+
+The option `services.comin.remotes.*.validation_hook` allows to declare a
+script executed after commit signature verification, and specific to each
+remote (since each remote can have its own trust model).
+When the remote provides the commit to evaluate, comin executes this script
+with the comin Git repository (which is bare) as the working directory. A
+non-zero exit code makes the commit not verified: it is then not evaluated
+nor deployed, and the failure is reported in the fetcher status (`comin
+status`) and in the logs.
+
+
 ## How to deploy a nix-darwin configuration
 
 When comin is running on a Darwin system, it automatically builds and

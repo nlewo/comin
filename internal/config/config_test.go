@@ -18,8 +18,9 @@ func TestConfig(t *testing.T) {
 		RepositorySubdir:      ".",
 		Remotes: []types.Remote{
 			{
-				Name: "origin",
-				URL:  "https://framagit.org/owner/infra",
+				Name:           "origin",
+				URL:            "https://framagit.org/owner/infra",
+				ValidationHook: "/some/validation/hook",
 				Auth: types.Auth{
 					AccessToken:     "my-secret",
 					AccessTokenPath: "./secret",

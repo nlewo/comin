@@ -35,6 +35,9 @@ func longStatus(status *pb.State) {
 			fmt.Printf("    Commit %s is not signed while it should be\n", gitRepoStatus.SelectedCommitId)
 		}
 	}
+	if gitRepoStatus != nil && gitRepoStatus.ValidationHookErrorMsg != "" {
+		fmt.Printf("    Commit %s is not verified because its validation hook failed: %s\n", gitRepoStatus.SelectedCommitId, gitRepoStatus.ValidationHookErrorMsg)
+	}
 	if gitRepoStatus != nil {
 		for _, r := range gitRepoStatus.Remotes {
 			fmt.Printf("    Remote %s %s fetched %s\n",
