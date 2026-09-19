@@ -114,12 +114,15 @@ func (c *Confirmer) start() {
 			case "submit":
 				notified = false
 				c.state.Submitted = command.uuid
+				var modeStr string
 				switch Mode(c.state.Mode) {
 				case Manual:
 					logrus.Infof("confirmer: generation %s has been submitted", command.uuid)
+					modeStr = "manual"
 				case Without:
 					logrus.Infof("confirmer: generation %s has been submitted and confirmed", command.uuid)
 					c.state.Confirmed = command.uuid
+					modeStr = "without"
 				case Auto:
 					logrus.Infof("confirmer: generation %s has been submitted and will be confirmed in %d seconds", command.uuid, c.state.AutoconfirmDuration)
 					if c.timer != nil {
@@ -129,7 +132,11 @@ func (c *Confirmer) start() {
 					timer = c.timer.C
 					c.state.AutoconfirmStarted = wrapperspb.Bool(true)
 					c.state.AutoconfirmStartedAt = timestamppb.New(time.Now().UTC())
+					modeStr = "auto"
 				}
+				// Notify subscribers that a generation entered the confirmation flow (buffer window started / immediate / not needed)
+				submittedEvent := &protobuf.Event_ConfirmationSubmitted{Mode: modeStr, Uuid: command.uuid}
+				c.broker.Publish(&protobuf.Event{Type: &protobuf.Event_ConfirmationSubmittedType{ConfirmationSubmittedType: submittedEvent}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			case "confirm":
 				logrus.Infof("confirmer: generation %s has been confirmed", command.uuid)
 				c.state.Confirmed = command.uuid
