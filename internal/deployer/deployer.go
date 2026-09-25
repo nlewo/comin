@@ -51,6 +51,8 @@ type Deployer struct {
 	runnerIsSuspended atomic.Bool
 	store             *store.Store
 	broker            *broker.Broker
+	// currentStorepath reports the running system, overridden by tests.
+	currentStorepath func() string
 }
 
 func (d *Deployer) State() *protobuf.Deployer {
@@ -129,6 +131,10 @@ func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf
 		generationAvailableCh: make(chan struct{}, 1),
 		postDeploymentCommand: postDeploymentCommand,
 		broker:                b,
+		currentStorepath: func() string {
+			_, current := utils.GetBootedAndCurrentStorepaths()
+			return current
+		},
 
 		resumeCh: make(chan struct{}, 1),
 	}
@@ -180,6 +186,14 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation 
 	if previous.Operation != operation {
 		logrus.Infof("deployer: operation %s differs from previous operation %s for generation %s", operation, previous.Operation, generation.Uuid)
 		return false
+	}
+	// A test deployment writes no boot entry, so a reboot discards it while the
+	// record of it survives. Only the running system can say it is still applied.
+	if store.IsTesting(previous) {
+		if current := d.currentStorepath(); current != previous.Generation.OutPath {
+			logrus.Infof("deployer: the test deployment of %s is no longer the running system %s for generation %s", previous.Generation.OutPath, current, generation.Uuid)
+			return false
+		}
 	}
 	logrus.Infof("deployer: skipping deployment of generation %s: out path %s with operation %s has already been deployed", generation.Uuid, generation.OutPath, operation)
 	return true
