@@ -29,5 +29,7 @@ func TestBasic(t *testing.T) {
 
 	out, err := runPostDeploymentCommand("env", deployment)
 	assert.NoError(t, err)
+	assert.Contains(t, out, "COMIN_PHASE=deploy")
 	assert.Contains(t, out, "COMIN_GIT_SHA=")
+	assert.Contains(t, out, "COMIN_STATUS=done")
 }

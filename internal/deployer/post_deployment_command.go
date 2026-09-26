@@ -57,6 +57,7 @@ func runPostDeploymentCommand(command string, d *pb.Deployment) (string, error) 
 	cmd := exec.Command(command)
 
 	cmd.Env = append(os.Environ(),
+		"COMIN_PHASE=deploy",
 		"COMIN_GIT_SHA="+envGitSha(d),
 		"COMIN_GIT_REF="+envGitRef(d),
 		"COMIN_GIT_MSG="+envGitMessage(d),
