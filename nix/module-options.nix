@@ -315,6 +315,21 @@ in
             pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
           '';
         };
+        postBuildCommand = mkOption {
+          description = ''
+            A path to a script executed after each
+            build (including builds that are already in the Nix store).
+            comin provides to the script the same environment variables as
+            for the post deployment command, with `COMIN_PHASE` set to
+            `build`. The `COMIN_STATUS` is one of `built`, `failed` or
+            `already built`.
+          '';
+          type = nullOr path;
+          default = null;
+          example = lib.literalExpression ''
+            pkgs.writers.writeBash "post-build" "echo $COMIN_GIT_SHA";
+          '';
+        };
         buildConfirmer = mkOption {
           description = "The confirmer options for the build.";
           default = { };

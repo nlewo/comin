@@ -64,26 +64,29 @@ type Builder struct {
 	buildatorWg *sync.WaitGroup
 
 	isSuspended bool
+
+	postBuildCommand string
 }
 
-func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration) *Builder {
+func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration, postBuildCommand string) *Builder {
 	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, )",
 		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds())
 	return &Builder{
-		store:          store,
-		executor:       executor,
-		broker:         broker,
-		repositoryPath: repositoryPath,
-		repositoryDir:  repositoryDir,
-		systemAttr:     systemAttr,
-		submodules:     submodules,
-		hostname:       hostname,
-		evalTimeout:    evalTimeout,
-		buildTimeout:   buildTimeout,
-		EvaluationDone: make(chan string, 1),
-		BuildDone:      make(chan string, 1),
-		evaluatorWg:    &sync.WaitGroup{},
-		buildatorWg:    &sync.WaitGroup{},
+		store:            store,
+		executor:         executor,
+		broker:           broker,
+		repositoryPath:   repositoryPath,
+		repositoryDir:    repositoryDir,
+		systemAttr:       systemAttr,
+		submodules:       submodules,
+		hostname:         hostname,
+		evalTimeout:      evalTimeout,
+		buildTimeout:     buildTimeout,
+		postBuildCommand: postBuildCommand,
+		EvaluationDone:   make(chan string, 1),
+		BuildDone:        make(chan string, 1),
+		evaluatorWg:      &sync.WaitGroup{},
+		buildatorWg:      &sync.WaitGroup{},
 	}
 }
 
@@ -164,7 +167,7 @@ func (b *Builder) Stop() {
 }
 
 type Evaluator struct {
-	source     *protobuf.Source
+	source   *protobuf.Source
 	evalFunc executor.EvalFunc
 
 	drvPath   string
@@ -214,10 +217,10 @@ func (b *Builder) Eval(ctx context.Context, generation *protobuf.Generation) err
 	stdout, stderr := b.broker.GetLogger("evaluation", generation.Uuid)
 
 	evaluator := &Evaluator{
-		source:     generation.Source,
+		source:   generation.Source,
 		evalFunc: b.executor.Eval,
-		stdout:     stdout,
-		stderr:     stderr,
+		stdout:   stdout,
+		stderr:   stderr,
 	}
 	b.evaluator = NewExec(evaluator, b.evalTimeout)
 
@@ -253,6 +256,7 @@ func (b *Builder) Eval(ctx context.Context, generation *protobuf.Generation) err
 			if err := b.store.GenerationBuildFinished(generation.Uuid, nil); err != nil {
 				logrus.Errorf("builder: %s", err)
 			}
+			b.runPostBuildCommandIfSet(generation, BuildReasonAlreadyBuilt, "")
 			select {
 			case b.BuildDone <- generation.Uuid:
 			default:
@@ -380,6 +384,7 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 			logrus.Error(err)
 		}
 		b.isBuilding.Store(false)
+		b.runPostBuildCommandIfSet(&generation, store.Built.String(), errMsg(b.buildator.getErr()))
 		select {
 		case b.BuildDone <- generationUuid:
 		default:
@@ -387,4 +392,21 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 		}
 	}()
 	return nil
+}
+
+func errMsg(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func (b *Builder) runPostBuildCommandIfSet(g *protobuf.Generation, status, errMsg string) {
+	cmd := b.postBuildCommand
+	if cmd == "" {
+		return
+	}
+	if _, err := runPostBuildCommand(cmd, g, status, errMsg); err != nil {
+		logrus.Errorf("builder: post build command [%s] for generation %s failed %v", cmd, g.Uuid, err)
+	}
 }
