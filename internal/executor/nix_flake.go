@@ -59,6 +59,9 @@ func (n *GitNixFlake) Eval(ctx context.Context, source *protobuf.Source, stdout,
 		return "", "", "", fmt.Errorf("expected Git source, got nil")
 	}
 	flakeUrl := fmt.Sprintf("git+file://%s?dir=%s&rev=%s", n.repositoryPath, gitSource.RepositorySubdir, gitSource.SelectedCommitId)
+	if gitSource.SelectedBranchName != "" {
+		flakeUrl += "&ref=" + gitSource.SelectedBranchName
+	}
 	if n.submodules {
 		flakeUrl += "&submodules=1"
 	}
