@@ -39,10 +39,11 @@ func TestNixExecutorEval(t *testing.T) {
 			source: &protobuf.Source{
 				Source: &protobuf.Source_Git{
 					Git: &protobuf.Git{
-						RepositorySubdir: ".",
-						SystemAttr:       "nixosConfigurations",
-						Hostname:         "test-host",
-						SelectedCommitId:  "non-existent-commit-id",
+						RepositorySubdir:   ".",
+						SystemAttr:         "nixosConfigurations",
+						Hostname:           "test-host",
+						SelectedCommitId:   "non-existent-commit-id",
+						SelectedBranchName: "main",
 					},
 				},
 			},
@@ -54,10 +55,11 @@ func TestNixExecutorEval(t *testing.T) {
 			source: &protobuf.Source{
 				Source: &protobuf.Source_Git{
 					Git: &protobuf.Git{
-						RepositorySubdir: ".",
-						SystemAttr:       "darwinConfigurations",
-						Hostname:         "test-host",
-						SelectedCommitId:  "non-existent-commit-id",
+						RepositorySubdir:   ".",
+						SystemAttr:         "darwinConfigurations",
+						Hostname:           "test-host",
+						SelectedCommitId:   "non-existent-commit-id",
+						SelectedBranchName: "main",
 					},
 				},
 			},
