@@ -1,6 +1,8 @@
 package store
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -247,4 +249,58 @@ func TestCompareSwitchInhibitors(t *testing.T) {
 	// Test with both maps empty
 	diff = compareSwitchInhibitors(map[string]string{}, map[string]string{})
 	assert.Len(t, diff, 0)
+}
+
+// A build preempted by a newer commit finishes with context.Canceled. It must
+// not be recorded as a failure: comin_last_build_failed is derived from this
+// status, so folding cancellation into BuildFailed makes every pair of
+// closely-spaced commits look like a broken build until the retry completes.
+func TestGenerationBuildCanceledIsNotAFailure(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
+	assert.Nil(t, err)
+
+	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	assert.Nil(t, s.GenerationEvalStarted(g.Uuid))
+	assert.Nil(t, s.GenerationEvalFinished(g.Uuid, "drvPath", "outPath", "machineId", context.Canceled))
+
+	got, err := s.GenerationGet(g.Uuid)
+	assert.Nil(t, err)
+	assert.Equal(t, EvalCanceled.String(), got.EvalStatus)
+	assert.NotEqual(t, EvalFailed.String(), got.EvalStatus)
+
+	g2 := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	assert.Nil(t, s.GenerationEvalStarted(g2.Uuid))
+	assert.Nil(t, s.GenerationEvalFinished(g2.Uuid, "drvPath", "outPath", "machineId", nil))
+	assert.Nil(t, s.GenerationBuildStart(g2.Uuid, "reason"))
+	assert.Nil(t, s.GenerationBuildFinished(g2.Uuid, context.Canceled))
+
+	got2, err := s.GenerationGet(g2.Uuid)
+	assert.Nil(t, err)
+	assert.Equal(t, BuildCanceled.String(), got2.BuildStatus)
+	assert.NotEqual(t, BuildFailed.String(), got2.BuildStatus)
+	// The output path was never realised, so the generation still has to be
+	// built and must not be mistaken for a successful one.
+	assert.True(t, GenerationHasToBeBuilt(&got2))
+}
+
+// A genuine build error must still be recorded as a failure.
+func TestGenerationBuildErrorIsAFailure(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
+	assert.Nil(t, err)
+
+	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	assert.Nil(t, s.GenerationEvalStarted(g.Uuid))
+	assert.Nil(t, s.GenerationEvalFinished(g.Uuid, "drvPath", "outPath", "machineId", nil))
+	assert.Nil(t, s.GenerationBuildStart(g.Uuid, "reason"))
+	assert.Nil(t, s.GenerationBuildFinished(g.Uuid, errors.New("boom")))
+
+	got, err := s.GenerationGet(g.Uuid)
+	assert.Nil(t, err)
+	assert.Equal(t, BuildFailed.String(), got.BuildStatus)
 }
