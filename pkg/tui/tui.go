@@ -89,7 +89,7 @@ func (fm FetcherModel) View() string {
 				commitID = commitID[:8]
 			}
 			b.WriteString("    " + labelStyle.Render("main:    ") +
-				commitID + "  " + commitMsgSummary(r.Main.CommitMsg) + "\n")
+				r.Main.Name + "/" + commitID + "  " + commitMsgSummary(r.Main.CommitMsg) + "\n")
 			if r.Main.ErrorMsg != "" {
 				b.WriteString("      " + errorStyle.Render(r.Main.ErrorMsg) + "\n")
 			}
@@ -100,7 +100,7 @@ func (fm FetcherModel) View() string {
 				commitID = commitID[:8]
 			}
 			b.WriteString("    " + labelStyle.Render("testing: ") +
-				commitID + "  " + commitMsgSummary(r.Testing.CommitMsg) + "\n")
+				r.Testing.Name + "/" + commitID + "  " + commitMsgSummary(r.Testing.CommitMsg) + "\n")
 			if r.Testing.ErrorMsg != "" {
 				b.WriteString("      " + errorStyle.Render(r.Testing.ErrorMsg) + "\n")
 			}
