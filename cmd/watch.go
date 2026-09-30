@@ -19,6 +19,14 @@ import (
 
 type tickMsg time.Time
 
+type spinnerMsg struct{}
+
+func spinnerTick() tea.Cmd {
+	return tea.Tick(time.Millisecond*200, func(t time.Time) tea.Msg {
+		return spinnerMsg{}
+	})
+}
+
 func tick() tea.Cmd {
 	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
 		return tickMsg(t)
@@ -69,7 +77,7 @@ func consumeStream(m Model) func() tea.Msg {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(consumeStream(m), tick())
+	return tea.Batch(consumeStream(m), tick(), spinnerTick())
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -84,6 +92,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, consumeStream(m)
 	case tickMsg:
 		return m, tick()
+	case spinnerMsg:
+		m.manager.Builder.SpinnerFrame = (m.manager.Builder.SpinnerFrame + 1) % len(tui.SpinnerFrames)
+		return m, spinnerTick()
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Quit):

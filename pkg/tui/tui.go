@@ -55,7 +55,7 @@ func boolToString(v bool) string {
 
 // FetcherModel holds the current fetcher state and renders it.
 type FetcherModel struct {
-	IsFetching       bool
+	IsFetching          bool
 	GitRepositoryStatus *protobuf.GitRepositoryStatus
 }
 
@@ -116,7 +116,11 @@ type BuilderModel struct {
 	IsSuspended  bool
 	Generation   *protobuf.Generation
 	LogLines     []string
+	SpinnerFrame int
 }
+
+// Spinner frames for the building animation
+var SpinnerFrames = []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●"}
 
 func (bm BuilderModel) View() string {
 	var b strings.Builder
@@ -124,9 +128,11 @@ func (bm BuilderModel) View() string {
 	if bm.IsSuspended {
 		status = warnStyle.Render("⏸ suspended")
 	} else if bm.IsEvaluating {
-		status = activeStyle.Render("evaluating...")
+		spinnerFrame := SpinnerFrames[bm.SpinnerFrame]
+		status = activeStyle.Render(spinnerFrame + " evaluating")
 	} else if bm.IsBuilding {
-		status = activeStyle.Render("building...")
+		spinnerFrame := SpinnerFrames[bm.SpinnerFrame]
+		status = activeStyle.Render(spinnerFrame + " building")
 	} else {
 		status = dimStyle.Render("idle")
 	}
