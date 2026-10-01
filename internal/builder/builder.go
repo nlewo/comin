@@ -20,6 +20,7 @@ import (
 	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/internal/utils"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -406,7 +407,7 @@ func (b *Builder) runPostBuildCommandIfSet(g *protobuf.Generation, status, errMs
 	if cmd == "" {
 		return
 	}
-	if _, err := runPostBuildCommand(cmd, g, status, errMsg); err != nil {
+	if _, err := utils.RunPostCommand(cmd, "build", g, status, errMsg); err != nil {
 		logrus.Errorf("builder: post build command [%s] for generation %s failed %v", cmd, g.Uuid, err)
 	}
 }
