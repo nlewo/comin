@@ -25,8 +25,8 @@ type Exec struct {
 	mu         sync.Mutex
 }
 
-func NewExec(r Runnable, timeout time.Duration) *Exec {
-	return &Exec{
+func NewExec(r Runnable, timeout time.Duration) Exec {
+	return Exec{
 		runnable: r,
 		mu:       sync.Mutex{},
 		done:     make(chan struct{}),

@@ -57,10 +57,10 @@ type Builder struct {
 	// BuildDone is used to be notified a build is finished. Be careful since only a single goroutine can listen it.
 	BuildDone chan string
 
-	evaluator   *Exec
+	evaluator   Exec
 	evaluatorWg *sync.WaitGroup
 
-	buildator   *Exec
+	buildator   Exec
 	buildatorWg *sync.WaitGroup
 
 	isSuspended bool
@@ -136,9 +136,7 @@ func (b *Builder) GetSystemAttr() string {
 }
 
 func (b *Builder) stopEval() {
-	if b.evaluator != nil {
-		b.evaluator.Stop()
-	}
+	b.evaluator.Stop()
 	b.evaluatorWg.Wait()
 	b.isEvaluating.Store(false)
 }
@@ -150,9 +148,7 @@ func (b *Builder) stopEval() {
 // generation is finished. This is however not a important issue since
 // the builder will just rebuild the generation.
 func (b *Builder) stopBuild() {
-	if b.buildator != nil {
-		b.buildator.Stop()
-	}
+	b.buildator.Stop()
 	b.buildatorWg.Wait()
 
 	b.mu.Lock()
@@ -367,16 +363,15 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 		stdout:    stdout,
 		stderr:    stderr,
 	}
-	ba := NewExec(buildator, b.buildTimeout)
-	b.buildator = ba
+	b.buildator = NewExec(buildator, b.buildTimeout)
 
 	// This is to wait until the evaluator is stopped
 	b.buildatorWg.Add(1)
-	ba.Start(ctx)
+	b.buildator.Start(ctx)
 
 	go func() {
 		defer b.buildatorWg.Done()
-		ba.Wait()
+		b.buildator.Wait()
 
 		// We close the writers to stop associated goroutines
 		_ = stdout.Close()
@@ -384,12 +379,12 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		err := b.store.GenerationBuildFinished(generationUuid, ba.getErr())
+		err := b.store.GenerationBuildFinished(generationUuid, b.buildator.getErr())
 		if err != nil {
 			logrus.Error(err)
 		}
 		b.isBuilding.Store(false)
-		b.runPostBuildCommandIfSet(&generation, store.Built.String(), errMsg(ba.getErr()))
+		b.runPostBuildCommandIfSet(&generation, store.Built.String(), errMsg(b.buildator.getErr()))
 		select {
 		case b.BuildDone <- generationUuid:
 		default:
