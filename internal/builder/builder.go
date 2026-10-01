@@ -383,8 +383,8 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 		if err != nil {
 			logrus.Error(err)
 		}
-		b.isBuilding.Store(false)
 		b.runPostBuildCommandIfSet(&generation, store.Built.String(), errMsg(b.buildator.getErr()))
+		b.isBuilding.Store(false)
 		select {
 		case b.BuildDone <- generationUuid:
 		default:
