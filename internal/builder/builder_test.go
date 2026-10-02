@@ -286,7 +286,7 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 2)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second)
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, "")
 	ctx := t.Context()
 
 	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"})
@@ -320,7 +320,7 @@ func TestBuilderTimedOutBuildIsStillFailed(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 1*time.Second)
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 1*time.Second, "")
 	ctx := t.Context()
 
 	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
