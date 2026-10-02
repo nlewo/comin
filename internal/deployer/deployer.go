@@ -265,7 +265,7 @@ func (d *Deployer) Run(ctx context.Context) {
 			cmd := d.postDeploymentCommand
 			if cmd != "" {
 				// TODO: we should also log these outputs
-				_, err = runPostDeploymentCommand(cmd, deployment)
+				_, err = utils.RunPostCommand(cmd, "deploy", deployment.Generation, deployment.Status, deployment.ErrorMsg)
 				if err != nil {
 					logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", g.Uuid, cmd, err)
 				}

@@ -304,15 +304,34 @@ in
           default = null;
         };
         postDeploymentCommand = mkOption {
-          description = "A path to a script executed after each
-        deployment. comin provides to the script the following
-        environment variables: `COMIN_GIT_SHA`, `COMIN_GIT_REF`,
-        `COMIN_GIT_MSG`, `COMIN_HOSTNAME`, `COMIN_FLAKE_URL`,
-        `COMIN_GENERATION`, `COMIN_STATUS` and `COMIN_ERROR_MSG`.";
+          description = ''
+            A path to a script executed after each
+            deployment. comin provides to the script the following
+            environment variables: `COMIN_PHASE` (set to `deploy`),
+            `COMIN_GIT_SHA`, `COMIN_GIT_REF`, `COMIN_GIT_MSG`,
+            `COMIN_HOSTNAME`, `COMIN_GENERATION`, `COMIN_STATUS`
+            (one of `init`, `running`, `done` or `failed`) and
+            `COMIN_ERROR_MSG`.
+          '';
           type = nullOr path;
           default = null;
           example = lib.literalExpression ''
             pkgs.writers.writeBash "post" "echo $COMIN_GIT_SHA";
+          '';
+        };
+        postBuildCommand = mkOption {
+          description = ''
+            A path to a script executed after each
+            build (including builds that are already in the Nix store).
+            comin provides to the script the same environment variables as
+            for the post deployment command, with `COMIN_PHASE` set to
+            `build`. The `COMIN_STATUS` is one of `built`, `failed` or
+            `already built`.
+          '';
+          type = nullOr path;
+          default = null;
+          example = lib.literalExpression ''
+            pkgs.writers.writeBash "post-build" "echo $COMIN_GIT_SHA";
           '';
         };
         buildConfirmer = mkOption {
