@@ -200,6 +200,20 @@ in
                   Git fetch timeout in seconds.
                 '';
               };
+              validation_hook = mkOption {
+                type = nullOr path;
+                default = null;
+                description = ''
+                  The path to an executable validation hook script. When the
+                  remote provides the commit to evaluate, comin executes this
+                  script with the comin Git repository (which is bare) as the
+                  working directory, after commit signature verification. A
+                  non-zero exit code makes the commit not verified: it is then
+                  not evaluated nor deployed, and the error is reported in the
+                  fetcher status.
+                '';
+                example = lib.literalExpression "/path/to/my/validation-hook";
+              };
               branches = mkOption {
                 description = "Branches to pull.";
                 default = { };

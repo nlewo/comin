@@ -2,6 +2,7 @@ package repository
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -859,4 +860,174 @@ func TestUpdateSSHSigning(t *testing.T) {
 	assert.True(t, r.RepositoryStatus.SelectedCommitSigned.GetValue())
 	assert.Equal(t, "ssh@example.com", r.RepositoryStatus.SelectedCommitSignedBy)
 	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue())
+}
+
+func writeHook(t *testing.T, content string) string {
+	t.Helper()
+	hook := filepath.Join(t.TempDir(), "hook.sh")
+	assert.Nil(t, os.WriteFile(hook, []byte(content), 0755))
+	return hook
+}
+
+func TestUpdateValidationHook(t *testing.T) {
+	dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	r1, _ := initRemoteRepostiory(dir, true)
+	cMain := HeadCommitId(r1)
+
+	passingHook := writeHook(t, "#!/bin/sh\nexit 0\n")
+	failingHook := writeHook(t, "#!/bin/sh\necho 'validation hook failed' >&2\nexit 1\n")
+
+	tests := []struct {
+		name    string
+		hook    string
+		wantErr string
+	}{
+		{
+			name: "no validation hook",
+		},
+		{
+			name: "passing validation hook",
+			hook: passingHook,
+		},
+		{
+			name:    "failing validation hook",
+			hook:    failingHook,
+			wantErr: "validation hook failed",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gitConfig := types.GitConfig{
+				Path: cominRepositoryDir,
+				Remotes: []types.Remote{
+					{
+						Name:           "r1",
+						URL:            dir,
+						ValidationHook: tc.hook,
+						Branches: types.Branches{
+							Main: types.Branch{Name: "main"},
+						},
+						Timeout: 30,
+					},
+				},
+			}
+			r, err := New(gitConfig, "", prometheus.New())
+			assert.Nil(t, err)
+			r.Fetch([]string{"r1"})
+			assert.Nil(t, r.Update())
+			assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
+			if tc.wantErr != "" {
+				assert.Contains(t, r.RepositoryStatus.ValidationHookErrorMsg, tc.wantErr)
+			} else {
+				assert.Equal(t, "", r.RepositoryStatus.ValidationHookErrorMsg)
+			}
+		})
+	}
+}
+
+func TestUpdateValidationHookNotRunOnNonSelectedRemote(t *testing.T) {
+	dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	r1, _ := initRemoteRepostiory(dir, true)
+
+	passingHook := writeHook(t, "#!/bin/sh\nexit 0\n")
+	failingHook := writeHook(t, "#!/bin/sh\necho 'validation hook failed' >&2\nexit 1\n")
+
+	_, _ = commitFile(r1, dir, "main", "file-4")
+	gitConfig := types.GitConfig{
+		Path: cominRepositoryDir,
+		Remotes: []types.Remote{
+			{
+				Name:           "r1",
+				URL:            dir,
+				ValidationHook: passingHook,
+				Branches: types.Branches{
+					Main: types.Branch{Name: "main"},
+				},
+				Timeout: 30,
+			},
+			{
+				Name:           "r2",
+				URL:            dir,
+				ValidationHook: failingHook,
+				Branches: types.Branches{
+					Main: types.Branch{Name: "main"},
+				},
+				Timeout: 30,
+			},
+		},
+	}
+	r, err := New(gitConfig, "", prometheus.New())
+	assert.Nil(t, err)
+	r.Fetch([]string{"r1", "r2"})
+	assert.Nil(t, r.Update())
+	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
+	assert.Equal(t, "", r.RepositoryStatus.ValidationHookErrorMsg)
+}
+
+func TestUpdateValidationHookNotRunOnUnsignedCommit(t *testing.T) {
+	f, _ := os.Open("./test.private")
+	entityList, _ := openpgp.ReadArmoredKeyRing(f)
+	entity := entityList[0]
+	f.Close()
+
+	tests := []struct {
+		name        string
+		signCommit  bool
+		wantSigned  bool
+		wantHookRun bool
+	}{
+		{
+			name: "unsigned commit",
+		},
+		{
+			name:        "signed commit",
+			signCommit:  true,
+			wantSigned:  true,
+			wantHookRun: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cominRepositoryDir := t.TempDir()
+			r1, _ := initRemoteRepostiory(dir, true)
+			if tc.signCommit {
+				_, _ = commitFileAndSign(r1, dir, "main", "file-4", entity)
+			}
+			// The hook creates a marker file when executed. It only uses a
+			// shell builtin and a redirection, so it works with a minimal
+			// PATH.
+			marker := filepath.Join(t.TempDir(), "marker")
+			hook := writeHook(t, "#!/bin/sh\n: > "+marker+"\n")
+			gitConfig := types.GitConfig{
+				Path:              cominRepositoryDir,
+				GpgPublicKeyPaths: []string{"./test.public"},
+				Remotes: []types.Remote{
+					{
+						Name:           "r1",
+						URL:            dir,
+						ValidationHook: hook,
+						Branches: types.Branches{
+							Main: types.Branch{Name: "main"},
+						},
+						Timeout: 30,
+					},
+				},
+			}
+			r, err := New(gitConfig, "", prometheus.New())
+			assert.Nil(t, err)
+			r.Fetch([]string{"r1"})
+			assert.Nil(t, r.Update())
+			assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue())
+			assert.Equal(t, tc.wantSigned, r.RepositoryStatus.SelectedCommitSigned.GetValue())
+			_, err = os.Stat(marker)
+			if tc.wantHookRun {
+				assert.Nil(t, err, "the validation hook must run on a signed commit")
+			} else {
+				assert.True(t, os.IsNotExist(err), "the validation hook must not run on an unsigned commit")
+			}
+		})
+	}
 }

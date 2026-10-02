@@ -13,6 +13,9 @@ type Remote struct {
 	Timeout  int      `yaml:"timeout"`
 	// The period to poll the remote in second
 	Poller Poller `yaml:"poller"`
+	// The path to a validation hook script, executed against the selected
+	// commit. A non-zero exit code marks the commit as not verified.
+	ValidationHook string `yaml:"validation_hook"`
 }
 
 type Poller struct {

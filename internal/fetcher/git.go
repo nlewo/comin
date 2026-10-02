@@ -83,8 +83,9 @@ func (f *GitFetcher) Start(ctx context.Context) {
 					f.repositoryStatus = rs
 				}
 				f.mu.Unlock()
-				// Check if the commit is verified (signed when it should be)
-				verified := !rs.SelectedCommitShouldBeSigned.GetValue() || rs.SelectedCommitSigned.GetValue()
+				// Check if the commit is verified (signed and validated when it should be)
+				verified := (!rs.SelectedCommitShouldBeSigned.GetValue() || rs.SelectedCommitSigned.GetValue()) &&
+					rs.ValidationHookErrorMsg == ""
 				f.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Fetched_{Fetched: &protobuf.Event_Fetched{Type: &protobuf.Event_Fetched_GitRepositoryStatus{GitRepositoryStatus: rs}, Updated: updated, Verified: verified}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			}
 			if !f.isFetching.Load() && len(remotes) != 0 {
