@@ -278,6 +278,7 @@ func (mm ManagerModel) View() string {
 		return b.String()
 	}
 	b.WriteString(dimStyle.Render("Connected:       ") + boolToString(true) + "\n")
+	b.WriteString(dimStyle.Render("Hostname:        ") + mm.Hostname + "\n")
 	b.WriteString(labelStyle.Render("Suspended:       ") + boolToString(mm.IsSuspended) + "\n")
 	b.WriteString(labelStyle.Render("Reboot required: ") + boolToString(mm.NeedToReboot) + "\n")
 	b.WriteString("\n")
