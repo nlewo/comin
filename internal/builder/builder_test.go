@@ -313,6 +313,9 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 
 // A build that hits its timeout is a real failure and must keep reporting one.
 func TestBuilderTimedOutBuildIsStillFailed(t *testing.T) {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
@@ -334,4 +337,117 @@ func TestBuilderTimedOutBuildIsStillFailed(t *testing.T) {
 		assert.Nil(c, err)
 		assert.Equal(c, store.BuildFailed.String(), g.BuildStatus)
 	}, 3*time.Second, 100*time.Millisecond, "a build timeout must still be a failure")
+}
+
+func TestBuilderRetryOnFailure(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	// Create a mock that always fails builds
+	eMock := NewExecutorMock(false)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond)
+	ctx := t.Context()
+
+	// Create and evaluate a generation
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	_ = b.Eval(ctx, &generation)
+	eMock.evalDone <- struct{}{}
+	gUUID := <-b.EvaluationDone
+
+	// Verify initial attempt number is 0
+	g, _ := b.store.GenerationGet(gUUID)
+	assert.Equal(t, int32(0), g.AttemptNumber)
+
+	// Start a build that will timeout and fail
+	err = b.build(ctx, gUUID)
+	assert.Nil(t, err)
+
+	// Wait for the build to fail (this might take a bit due to goroutine scheduling)
+	select {
+	case <-b.BuildDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("BuildDone channel did not receive a value")
+	}
+
+	// Wait for the build status to be updated
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		g, _ := b.store.GenerationGet(gUUID)
+		assert.Equal(c, store.BuildFailed.String(), g.BuildStatus)
+		assert.Contains(c, g.BuildErr, "context deadline exceeded")
+	}, 3*time.Second, 100*time.Millisecond)
+
+	// Give the retry scheduler some time to run
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify that a retry is scheduled by checking the builder's internal state
+	b.mu.Lock()
+	assert.NotNil(t, b.buildRetryTimer, "buildRetryTimer should be set after build failure")
+	assert.NotNil(t, b.buildRetryAt, "buildRetryAt should be set after build failure")
+	b.mu.Unlock()
+}
+
+func TestBuilderRetryCancelledOnNewEval(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	// Create a mock that always fails builds
+	eMock := NewExecutorMock(false)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond)
+	ctx := t.Context()
+
+	// Create and evaluate the first generation
+	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"})
+	_ = b.Eval(ctx, &generation1)
+	eMock.evalDone <- struct{}{}
+	gUUID1 := <-b.EvaluationDone
+
+	// Start a build that will fail
+	err = b.build(ctx, gUUID1)
+	assert.Nil(t, err)
+
+	// Wait for the build to fail
+	select {
+	case <-b.BuildDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("BuildDone channel did not receive a value")
+	}
+
+	// Wait for the build status to be updated
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		g, _ := b.store.GenerationGet(gUUID1)
+		assert.Equal(c, store.BuildFailed.String(), g.BuildStatus)
+	}, 3*time.Second, 100*time.Millisecond)
+
+	// Give the retry scheduler some time to run
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify that a retry is scheduled
+	b.mu.Lock()
+	assert.NotNil(t, b.buildRetryTimer, "buildRetryTimer should be set after build failure")
+	assert.NotNil(t, b.buildRetryAt, "buildRetryAt should be set after build failure")
+	b.mu.Unlock()
+
+	// Now submit a new evaluation - this should cancel the retry
+	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"})
+	_ = b.Eval(ctx, &generation2)
+	eMock.evalDone <- struct{}{}
+	gUUID2 := <-b.EvaluationDone
+
+	// Give the Eval time to cancel the retry
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify that the retry was cancelled
+	b.mu.Lock()
+	assert.Nil(t, b.buildRetryTimer, "buildRetryTimer should be nil after new eval")
+	assert.Nil(t, b.buildRetryAt, "buildRetryAt should be nil after new eval")
+	b.mu.Unlock()
+
+	// Verify that the builder is now working on the new generation
+	assert.Equal(t, gUUID2, b.GenerationUuid, "builder should be working on the new generation")
 }

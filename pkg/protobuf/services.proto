@@ -178,6 +178,7 @@ message Generation {
   google.protobuf.Timestamp build_started_at = 21;
   google.protobuf.Timestamp build_ended_at = 22;
   string build_err = 23;
+  int32 attempt_number = 28;
 }
 
 message Deployment {
@@ -228,6 +229,7 @@ message Builder {
   google.protobuf.BoolValue is_suspended = 5;
   string hostname = 6;
   string repository_path = 7;
+  google.protobuf.Timestamp build_retry_at = 8;
 }
 
 message Confirmer {
