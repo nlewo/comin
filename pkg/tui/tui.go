@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	titleStyle   = lipgloss.NewStyle().Bold(true)
 	sectionStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4"))
 	labelStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
@@ -50,12 +49,12 @@ func boolToString(v bool) string {
 	if v {
 		return warnStyle.Render("yes")
 	}
-	return dimStyle.Render("no")
+	return "no"
 }
 
 // FetcherModel holds the current fetcher state and renders it.
 type FetcherModel struct {
-	IsFetching       bool
+	IsFetching          bool
 	GitRepositoryStatus *protobuf.GitRepositoryStatus
 }
 
@@ -64,11 +63,11 @@ func (fm FetcherModel) View() string {
 
 	var status string
 	if fm.IsFetching {
-		status = activeStyle.Render("fetching...")
+		status = activeStyle.Render("fetching")
 	} else {
 		status = dimStyle.Render("idle")
 	}
-	b.WriteString(sectionStyle.Render("Fetcher") + "  " + status + "\n")
+	b.WriteString(sectionStyle.Render("Fetcher") + "      " + status + "\n")
 
 	if fm.GitRepositoryStatus == nil {
 		return b.String()
@@ -76,22 +75,22 @@ func (fm FetcherModel) View() string {
 	for _, r := range fm.GitRepositoryStatus.Remotes {
 		fetchedAt := ""
 		if r.FetchedAt != nil {
-			fetchedAt = "  " + dimStyle.Render(formatTime(r.FetchedAt.AsTime()))
+			fetchedAt = dimStyle.Render(" fetched " + formatTime(r.FetchedAt.AsTime()))
 		}
-		b.WriteString("  " + labelStyle.Render("Remote: ") + r.Name + fetchedAt + "\n")
+		b.WriteString("  " + labelStyle.Render("Remote:    ") + r.Name + fetchedAt + "\n")
 		b.WriteString("    " + labelStyle.Render("URL:     ") + r.Url + "\n")
 		if r.FetchErrorMsg != "" {
-			b.WriteString("    " + errorStyle.Render("Error: "+r.FetchErrorMsg) + "\n")
+			b.WriteString("    " + labelStyle.Render("Error:   ") + r.FetchErrorMsg + "\n")
 		}
 		if r.Main != nil {
 			commitID := r.Main.CommitId
 			if len(commitID) > 8 {
 				commitID = commitID[:8]
 			}
-			b.WriteString("    " + labelStyle.Render("main:    ") +
-				commitID + "  " + commitMsgSummary(r.Main.CommitMsg) + "\n")
+			b.WriteString("    " + labelStyle.Render("Main:    ") +
+				r.Main.Name + "/" + commitID + "  " + commitMsgSummary(r.Main.CommitMsg) + "\n")
 			if r.Main.ErrorMsg != "" {
-				b.WriteString("      " + errorStyle.Render(r.Main.ErrorMsg) + "\n")
+				b.WriteString("      " + labelStyle.Render("Error: ") + r.Main.ErrorMsg + "\n")
 			}
 		}
 		if r.Testing != nil {
@@ -99,10 +98,14 @@ func (fm FetcherModel) View() string {
 			if len(commitID) > 8 {
 				commitID = commitID[:8]
 			}
-			b.WriteString("    " + labelStyle.Render("testing: ") +
-				commitID + "  " + commitMsgSummary(r.Testing.CommitMsg) + "\n")
-			if r.Testing.ErrorMsg != "" {
-				b.WriteString("      " + errorStyle.Render(r.Testing.ErrorMsg) + "\n")
+			if r.Testing.Name != "" {
+				b.WriteString("    " + labelStyle.Render("Testing: ") +
+					r.Testing.Name + "/" + commitID + "  " + commitMsgSummary(r.Testing.CommitMsg) + "\n")
+				if r.Testing.ErrorMsg != "" {
+					b.WriteString("      " + labelStyle.Render("Error: ") + r.Testing.ErrorMsg + "\n")
+				}
+			} else {
+				b.WriteString("    " + labelStyle.Render("Testing: not defined in the configuration") + "\n")
 			}
 		}
 	}
@@ -116,7 +119,10 @@ type BuilderModel struct {
 	IsSuspended  bool
 	Generation   *protobuf.Generation
 	LogLines     []string
+	SpinnerFrame int
 }
+
+var SpinnerFrames = []string{"●∙∙", "∙●∙", "∙∙●", "∙●∙"}
 
 func (bm BuilderModel) View() string {
 	var b strings.Builder
@@ -124,13 +130,15 @@ func (bm BuilderModel) View() string {
 	if bm.IsSuspended {
 		status = warnStyle.Render("⏸ suspended")
 	} else if bm.IsEvaluating {
-		status = activeStyle.Render("evaluating...")
+		spinnerFrame := SpinnerFrames[bm.SpinnerFrame]
+		status = activeStyle.Render(spinnerFrame + " evaluating")
 	} else if bm.IsBuilding {
-		status = activeStyle.Render("building...")
+		spinnerFrame := SpinnerFrames[bm.SpinnerFrame]
+		status = activeStyle.Render(spinnerFrame + " building")
 	} else {
 		status = dimStyle.Render("idle")
 	}
-	b.WriteString(sectionStyle.Render("Builder") + "  " + status + "\n")
+	b.WriteString(sectionStyle.Render("Builder") + "    " + status + "\n")
 
 	if bm.Generation != nil {
 		g := bm.Generation
@@ -212,7 +220,7 @@ func (dm DeployerModel) View() string {
 	} else {
 		status = dimStyle.Render("idle")
 	}
-	b.WriteString(sectionStyle.Render("Deployer") + "  " + status + "\n")
+	b.WriteString(sectionStyle.Render("Deployer") + "     " + status + "\n")
 
 	if dm.Deployment != nil {
 		d := dm.Deployment
@@ -273,18 +281,14 @@ type ManagerModel struct {
 func (mm ManagerModel) View() string {
 	var b strings.Builder
 
-	header := titleStyle.Render("comin")
-	if mm.Hostname != "" {
-		header += "  " + mm.Hostname
-	}
-	b.WriteString(header + "\n")
 	if mm.ConnectionMsg != "" {
-		b.WriteString("  " + warnStyle.Render("Disconnected: "+mm.ConnectionMsg) + "\n")
+		b.WriteString(warnStyle.Render("Disconnected: "+mm.ConnectionMsg) + "\n")
 		return b.String()
 	}
-	b.WriteString("  " + dimStyle.Render("Connected") + "\n")
-	b.WriteString("  " + labelStyle.Render("Reboot required: ") + boolToString(mm.NeedToReboot) + "\n")
-	b.WriteString("  " + labelStyle.Render("Suspended:       ") + boolToString(mm.IsSuspended) + "\n")
+	b.WriteString(dimStyle.Render("Connected:       ") + boolToString(true) + "\n")
+	b.WriteString(dimStyle.Render("Hostname:        ") + mm.Hostname + "\n")
+	b.WriteString(labelStyle.Render("Suspended:       ") + boolToString(mm.IsSuspended) + "\n")
+	b.WriteString(labelStyle.Render("Reboot required: ") + boolToString(mm.NeedToReboot) + "\n")
 	b.WriteString("\n")
 	b.WriteString(mm.Fetcher.View())
 	b.WriteString("\n")
