@@ -115,6 +115,13 @@ in
             comin will retry forever on build failures.
           '';
         };
+        buildRetryTimer = mkOption {
+          type = int;
+          default = 30;
+          description = ''
+            Duration in seconds between each build retry attempt.
+          '';
+        };
         exporter = mkOption {
           description = "Options for the Prometheus exporter.";
           default = { };

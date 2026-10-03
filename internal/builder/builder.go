@@ -33,17 +33,18 @@ const (
 )
 
 type Builder struct {
-	store          *store.Store
-	executor       executor.Executor
-	broker         *broker.Broker
-	hostname       string
-	repositoryPath string
-	repositoryDir  string
-	systemAttr     string
-	submodules     bool
-	evalTimeout    time.Duration
-	buildTimeout   time.Duration
-	buildAttemptsLimit int
+	store                *store.Store
+	executor             executor.Executor
+	broker               *broker.Broker
+	hostname             string
+	repositoryPath       string
+	repositoryDir        string
+	systemAttr           string
+	submodules           bool
+	evalTimeout          time.Duration
+	buildTimeout         time.Duration
+	buildAttemptsLimit   int
+	buildRetryTimerDuration time.Duration
 
 	mu           sync.Mutex
 	isEvaluating atomic.Bool
@@ -75,9 +76,9 @@ type Builder struct {
 	buildRetryCancel context.CancelFunc
 }
 
-func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration, buildAttemptsLimit int) *Builder {
-	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, buildAttemptsLimit=%d)",
-		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds(), buildAttemptsLimit)
+func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration, buildAttemptsLimit int, buildRetryTimer time.Duration) *Builder {
+	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, buildAttemptsLimit=%d, buildRetryTimer=%fs",
+		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds(), buildAttemptsLimit, buildRetryTimer.Seconds())
 	return &Builder{
 		store:            store,
 		executor:         executor,
@@ -90,6 +91,7 @@ func New(store *store.Store, executor executor.Executor, broker *broker.Broker, 
 		evalTimeout:      evalTimeout,
 		buildTimeout:     buildTimeout,
 		buildAttemptsLimit: buildAttemptsLimit,
+		buildRetryTimerDuration:  buildRetryTimer,
 		EvaluationDone: make(chan string, 1),
 		BuildDone:      make(chan string, 1),
 		evaluatorWg:    &sync.WaitGroup{},
@@ -198,7 +200,7 @@ func (b *Builder) cancelBuildRetry() {
 	b.buildRetryAt = nil
 }
 
-// scheduleBuildRetry schedules a retry for the current generation after 1 minute
+// scheduleBuildRetry schedules a retry for the current generation
 func (b *Builder) scheduleBuildRetry(generationUuid string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -215,28 +217,31 @@ func (b *Builder) scheduleBuildRetry(generationUuid string) {
 	b.buildRetryAt = nil
 
 	// Set the retry time
-	retryAt := time.Now().Add(1 * time.Minute)
+	retryAt := time.Now().Add(b.buildRetryTimerDuration)
 	b.buildRetryAt = timestamppb.New(retryAt)
 
 	// Create context for the retry
 	b.buildRetryCtx, b.buildRetryCancel = context.WithCancel(context.Background())
 
 	// Start the timer
-	b.buildRetryTimer = time.AfterFunc(1*time.Minute, func() {
+	b.buildRetryTimer = time.AfterFunc(b.buildRetryTimerDuration, func() {
 		// Capture generationUuid in the closure
 		retryGenerationUuid := generationUuid
 		b.mu.Lock()
-		defer b.mu.Unlock()
 		// Check if we still have a retry scheduled (might have been cancelled)
 		if b.buildRetryAt != nil {
 			logrus.Infof("builder: retrying build for generation %s after failure", retryGenerationUuid)
 			// The attempt number will be incremented by GenerationBuildStart
-			// Clear retry state
+			// Clear retry state and save context before unlocking
+			buildRetryCtx := b.buildRetryCtx
 			b.buildRetryAt = nil
 			b.buildRetryTimer = nil
 			b.buildRetryCancel = nil
-			// Submit the build for retry
-			b.SubmitBuild(b.buildRetryCtx, retryGenerationUuid)
+			b.mu.Unlock()
+			// Submit the build for retry (outside the lock to avoid deadlock)
+			b.SubmitBuild(buildRetryCtx, retryGenerationUuid)
+		} else {
+			b.mu.Unlock()
 		}
 	})
 }
@@ -474,7 +479,7 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 			} else if b.buildAttemptsLimit > 0 && generation.AttemptNumber >= int32(b.buildAttemptsLimit) {
 				logrus.Infof("builder: build failed for generation %s but build attempts limit (%d) reached", generationUuid, b.buildAttemptsLimit)
 			} else {
-				logrus.Infof("builder: build failed for generation %s, scheduling retry in 1 minute", generationUuid)
+				logrus.Infof("builder: build failed for generation %s, scheduling retry in %fs", generationUuid, b.buildRetryTimerDuration.Seconds())
 				b.scheduleBuildRetry(generationUuid)
 			}
 		}

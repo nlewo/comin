@@ -92,4 +92,5 @@ type Configuration struct {
 	EvalTimeout           int        `yaml:"eval_timeout"`
 	BuildTimeout          int        `yaml:"build_timeout"`
 	BuildAttemptsLimit    int        `yaml:"build_attempts_limit"`
+	BuildRetryTimer       int        `yaml:"build_retry_timer"`
 }
