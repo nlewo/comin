@@ -44,6 +44,7 @@ type Builder struct {
 	submodules     bool
 	evalTimeout    time.Duration
 	buildTimeout   time.Duration
+	buildAttemptsLimit int
 
 	mu           sync.Mutex
 	isEvaluating atomic.Bool
@@ -77,9 +78,10 @@ type Builder struct {
 	buildRetryCancel context.CancelFunc
 }
 
-func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration, postBuildCommand string) *Builder {
-	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, )",
-		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds())
+func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration, buildAttemptsLimit int, postBuildCommand string) *Builder {
+	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, buildAttemptsLimit=%d, postBuildCommand=%s",
+		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds(), buildAttemptsLimit, postBuildCommand)
+
 	return &Builder{
 		store:            store,
 		executor:         executor,
@@ -91,11 +93,13 @@ func New(store *store.Store, executor executor.Executor, broker *broker.Broker, 
 		hostname:         hostname,
 		evalTimeout:      evalTimeout,
 		buildTimeout:     buildTimeout,
+		buildAttemptsLimit: buildAttemptsLimit,
 		postBuildCommand: postBuildCommand,
 		EvaluationDone:   make(chan string, 1),
 		BuildDone:        make(chan string, 1),
 		evaluatorWg:      &sync.WaitGroup{},
 		buildatorWg:      &sync.WaitGroup{},
+
 	}
 }
 
@@ -143,6 +147,10 @@ func (b *Builder) GetRepositoryPath() string {
 
 func (b *Builder) GetRepositoryDir() string {
 	return b.repositoryDir
+}
+
+func (b *Builder) GetBuildAttemptsLimit() int {
+	return b.buildAttemptsLimit
 }
 
 func (b *Builder) GetSystemAttr() string {
@@ -467,8 +475,16 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 
 		// If build failed, schedule a retry (outside the lock to avoid deadlock)
 		if buildErr != nil {
-			logrus.Infof("builder: build failed for generation %s, scheduling retry in 1 minute", generationUuid)
-			b.scheduleBuildRetry(generationUuid)
+			// Check if we've reached the build attempts limit
+			generation, genErr := b.store.GenerationGet(generationUuid)
+			if genErr != nil {
+				logrus.Errorf("builder: failed to get generation %s to check build attempts limit: %s", generationUuid, genErr)
+			} else if b.buildAttemptsLimit > 0 && generation.AttemptNumber >= int32(b.buildAttemptsLimit) {
+				logrus.Infof("builder: build failed for generation %s but build attempts limit (%d) reached", generationUuid, b.buildAttemptsLimit)
+			} else {
+				logrus.Infof("builder: build failed for generation %s, scheduling retry in 1 minute", generationUuid)
+				b.scheduleBuildRetry(generationUuid)
+			}
 		}
 	}()
 	return nil

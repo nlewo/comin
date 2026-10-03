@@ -112,7 +112,7 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *protobuf.GitRepositoryStatus) (g protobuf.Generation) {
+func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *protobuf.GitRepositoryStatus, buildAttemptsLimit int) (g protobuf.Generation) {
 	// Find the selected remote URL
 	selectedRemoteUrl := ""
 	for _, remote := range rs.Remotes {
@@ -145,6 +145,7 @@ func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *pr
 		EvalStatus:   EvalInit.String(),
 		BuildStatus: BuildInit.String(),
 		AttemptNumber: 0,
+		BuildAttemptsLimit: int32(buildAttemptsLimit),
 	}
 	s.persisted.Generations = append(s.persisted.Generations, &g)
 	return

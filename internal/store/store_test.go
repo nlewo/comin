@@ -220,7 +220,7 @@ func TestNewGeneration(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 	s, _ := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
-	s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
 }
 
 func TestCompareSwitchInhibitors(t *testing.T) {
