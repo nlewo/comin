@@ -107,6 +107,14 @@ in
             Maximum duration in seconds for a Nix build before comin cancels it.
           '';
         };
+        buildAttemptsLimit = mkOption {
+          type = int;
+          default = 0;
+          description = ''
+            Maximum number of build attempts before giving up. When set to 0,
+            comin will retry forever on build failures.
+          '';
+        };
         exporter = mkOption {
           description = "Options for the Prometheus exporter.";
           default = { };

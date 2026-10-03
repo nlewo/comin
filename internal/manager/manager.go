@@ -171,7 +171,7 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					rs := fetched.GetGitRepositoryStatus()
 					if fetched.Verified {
 						logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-						generation := m.storage.NewGeneration(m.Builder.GetHostname(), m.Builder.GetRepositoryDir(), m.Builder.GetSystemAttr(), rs)
+						generation := m.storage.NewGeneration(m.Builder.GetHostname(), m.Builder.GetRepositoryDir(), m.Builder.GetSystemAttr(), rs, m.Builder.GetBuildAttemptsLimit())
 						err := m.Builder.Eval(ctx, &generation)
 						if err != nil {
 							logrus.Error(err)

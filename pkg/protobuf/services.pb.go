@@ -653,22 +653,23 @@ type Generation struct {
 	// Deprecated: Marked as deprecated in pkg/protobuf/services.proto.
 	MainRemoteName string `protobuf:"bytes,11,opt,name=main_remote_name,json=mainRemoteName" json:"main_remote_name,omitempty"`
 	// Deprecated: Marked as deprecated in pkg/protobuf/services.proto.
-	MainBranchName string                 `protobuf:"bytes,12,opt,name=main_branch_name,json=mainBranchName" json:"main_branch_name,omitempty"`
-	EvalStatus     string                 `protobuf:"bytes,13,opt,name=eval_status,json=evalStatus" json:"eval_status,omitempty"`
-	EvalStartedAt  *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=eval_started_at,json=evalStartedAt" json:"eval_started_at,omitempty"`
-	EvalEndedAt    *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=eval_ended_at,json=evalEndedAt" json:"eval_ended_at,omitempty"`
-	EvalErr        string                 `protobuf:"bytes,16,opt,name=eval_err,json=evalErr" json:"eval_err,omitempty"`
-	OutPath        string                 `protobuf:"bytes,17,opt,name=out_path,json=outPath" json:"out_path,omitempty"`
-	DrvPath        string                 `protobuf:"bytes,18,opt,name=drv_path,json=drvPath" json:"drv_path,omitempty"`
-	MachineId      string                 `protobuf:"bytes,19,opt,name=machine_id,json=machineId" json:"machine_id,omitempty"`
-	BuildStatus    string                 `protobuf:"bytes,20,opt,name=build_status,json=buildStatus" json:"build_status,omitempty"`
-	BuildReason    string                 `protobuf:"bytes,27,opt,name=build_reason,json=buildReason" json:"build_reason,omitempty"`
-	BuildStartedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=build_started_at,json=buildStartedAt" json:"build_started_at,omitempty"`
-	BuildEndedAt   *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=build_ended_at,json=buildEndedAt" json:"build_ended_at,omitempty"`
-	BuildErr       string                 `protobuf:"bytes,23,opt,name=build_err,json=buildErr" json:"build_err,omitempty"`
-	AttemptNumber  int32                  `protobuf:"varint,28,opt,name=attempt_number,json=attemptNumber" json:"attempt_number,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	MainBranchName     string                 `protobuf:"bytes,12,opt,name=main_branch_name,json=mainBranchName" json:"main_branch_name,omitempty"`
+	EvalStatus         string                 `protobuf:"bytes,13,opt,name=eval_status,json=evalStatus" json:"eval_status,omitempty"`
+	EvalStartedAt      *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=eval_started_at,json=evalStartedAt" json:"eval_started_at,omitempty"`
+	EvalEndedAt        *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=eval_ended_at,json=evalEndedAt" json:"eval_ended_at,omitempty"`
+	EvalErr            string                 `protobuf:"bytes,16,opt,name=eval_err,json=evalErr" json:"eval_err,omitempty"`
+	OutPath            string                 `protobuf:"bytes,17,opt,name=out_path,json=outPath" json:"out_path,omitempty"`
+	DrvPath            string                 `protobuf:"bytes,18,opt,name=drv_path,json=drvPath" json:"drv_path,omitempty"`
+	MachineId          string                 `protobuf:"bytes,19,opt,name=machine_id,json=machineId" json:"machine_id,omitempty"`
+	BuildStatus        string                 `protobuf:"bytes,20,opt,name=build_status,json=buildStatus" json:"build_status,omitempty"`
+	BuildReason        string                 `protobuf:"bytes,27,opt,name=build_reason,json=buildReason" json:"build_reason,omitempty"`
+	BuildStartedAt     *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=build_started_at,json=buildStartedAt" json:"build_started_at,omitempty"`
+	BuildEndedAt       *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=build_ended_at,json=buildEndedAt" json:"build_ended_at,omitempty"`
+	BuildErr           string                 `protobuf:"bytes,23,opt,name=build_err,json=buildErr" json:"build_err,omitempty"`
+	AttemptNumber      int32                  `protobuf:"varint,28,opt,name=attempt_number,json=attemptNumber" json:"attempt_number,omitempty"`
+	BuildAttemptsLimit int32                  `protobuf:"varint,29,opt,name=build_attempts_limit,json=buildAttemptsLimit" json:"build_attempts_limit,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Generation) Reset() {
@@ -906,6 +907,13 @@ func (x *Generation) GetBuildErr() string {
 func (x *Generation) GetAttemptNumber() int32 {
 	if x != nil {
 		return x.AttemptNumber
+	}
+	return 0
+}
+
+func (x *Generation) GetBuildAttemptsLimit() int32 {
+	if x != nil {
+		return x.BuildAttemptsLimit
 	}
 	return 0
 }
@@ -2992,7 +3000,8 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"\x10main_branch_name\x18\f \x01(\tR\x0emainBranchName\"5\n" +
 	"\x06Source\x12!\n" +
 	"\x03git\x18\x01 \x01(\v2\r.protobuf.GitH\x00R\x03gitB\b\n" +
-	"\x06source\"\xfd\t\n" +
+	"\x06source\"\xaf\n" +
+	"\n" +
 	"\n" +
 	"Generation\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12(\n" +
@@ -3026,7 +3035,8 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"\x10build_started_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\x0ebuildStartedAt\x12@\n" +
 	"\x0ebuild_ended_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\fbuildEndedAt\x12\x1b\n" +
 	"\tbuild_err\x18\x17 \x01(\tR\bbuildErr\x12%\n" +
-	"\x0eattempt_number\x18\x1c \x01(\x05R\rattemptNumber\"\xe2\x06\n" +
+	"\x0eattempt_number\x18\x1c \x01(\x05R\rattemptNumber\x120\n" +
+	"\x14build_attempts_limit\x18\x1d \x01(\x05R\x12buildAttemptsLimit\"\xe2\x06\n" +
 	"\n" +
 	"Deployment\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x16\n" +

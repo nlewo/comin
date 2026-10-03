@@ -179,6 +179,7 @@ message Generation {
   google.protobuf.Timestamp build_ended_at = 22;
   string build_err = 23;
   int32 attempt_number = 28;
+  int32 build_attempts_limit = 29;
 }
 
 message Deployment {
