@@ -52,6 +52,7 @@ func (b *Broker) Start() {
 						select {
 						case sub.channel <- msg:
 						default:
+							logrus.Errorf("broker: dropped event for subscriber '%s': '%v'", sub.name, msg)
 						}
 					}
 				}
