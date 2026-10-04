@@ -57,6 +57,11 @@ type Manager struct {
 	brokerEvents chan *protobuf.Event
 }
 
+func filterEvents(event *protobuf.Event) bool {
+	_, ok := event.Type.(*protobuf.Event_Fetched_)
+	return ok
+}
+
 func New(s *store.Store,
 	p prometheus.Prometheus,
 	sched scheduler.Scheduler,
@@ -89,7 +94,7 @@ func New(s *store.Store,
 		DeployConfirmer:         deployConfirmer,
 		broker:                  broker,
 		configurationOperations: configurationOperations,
-		brokerEvents:            broker.Subscribe("manager"),
+		brokerEvents:            broker.SubscribeWithFilter("manager", filterEvents),
 	}
 	return m
 }
