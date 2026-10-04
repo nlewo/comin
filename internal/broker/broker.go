@@ -11,10 +11,20 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Filter is a function that takes an event and returns true if the event should be delivered
+// to the subscriber
+type Filter func(*protobuf.Event) bool
+
+// subscription holds a channel and its filter function
+type subscription struct {
+	channel chan *protobuf.Event
+	filter  Filter
+}
+
 type Broker struct {
 	stopCh      chan struct{}
 	publishCh   chan *protobuf.Event
-	subscribers map[chan *protobuf.Event]struct{}
+	subscribers []*subscription
 	mu          sync.RWMutex
 }
 
@@ -22,7 +32,7 @@ func New() *Broker {
 	return &Broker{
 		stopCh:      make(chan struct{}),
 		publishCh:   make(chan *protobuf.Event, 1),
-		subscribers: make(map[chan *protobuf.Event]struct{}),
+		subscribers: make([]*subscription, 0),
 	}
 }
 
@@ -34,11 +44,14 @@ func (b *Broker) Start() {
 				return
 			case msg := <-b.publishCh:
 				b.mu.RLock()
-				for msgCh := range b.subscribers {
-					// msgCh is buffered, use non-blocking send to protect the broker:
-					select {
-					case msgCh <- msg:
-					default:
+				for _, sub := range b.subscribers {
+					// Apply filter - only send if the event passes the filter
+					if sub.filter(msg) {
+						// msgCh is buffered, use non-blocking send to protect the broker:
+						select {
+						case sub.channel <- msg:
+						default:
+						}
 					}
 				}
 				b.mu.RUnlock()
@@ -52,17 +65,43 @@ func (b *Broker) Stop() {
 }
 
 func (b *Broker) Subscribe() chan *protobuf.Event {
+	return b.SubscribeWithFilter(nil)
+}
+
+// SubscribeWithFilter creates a new subscription with a custom filter function.
+// The filter function receives each event and should return true to deliver the event
+// to the subscriber, or false to filter it out.
+// If the filter is nil, all events will be delivered (same as Subscribe())
+func (b *Broker) SubscribeWithFilter(filter Filter) chan *protobuf.Event {
 	msgCh := make(chan *protobuf.Event, 5)
+	
+	// Default to accept all events if no filter is provided
+	if filter == nil {
+		filter = func(*protobuf.Event) bool { return true }
+	}
+	
 	b.mu.Lock()
-	b.subscribers[msgCh] = struct{}{}
+	b.subscribers = append(b.subscribers, &subscription{
+		channel: msgCh,
+		filter:  filter,
+	})
 	b.mu.Unlock()
+	
 	return msgCh
 }
 
 func (b *Broker) Unsubscribe(msgCh chan *protobuf.Event) {
 	b.mu.Lock()
-	delete(b.subscribers, msgCh)
-	b.mu.Unlock()
+	defer b.mu.Unlock()
+	
+	for i, sub := range b.subscribers {
+		if sub.channel == msgCh {
+			// Remove this subscription by swapping with the last element and popping
+			b.subscribers[i] = b.subscribers[len(b.subscribers)-1]
+			b.subscribers = b.subscribers[:len(b.subscribers)-1]
+			break
+		}
+	}
 }
 
 func (b *Broker) Publish(msg *protobuf.Event) {
