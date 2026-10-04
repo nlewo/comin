@@ -29,7 +29,7 @@ type cominServer struct {
 func (s *cominServer) Events(_ *emptypb.Empty, stream grpc.ServerStreamingServer[protobuf.Event]) error {
 	logrus.Infof("server: start to stream events")
 
-	subscriber := s.broker.Subscribe()
+	subscriber := s.broker.Subscribe("server-events")
 	state := s.manager.GetState()
 	stateEvent := &protobuf.Event{Type: &protobuf.Event_ManagerState_{ManagerState: &protobuf.Event_ManagerState{State: state}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 	if err := stream.Send(stateEvent); err != nil {

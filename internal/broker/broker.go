@@ -15,8 +15,9 @@ import (
 // to the subscriber
 type Filter func(*protobuf.Event) bool
 
-// subscription holds a channel and its filter function
+// subscription holds a channel, its filter function, and a name
 type subscription struct {
+	name    string
 	channel chan *protobuf.Event
 	filter  Filter
 }
@@ -64,15 +65,15 @@ func (b *Broker) Stop() {
 	close(b.stopCh)
 }
 
-func (b *Broker) Subscribe() chan *protobuf.Event {
-	return b.SubscribeWithFilter(nil)
+func (b *Broker) Subscribe(name string) chan *protobuf.Event {
+	return b.SubscribeWithFilter(name, nil)
 }
 
-// SubscribeWithFilter creates a new subscription with a custom filter function.
+// SubscribeWithFilter creates a new subscription with a name and a custom filter function.
 // The filter function receives each event and should return true to deliver the event
 // to the subscriber, or false to filter it out.
 // If the filter is nil, all events will be delivered (same as Subscribe())
-func (b *Broker) SubscribeWithFilter(filter Filter) chan *protobuf.Event {
+func (b *Broker) SubscribeWithFilter(name string, filter Filter) chan *protobuf.Event {
 	msgCh := make(chan *protobuf.Event, 5)
 	
 	// Default to accept all events if no filter is provided
@@ -82,6 +83,7 @@ func (b *Broker) SubscribeWithFilter(filter Filter) chan *protobuf.Event {
 	
 	b.mu.Lock()
 	b.subscribers = append(b.subscribers, &subscription{
+		name:    name,
 		channel: msgCh,
 		filter:  filter,
 	})

@@ -19,7 +19,7 @@ func TestFetcher(t *testing.T) {
 	f.Start(t.Context())
 
 	// Subscribe to broker events
-	brokerEvents := bk.Subscribe()
+	brokerEvents := bk.Subscribe("fetcher-test")
 
 	var commitId string
 

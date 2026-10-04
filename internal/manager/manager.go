@@ -89,7 +89,7 @@ func New(s *store.Store,
 		DeployConfirmer:         deployConfirmer,
 		broker:                  broker,
 		configurationOperations: configurationOperations,
-		brokerEvents:            broker.Subscribe(),
+		brokerEvents:            broker.Subscribe("manager"),
 	}
 	return m
 }
