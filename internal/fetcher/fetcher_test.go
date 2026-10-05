@@ -40,7 +40,6 @@ func TestFetcher(t *testing.T) {
 			e := <-brokerEvents
 			fetched := e.GetFetched()
 			assert.NotNil(c, fetched)
-			assert.True(c, fetched.Updated)
 			assert.Equal(c, commitId, fetched.GetGitRepositoryStatus().SelectedCommitId)
 		}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
@@ -55,7 +54,6 @@ func TestFetcher(t *testing.T) {
 		e := <-brokerEvents
 		fetched := e.GetFetched()
 		assert.NotNil(c, fetched)
-		assert.True(c, fetched.Updated)
 		assert.Equal(c, "id-5", fetched.GetGitRepositoryStatus().SelectedCommitId)
 	}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
@@ -69,7 +67,6 @@ func TestFetcher(t *testing.T) {
 		e := <-brokerEvents
 		fetched := e.GetFetched()
 		assert.NotNil(c, fetched)
-		assert.True(c, fetched.Updated)
 		assert.Equal(c, "id-6", fetched.GetGitRepositoryStatus().SelectedCommitId)
 	}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 }

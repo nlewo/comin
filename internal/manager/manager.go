@@ -53,6 +53,10 @@ type Manager struct {
 
 	isSuspended bool
 
+	// Store the last fetched repository state to detect updates
+	lastFetchedCommitId string
+	lastFetchedBranchIsTesting *wrapperspb.BoolValue
+
 	broker       *broker.Broker
 	brokerEvents chan *protobuf.Event
 }
@@ -170,10 +174,17 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 			select {
 			case e := <-m.brokerEvents:
 				if fetched := e.GetFetched(); fetched != nil {
-					if !fetched.Updated {
+					rs := fetched.GetGitRepositoryStatus()
+					// Check if the repository has been updated by comparing with last fetched state
+					updated := m.lastFetchedCommitId != rs.SelectedCommitId ||
+						(m.lastFetchedBranchIsTesting != nil && rs.SelectedBranchIsTesting != nil &&
+						m.lastFetchedBranchIsTesting.GetValue() != rs.SelectedBranchIsTesting.GetValue())
+					if !updated {
 						continue
 					}
-					rs := fetched.GetGitRepositoryStatus()
+					// Update the stored state for next comparison
+					m.lastFetchedCommitId = rs.SelectedCommitId
+					m.lastFetchedBranchIsTesting = rs.SelectedBranchIsTesting
 					if fetched.Verified {
 						logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
 						generation := m.storage.NewGeneration(m.Builder.GetHostname(), m.Builder.GetRepositoryDir(), m.Builder.GetSystemAttr(), rs)
