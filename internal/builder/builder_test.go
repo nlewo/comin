@@ -70,16 +70,16 @@ func TestBuilderBuild(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "my-machine", false, 2*time.Second, 2*time.Second, "")
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 2*time.Second, 2*time.Second, 0, 30*time.Second, "")
 	ctx := t.Context()
 
 	// Run the evaluator
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(ctx, &generation)
 	gUUID := <-b.EvaluationDone // The evaluation timeouts
 	assert.ErrorContains(t, b.build(ctx, gUUID), "the generation is not evaluated")
 
-	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(ctx, &generation2)
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, b.isEvaluating.Load())
@@ -136,8 +136,8 @@ func TestEval(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, "")
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, 0, 30*time.Second, "")
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(t.Context(), &generation)
 	assert.True(t, b.isEvaluating.Load())
 	eMock.evalDone <- struct{}{}
@@ -159,8 +159,8 @@ func TestEvalAlreadyBuilt(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(true)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, "")
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, 0, 30*time.Second, "")
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(t.Context(), &generation)
 	assert.True(t, b.IsEvaluating())
 
@@ -184,8 +184,8 @@ func TestBuilderPreemption(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, "")
-	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"})
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, 0, 30*time.Second, "")
+	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
 	_ = b.Eval(t.Context(), &generation1)
 	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -197,7 +197,7 @@ func TestBuilderPreemption(t *testing.T) {
 	eMock.evalDone <- struct{}{}
 	<-b.EvaluationDone
 
-	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"})
+	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
 	_ = b.Eval(t.Context(), &generation2)
 	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -213,8 +213,8 @@ func TestBuilderStop(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, "")
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, 0, 30*time.Second, "")
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(t.Context(), &generation)
 	assert.True(t, b.isEvaluating.Load())
 	b.Stop()
@@ -232,8 +232,8 @@ func TestBuilderTimeout(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 1*time.Second, 5*time.Second, "")
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	b := New(s, eMock, bk, "", "", "", "", false, 1*time.Second, 5*time.Second, 0, 30*time.Second, "")
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(t.Context(), &generation)
 	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -250,10 +250,10 @@ func TestBuilderSuspend(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 1*time.Second, 5*time.Second, "")
+	b := New(s, eMock, bk, "", "", "", "", false, 1*time.Second, 5*time.Second, 0, 30*time.Second, "")
 	_ = b.Suspend()
 	assert.True(t, b.isSuspended)
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(t.Context(), &generation)
 	assert.True(t, b.isEvaluating.Load())
 
@@ -286,10 +286,10 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 2)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, "")
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, 0, 30*time.Second, "")
 	ctx := t.Context()
 
-	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"})
+	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
 	_ = b.Eval(ctx, &generation1)
 	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
@@ -300,7 +300,7 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 	}, 2*time.Second, 100*time.Millisecond)
 
 	// A newer commit lands while commit-1 is still building.
-	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"})
+	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
 	_ = b.Eval(ctx, &generation2)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -313,6 +313,9 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 
 // A build that hits its timeout is a real failure and must keep reporting one.
 func TestBuilderTimedOutBuildIsStillFailed(t *testing.T) {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
@@ -320,10 +323,10 @@ func TestBuilderTimedOutBuildIsStillFailed(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 1*time.Second, "")
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 1*time.Second, 0, 30*time.Second, "")
 	ctx := t.Context()
 
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(ctx, &generation)
 	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
@@ -334,4 +337,163 @@ func TestBuilderTimedOutBuildIsStillFailed(t *testing.T) {
 		assert.Nil(c, err)
 		assert.Equal(c, store.BuildFailed.String(), g.BuildStatus)
 	}, 3*time.Second, 100*time.Millisecond, "a build timeout must still be a failure")
+}
+
+func TestBuilderRetryOnFailure(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	// Create a mock that always fails builds
+	eMock := NewExecutorMock(false)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 0, 100*time.Millisecond, "")
+	ctx := t.Context()
+
+	// Create and evaluate a generation
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
+	_ = b.Eval(ctx, &generation)
+	eMock.evalDone <- struct{}{}
+	gUUID := <-b.EvaluationDone
+
+	// Verify initial attempt number is 0
+	g, _ := b.store.GenerationGet(gUUID)
+	assert.Equal(t, int32(0), g.AttemptNumber)
+
+	// Start a build that will timeout and fail
+	err = b.build(ctx, gUUID)
+	assert.Nil(t, err)
+
+	// Wait for the build to fail (this might take a bit due to goroutine scheduling)
+	select {
+	case <-b.BuildDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("BuildDone channel did not receive a value")
+	}
+
+	// Wait for the build status to be updated
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		g, _ := b.store.GenerationGet(gUUID)
+		assert.Equal(c, store.BuildFailed.String(), g.BuildStatus)
+		assert.Contains(c, g.BuildErr, "context deadline exceeded")
+		// Verify that a retry is scheduled by checking the builder's internal state
+		b.mu.Lock()
+		assert.NotNil(c, b.buildRetryTimer, "buildRetryTimer should be set after build failure")
+		assert.NotNil(c, b.buildRetryAt, "buildRetryAt should be set after build failure")
+		b.mu.Unlock()
+	}, 3*time.Second, 100*time.Millisecond)
+}
+
+func TestBuilderRetryCancelledOnNewEval(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	// Create a mock that always fails builds
+	eMock := NewExecutorMock(false)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 0, 100*time.Millisecond, "")
+	ctx := t.Context()
+
+	// Create and evaluate the first generation
+	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
+	_ = b.Eval(ctx, &generation1)
+	eMock.evalDone <- struct{}{}
+	gUUID1 := <-b.EvaluationDone
+
+	// Start a build that will fail
+	err = b.build(ctx, gUUID1)
+	assert.Nil(t, err)
+
+	// Wait for the build to fail
+	select {
+	case <-b.BuildDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("BuildDone channel did not receive a value")
+	}
+
+	// Wait for the build status to be updated
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		g, _ := b.store.GenerationGet(gUUID1)
+		assert.Equal(c, store.BuildFailed.String(), g.BuildStatus)
+		// Verify that a retry is scheduled
+		b.mu.Lock()
+		assert.NotNil(c, b.buildRetryTimer, "buildRetryTimer should be set after build failure")
+		assert.NotNil(c, b.buildRetryAt, "buildRetryAt should be set after build failure")
+		b.mu.Unlock()
+	}, 3*time.Second, 100*time.Millisecond)
+
+	// Now submit a new evaluation - this should cancel the retry
+	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
+	_ = b.Eval(ctx, &generation2)
+	eMock.evalDone <- struct{}{}
+	gUUID2 := <-b.EvaluationDone
+
+	// Give the Eval time to cancel the retry
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify that the retry was cancelled
+	b.mu.Lock()
+	assert.Nil(t, b.buildRetryTimer, "buildRetryTimer should be nil after new eval")
+	assert.Nil(t, b.buildRetryAt, "buildRetryAt should be nil after new eval")
+	b.mu.Unlock()
+
+	// Verify that the builder is now working on the new generation
+	assert.Equal(t, gUUID2, b.GenerationUuid, "builder should be working on the new generation")
+}
+
+func TestBuilderRetryRespectsAttemptsLimit(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	// Create a mock that always fails builds
+	eMock := NewExecutorMock(false)
+	// Set buildAttemptsLimit to 1 (meaning only 1 build attempt is allowed, no retries)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 1, 100*time.Millisecond, "")
+	ctx := t.Context()
+
+	// Create and evaluate a generation with buildAttemptsLimit = 1
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 1)
+	_ = b.Eval(ctx, &generation)
+	eMock.evalDone <- struct{}{}
+	gUUID := <-b.EvaluationDone
+
+	// Verify initial attempt number is 0 and buildAttemptsLimit is 1
+	g, _ := b.store.GenerationGet(gUUID)
+	assert.Equal(t, int32(0), g.AttemptNumber)
+	assert.Equal(t, int32(1), g.BuildAttemptsLimit)
+
+	// Start a build that will timeout and fail (attempt 1)
+	err = b.build(ctx, gUUID)
+	assert.Nil(t, err)
+
+	// Wait for the build to fail
+	select {
+	case <-b.BuildDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("BuildDone channel did not receive a value")
+	}
+
+	// Wait for the build status to be updated
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		g, _ := b.store.GenerationGet(gUUID)
+		assert.Equal(c, store.BuildFailed.String(), g.BuildStatus)
+		assert.Contains(c, g.BuildErr, "context deadline exceeded")
+		// After first build, attempt_number should be 1 (== limit, so NO retry)
+		assert.Equal(c, int32(1), g.AttemptNumber)
+	}, 2*time.Second, 100*time.Millisecond)
+
+	// Give the retry scheduler some time to run
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify that NO retry is scheduled (limit of 1 reached)
+	b.mu.Lock()
+	assert.Nil(t, b.buildRetryTimer, "buildRetryTimer should be nil when limit is 1")
+	assert.Nil(t, b.buildRetryAt, "buildRetryAt should be nil when limit is 1")
+	b.mu.Unlock()
 }

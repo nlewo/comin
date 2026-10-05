@@ -220,7 +220,7 @@ func TestNewGeneration(t *testing.T) {
 	bk := broker.New()
 	bk.Start()
 	s, _ := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
-	s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
 }
 
 func TestCompareSwitchInhibitors(t *testing.T) {
@@ -262,7 +262,7 @@ func TestGenerationBuildCanceledIsNotAFailure(t *testing.T) {
 	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
 	assert.Nil(t, err)
 
-	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
 	assert.Nil(t, s.GenerationEvalStarted(g.Uuid))
 	assert.Nil(t, s.GenerationEvalFinished(g.Uuid, "drvPath", "outPath", "machineId", context.Canceled))
 
@@ -271,7 +271,7 @@ func TestGenerationBuildCanceledIsNotAFailure(t *testing.T) {
 	assert.Equal(t, EvalCanceled.String(), got.EvalStatus)
 	assert.NotEqual(t, EvalFailed.String(), got.EvalStatus)
 
-	g2 := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	g2 := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
 	assert.Nil(t, s.GenerationEvalStarted(g2.Uuid))
 	assert.Nil(t, s.GenerationEvalFinished(g2.Uuid, "drvPath", "outPath", "machineId", nil))
 	assert.Nil(t, s.GenerationBuildStart(g2.Uuid, "reason"))
@@ -294,7 +294,7 @@ func TestGenerationBuildErrorIsAFailure(t *testing.T) {
 	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
 	assert.Nil(t, err)
 
-	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{})
+	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
 	assert.Nil(t, s.GenerationEvalStarted(g.Uuid))
 	assert.Nil(t, s.GenerationEvalFinished(g.Uuid, "drvPath", "outPath", "machineId", nil))
 	assert.Nil(t, s.GenerationBuildStart(g.Uuid, "reason"))

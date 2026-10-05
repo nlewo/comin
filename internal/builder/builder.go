@@ -23,6 +23,8 @@ import (
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -32,16 +34,18 @@ const (
 )
 
 type Builder struct {
-	store          *store.Store
-	executor       executor.Executor
-	broker         *broker.Broker
-	hostname       string
-	repositoryPath string
-	repositoryDir  string
-	systemAttr     string
-	submodules     bool
-	evalTimeout    time.Duration
-	buildTimeout   time.Duration
+	store                *store.Store
+	executor             executor.Executor
+	broker               *broker.Broker
+	hostname             string
+	repositoryPath       string
+	repositoryDir        string
+	systemAttr           string
+	submodules           bool
+	evalTimeout          time.Duration
+	buildTimeout         time.Duration
+	buildAttemptsLimit   int
+	buildRetryTimerDuration time.Duration
 
 	mu           sync.Mutex
 	isEvaluating atomic.Bool
@@ -67,11 +71,18 @@ type Builder struct {
 	isSuspended bool
 
 	postBuildCommand string
+
+	// Retry fields
+	buildRetryAt   *timestamppb.Timestamp
+	buildRetryTimer *time.Timer
+	buildRetryCtx   context.Context
+	buildRetryCancel context.CancelFunc
 }
 
-func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration, postBuildCommand string) *Builder {
-	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, )",
-		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds())
+func New(store *store.Store, executor executor.Executor, broker *broker.Broker, repositoryPath, repositoryDir, systemAttr, hostname string, submodules bool, evalTimeout time.Duration, buildTimeout time.Duration, buildAttemptsLimit int, buildRetryTimer time.Duration, postBuildCommand string) *Builder {
+	logrus.Infof("builder: initialization with repositoryPath=%s, repositoryDir=%s, systemAttr=%s, hostname=%s, submodules=%v, evalTimeout=%fs, buildTimeout=%fs, buildAttemptsLimit=%d, buildRetryTimer=%fs, postBuildCommand=%s",
+		repositoryPath, repositoryDir, systemAttr, hostname, submodules, evalTimeout.Seconds(), buildTimeout.Seconds(), buildAttemptsLimit, buildRetryTimer.Seconds(), postBuildCommand)
+
 	return &Builder{
 		store:            store,
 		executor:         executor,
@@ -83,11 +94,14 @@ func New(store *store.Store, executor executor.Executor, broker *broker.Broker, 
 		hostname:         hostname,
 		evalTimeout:      evalTimeout,
 		buildTimeout:     buildTimeout,
+		buildAttemptsLimit:   buildAttemptsLimit,
+		buildRetryTimerDuration: buildRetryTimer,
 		postBuildCommand: postBuildCommand,
 		EvaluationDone:   make(chan string, 1),
 		BuildDone:        make(chan string, 1),
 		evaluatorWg:      &sync.WaitGroup{},
 		buildatorWg:      &sync.WaitGroup{},
+
 	}
 }
 
@@ -105,6 +119,10 @@ func (b *Builder) State() *protobuf.Builder {
 			logrus.Errorf("builder: generation %s not found in the store: %s", generationUUID, err)
 		}
 	}
+	var buildRetryAt *timestamppb.Timestamp
+	if b.buildRetryAt != nil {
+		buildRetryAt = proto.Clone(b.buildRetryAt).(*timestamppb.Timestamp)
+	}
 	return &protobuf.Builder{
 		Hostname:       b.hostname,
 		IsBuilding:     wrapperspb.Bool(b.isBuilding.Load()),
@@ -113,6 +131,7 @@ func (b *Builder) State() *protobuf.Builder {
 		GenerationUuid: generationUUID,
 		IsSuspended:    wrapperspb.Bool(b.isSuspended),
 		RepositoryPath: b.repositoryPath,
+		BuildRetryAt:   buildRetryAt,
 	}
 }
 
@@ -130,6 +149,10 @@ func (b *Builder) GetRepositoryPath() string {
 
 func (b *Builder) GetRepositoryDir() string {
 	return b.repositoryDir
+}
+
+func (b *Builder) GetBuildAttemptsLimit() int {
+	return b.buildAttemptsLimit
 }
 
 func (b *Builder) GetSystemAttr() string {
@@ -162,9 +185,71 @@ func (b *Builder) stopBuild() {
 func (b *Builder) Stop() {
 	b.stopEval()
 	b.stopBuild()
+	b.cancelBuildRetry()
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
+}
+
+// cancelBuildRetry cancels any pending build retry
+func (b *Builder) cancelBuildRetry() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.buildRetryCancel != nil {
+		b.buildRetryCancel()
+		b.buildRetryCancel = nil
+	}
+	if b.buildRetryTimer != nil {
+		b.buildRetryTimer.Stop()
+		b.buildRetryTimer = nil
+	}
+	b.buildRetryAt = nil
+}
+
+// scheduleBuildRetry schedules a retry for the current generation
+func (b *Builder) scheduleBuildRetry(generationUuid string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Cancel any existing retry (without locking again)
+	if b.buildRetryCancel != nil {
+		b.buildRetryCancel()
+		b.buildRetryCancel = nil
+	}
+	if b.buildRetryTimer != nil {
+		b.buildRetryTimer.Stop()
+		b.buildRetryTimer = nil
+	}
+	b.buildRetryAt = nil
+
+	// Set the retry time
+	retryAt := time.Now().Add(b.buildRetryTimerDuration)
+	b.buildRetryAt = timestamppb.New(retryAt)
+
+	// Create context for the retry
+	b.buildRetryCtx, b.buildRetryCancel = context.WithCancel(context.Background())
+
+	// Start the timer
+	b.buildRetryTimer = time.AfterFunc(b.buildRetryTimerDuration, func() {
+		// Capture generationUuid in the closure
+		retryGenerationUuid := generationUuid
+		b.mu.Lock()
+		// Check if we still have a retry scheduled (might have been cancelled)
+		if b.buildRetryAt != nil {
+			logrus.Infof("builder: retrying build for generation %s after failure", retryGenerationUuid)
+			// The attempt number will be incremented by GenerationBuildStart
+			// Clear retry state and save context before unlocking
+			buildRetryCtx := b.buildRetryCtx
+			b.buildRetryAt = nil
+			b.buildRetryTimer = nil
+			b.buildRetryCancel = nil
+			b.mu.Unlock()
+			// Submit the build for retry (outside the lock to avoid deadlock)
+			b.SubmitBuild(buildRetryCtx, retryGenerationUuid)
+		} else {
+			b.mu.Unlock()
+		}
+	})
 }
 
 type Evaluator struct {
@@ -378,9 +463,9 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 		_ = stdout.Close()
 		_ = stderr.Close()
 
+		buildErr := b.buildator.getErr()
 		b.mu.Lock()
-		defer b.mu.Unlock()
-		err := b.store.GenerationBuildFinished(generationUuid, b.buildator.getErr())
+		err := b.store.GenerationBuildFinished(generationUuid, buildErr)
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -390,6 +475,21 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 		case b.BuildDone <- generationUuid:
 		default:
 			logrus.Errorf("builder: the build has not been notified")
+		}
+		b.mu.Unlock()
+
+		// If build failed, schedule a retry (outside the lock to avoid deadlock)
+		if buildErr != nil {
+			// Check if we've reached the build attempts limit
+			generation, genErr := b.store.GenerationGet(generationUuid)
+			if genErr != nil {
+				logrus.Errorf("builder: failed to get generation %s to check build attempts limit: %s", generationUuid, genErr)
+			} else if b.buildAttemptsLimit > 0 && generation.AttemptNumber >= int32(b.buildAttemptsLimit) {
+				logrus.Infof("builder: build failed for generation %s but build attempts limit (%d) reached", generationUuid, b.buildAttemptsLimit)
+			} else {
+				logrus.Infof("builder: build failed for generation %s, scheduling retry in %fs", generationUuid, b.buildRetryTimerDuration.Seconds())
+				b.scheduleBuildRetry(generationUuid)
+			}
 		}
 	}()
 	return nil

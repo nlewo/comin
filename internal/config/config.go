@@ -78,6 +78,9 @@ func Read(path string) (config types.Configuration, err error) {
 	if config.BuildTimeout == 0 {
 		config.BuildTimeout = 1800
 	}
+	if config.BuildRetryTimer == 0 {
+		config.BuildRetryTimer = 30
+	}
 	logrus.Debugf("Config is '%#v'", config)
 	return
 }

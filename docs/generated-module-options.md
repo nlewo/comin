@@ -47,6 +47,28 @@ null or package
 
 
 
+## services\.comin\.buildAttemptsLimit
+
+
+
+Maximum number of build attempts before giving up\. When set to 0,
+comin will retry forever on build failures\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
 ## services\.comin\.buildConfirmer
 
 
@@ -110,6 +132,27 @@ one of “without”, “auto”, “manual”
 
 ```nix
 "without"
+```
+
+
+
+## services\.comin\.buildRetryTimer
+
+
+
+Duration in seconds between each build retry attempt\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+30
 ```
 
 
