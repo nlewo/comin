@@ -344,8 +344,12 @@ func UpdateManager(manager *ManagerModel, event *protobuf.Event) {
 		manager.Fetcher.GitRepositoryStatus = e.Fetched.GetGitRepositoryStatus()
 	case *protobuf.Event_Suspend_:
 		manager.IsSuspended = true
+		manager.Builder.IsSuspended = true
+		manager.Deployer.IsSuspended = true
 	case *protobuf.Event_Resume_:
 		manager.IsSuspended = false
+		manager.Builder.IsSuspended = false
+		manager.Deployer.IsSuspended = false
 	case *protobuf.Event_RebootRequired_:
 		manager.NeedToReboot = true
 	case *protobuf.Event_Log_:
