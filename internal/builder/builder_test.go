@@ -286,10 +286,10 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 2)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, "")
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, 0, 30*time.Second, "")
 	ctx := t.Context()
 
-	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"})
+	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
 	_ = b.Eval(ctx, &generation1)
 	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
@@ -300,7 +300,7 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 	}, 2*time.Second, 100*time.Millisecond)
 
 	// A newer commit lands while commit-1 is still building.
-	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"})
+	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
 	_ = b.Eval(ctx, &generation2)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -323,10 +323,10 @@ func TestBuilderTimedOutBuildIsStillFailed(t *testing.T) {
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 1*time.Second, "")
+	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 1*time.Second, 0, 30*time.Second, "")
 	ctx := t.Context()
 
-	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{})
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
 	_ = b.Eval(ctx, &generation)
 	eMock.evalDone <- struct{}{}
 	gUUID := <-b.EvaluationDone
@@ -348,7 +348,7 @@ func TestBuilderRetryOnFailure(t *testing.T) {
 	assert.Nil(t, err)
 	// Create a mock that always fails builds
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 0, 100*time.Millisecond)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 0, 100*time.Millisecond, "")
 	ctx := t.Context()
 
 	// Create and evaluate a generation
@@ -394,7 +394,7 @@ func TestBuilderRetryCancelledOnNewEval(t *testing.T) {
 	assert.Nil(t, err)
 	// Create a mock that always fails builds
 	eMock := NewExecutorMock(false)
-	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 0, 100*time.Millisecond)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 0, 100*time.Millisecond, "")
 	ctx := t.Context()
 
 	// Create and evaluate the first generation
@@ -454,7 +454,7 @@ func TestBuilderRetryRespectsAttemptsLimit(t *testing.T) {
 	// Create a mock that always fails builds
 	eMock := NewExecutorMock(false)
 	// Set buildAttemptsLimit to 1 (meaning only 1 build attempt is allowed, no retries)
-	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 1, 100*time.Millisecond)
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 100*time.Millisecond, 1, 100*time.Millisecond, "")
 	ctx := t.Context()
 
 	// Create and evaluate a generation with buildAttemptsLimit = 1
