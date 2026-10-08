@@ -13,15 +13,19 @@
 - [x] Git repositories SSH authentification
 - [x] CLI to interact with the agent
 - [x] CLI to watch with the agent status
-- [x] Suspend/resume the agent
-- [x] Switch inhibitors
+- [x] Suspend and resume the agent
+- [x] Switch inhibitors support
 - [x] Swaybar via `comin status --oneline`
 - [x] Desktop notifications
 - [x] Reboot detection
-- [ ] Home manager support: https://github.com/nlewo/comin/issues/11
 - [x] Post deployment user scripts
-- [ ] User confirmations for build and deployments
+- [x] Post build user scripts
+- [x] User confirmations for build and deployments
 - [x] Git submodules
 - [x] Generation retention policies
+- [x] Stream logs
+- [ ] Desktop tray: https://github.com/nlewo/comin/pull/151
+- [ ] Home manager support: https://github.com/nlewo/comin/issues/11
 - [ ] Auto reboot
-- [ ] Stream logs
+- [ ] No local evaluation mode with Niks3/Cachix pinning support https://github.com/nlewo/comin/pull/207
+
