@@ -9,6 +9,7 @@
 - [x] Observable via [Prometheus metrics](./docs/generated-module-options.md#servicescominexporter)
 - [x] Create and delete system profiles
 - [x] GPG and SSH [Git commit signatures](./docs/howtos.md#check-git-commit-signatures)
+- [x] Per-remote [validation hooks](./docs/howtos.md#validate-commits-with-a-validation-hook)
 - [x] Git repositories token authentification
 - [x] Git repositories SSH authentification
 - [x] CLI to interact with the agent
