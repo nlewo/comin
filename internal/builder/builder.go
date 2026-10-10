@@ -11,6 +11,7 @@ package builder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -480,15 +481,20 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 
 		// If build failed, schedule a retry (outside the lock to avoid deadlock)
 		if buildErr != nil {
-			// Check if we've reached the build attempts limit
-			generation, genErr := b.store.GenerationGet(generationUuid)
-			if genErr != nil {
-				logrus.Errorf("builder: failed to get generation %s to check build attempts limit: %s", generationUuid, genErr)
-			} else if b.buildAttemptsLimit > 0 && generation.AttemptNumber >= int32(b.buildAttemptsLimit) {
-				logrus.Infof("builder: build failed for generation %s but build attempts limit (%d) reached", generationUuid, b.buildAttemptsLimit)
+			// Do not retry if the build was cancelled
+			if errors.Is(buildErr, context.Canceled) {
+				logrus.Infof("builder: build cancelled for generation %s, not scheduling retry", generationUuid)
 			} else {
-				logrus.Infof("builder: build failed for generation %s, scheduling retry in %fs", generationUuid, b.buildRetryTimerDuration.Seconds())
-				b.scheduleBuildRetry(generationUuid)
+				// Check if we've reached the build attempts limit
+				generation, genErr := b.store.GenerationGet(generationUuid)
+				if genErr != nil {
+					logrus.Errorf("builder: failed to get generation %s to check build attempts limit: %s", generationUuid, genErr)
+				} else if b.buildAttemptsLimit > 0 && generation.AttemptNumber >= int32(b.buildAttemptsLimit) {
+					logrus.Infof("builder: build failed for generation %s but build attempts limit (%d) reached", generationUuid, b.buildAttemptsLimit)
+				} else {
+					logrus.Infof("builder: build failed for generation %s, scheduling retry in %fs", generationUuid, b.buildRetryTimerDuration.Seconds())
+					b.scheduleBuildRetry(generationUuid)
+				}
 			}
 		}
 	}()
