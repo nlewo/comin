@@ -497,3 +497,61 @@ func TestBuilderRetryRespectsAttemptsLimit(t *testing.T) {
 	assert.Nil(t, b.buildRetryAt, "buildRetryAt should be nil when limit is 1")
 	b.mu.Unlock()
 }
+
+// TestBuilderDoesNotRetryWhenCancelled tests that the builder does not retry
+// a build when it has been cancelled. This test should fail until the bug is fixed.
+func TestBuilderDoesNotRetryWhenCancelled(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	eMock := NewExecutorMock(false)
+	// Enable retry with a LONG timer so we can check before it fires
+	b := New(s, eMock, bk, "", "", "", "my-machine", false, 5*time.Second, 5*time.Second, 3, 5*time.Second, "")
+	ctx, cancel := context.WithCancel(t.Context())
+
+	// Create and evaluate a generation
+	generation := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{}, 0)
+	_ = b.Eval(ctx, &generation)
+	eMock.evalDone <- struct{}{}
+	gUUID := <-b.EvaluationDone
+
+	// Start a build
+	err = b.build(ctx, gUUID)
+	assert.Nil(t, err)
+
+	// Wait for the build to start
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(c, b.isBuilding.Load())
+	}, 2*time.Second, 100*time.Millisecond)
+
+	// Cancel the build context
+	cancel()
+
+	// Wait for the build to be cancelled
+	select {
+	case <-b.BuildDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("BuildDone channel did not receive a value")
+	}
+
+	// Wait for the build status to be updated to cancelled
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		g, _ := b.store.GenerationGet(gUUID)
+		assert.Equal(c, store.BuildCanceled.String(), g.BuildStatus)
+		assert.Contains(c, g.BuildErr, "context canceled")
+	}, 2*time.Second, 100*time.Millisecond)
+
+	// Check if a retry was scheduled - the bug causes it to be scheduled
+	// even for cancelled builds
+	b.mu.Lock()
+	retryScheduled := b.buildRetryTimer != nil || b.buildRetryAt != nil
+	b.mu.Unlock()
+
+	// This assertion should fail until the bug is fixed
+	// The bug is in builder.go line 482-492: it schedules a retry for ALL errors,
+	// including context.Canceled, but it should skip retry for cancelled builds
+	assert.False(t, retryScheduled, "build retry should NOT be scheduled when build is cancelled, but it was")
+}
