@@ -218,7 +218,6 @@ message Deployer {
   Deployment deployment = 2;
   Generation generation_to_deploy = 3;
   string operation = 6;
-  Deployment previous_deployment = 4;
   google.protobuf.BoolValue is_suspended = 5;
 }
 
