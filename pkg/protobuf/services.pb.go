@@ -2576,7 +2576,6 @@ func (x *Event_ManagerState) GetState() *State {
 
 type Event_Fetched struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
-	Updated  bool                   `protobuf:"varint,1,opt,name=updated" json:"updated,omitempty"`
 	Verified bool                   `protobuf:"varint,2,opt,name=verified" json:"verified,omitempty"`
 	// Types that are valid to be assigned to Type:
 	//
@@ -2614,13 +2613,6 @@ func (x *Event_Fetched) ProtoReflect() protoreflect.Message {
 // Deprecated: Use Event_Fetched.ProtoReflect.Descriptor instead.
 func (*Event_Fetched) Descriptor() ([]byte, []int) {
 	return file_pkg_protobuf_services_proto_rawDescGZIP(), []int{1, 13}
-}
-
-func (x *Event_Fetched) GetUpdated() bool {
-	if x != nil {
-		return x.Updated
-	}
-	return false
 }
 
 func (x *Event_Fetched) GetVerified() bool {
@@ -2901,7 +2893,7 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"\n" +
 	"\x1bpkg/protobuf/services.proto\x12\bprotobuf\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/wrappers.proto\"<\n" +
 	"\tOperation\x12/\n" +
-	"\x13operation_submitted\x18\x01 \x01(\tR\x12operationSubmitted\"\xf5\x12\n" +
+	"\x13operation_submitted\x18\x01 \x01(\tR\x12operationSubmitted\"\xdb\x12\n" +
 	"\x05Event\x12G\n" +
 	"\x0fevalStartedType\x18\x01 \x01(\v2\x1b.protobuf.Event.EvalStartedH\x00R\x0fevalStartedType\x12J\n" +
 	"\x10evalFinishedType\x18\x02 \x01(\v2\x1c.protobuf.Event.EvalFinishedH\x00R\x10evalFinishedType\x12J\n" +
@@ -2959,9 +2951,8 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"deployment\x18\x01 \x01(\v2\x14.protobuf.DeploymentR\n" +
 	"deployment\x1a5\n" +
 	"\fManagerState\x12%\n" +
-	"\x05state\x18\x01 \x01(\v2\x0f.protobuf.StateR\x05state\x1a\x9a\x01\n" +
-	"\aFetched\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\bR\aupdated\x12\x1a\n" +
+	"\x05state\x18\x01 \x01(\v2\x0f.protobuf.StateR\x05state\x1a\x80\x01\n" +
+	"\aFetched\x12\x1a\n" +
 	"\bverified\x18\x02 \x01(\bR\bverified\x12Q\n" +
 	"\x13gitRepositoryStatus\x18\x03 \x01(\v2\x1d.protobuf.GitRepositoryStatusH\x00R\x13gitRepositoryStatusB\x06\n" +
 	"\x04Type\x1a\xa5\x02\n" +

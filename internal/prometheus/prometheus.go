@@ -94,7 +94,7 @@ func New() Prometheus {
 
 func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
 	go (func() {
-		c := broker.Subscribe()
+		c := broker.Subscribe("prometheus")
 
 		for {
 			m := <-c
