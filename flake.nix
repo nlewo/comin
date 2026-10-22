@@ -76,7 +76,7 @@
         }
       );
       nixosModules.comin = ./nix/module.nix;
-      darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
+      darwinModules.comin = ./nix/darwin-module.nix;
       devShells = forAllSystems (
         system:
         let
