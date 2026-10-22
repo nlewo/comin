@@ -19,7 +19,40 @@ NixOS configuration associated to the machine.
 
 ## Quick start
 
-This is a basic `flake.nix` example:
+This is a basic NixOS `system.nix` example:
+
+```nix
+let
+  # For demonstration purposes; prefer a ‘Nix input pinner’ for
+  # dependencies as these URLs aren’t pure or stable over time:
+  inputs = {
+    nixpkgs = builtins.fetchTarball "https://channels.nixos.org/nixpkgs-unstable/nixexprs.tar.xz";
+    comin = builtins.fetchTarball "https://github.com/nlewo/comin/archive/refs/heads/main.tar.gz";
+  };
+in
+import "${inputs.nixpkgs}/nixos" {
+  configuration = {
+    imports = [
+     "${inputs.comin}/nix/module.nix"
+    ];
+
+    nixpkgs.overlays = [
+      (import "${inputs.comin}/nix/overlay")
+    ];
+
+    services.comin = {
+      enable = true;
+      remotes = [{
+        name = "origin";
+        url = "https://gitlab.com/your/infra.git";
+        branches.main.name = "main";
+      }];
+    };
+  };
+}
+```
+
+This is a basic `flake.nix` example (requires `experimental-features = flakes`):
 
 ```nix
 {
