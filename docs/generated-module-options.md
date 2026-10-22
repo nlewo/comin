@@ -35,14 +35,14 @@ The comin package to use\.
 
 
 *Type:*
-null or package
+package
 
 
 
 *Default:*
 
 ```nix
-"pkgs.comin or comin.packages.\${system}.default or null"
+pkgs.comin
 ```
 
 
