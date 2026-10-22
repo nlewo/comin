@@ -69,7 +69,6 @@
         formatting = treefmtStack.${system}.config.build.check self;
         lint = import ./nix/lint.nix {
           pkgs = nixpkgsFor."${system}";
-          comin = self.packages."${system}".comin;
         };
       });
       nixosModules = {
