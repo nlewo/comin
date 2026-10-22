@@ -62,15 +62,19 @@
           generate-module-options = optionsDocFor."${system}".optionsDocCommonMarkGenerator;
         }
       );
-      checks = forAllSystems (system: {
-        module-options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
-        # I don't understand why nix flake check does't build packages.default
-        package = self.packages."${system}".comin;
-        formatting = treefmtStack.${system}.config.build.check self;
-        lint = import ./nix/lint.nix {
-          pkgs = nixpkgsFor."${system}";
-        };
-      });
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          module-options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
+          # I don't understand why nix flake check does't build packages.default
+          package = self.packages."${system}".comin;
+          formatting = treefmtStack.${system}.config.build.check self;
+          lint = pkgs.callPackage ./nix/lint.nix { };
+        }
+      );
       nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
       darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
       devShells = forAllSystems (
