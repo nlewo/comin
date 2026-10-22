@@ -75,7 +75,7 @@
           lint = pkgs.callPackage ./nix/lint.nix { };
         }
       );
-      nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
+      nixosModules.comin = ./nix/module.nix;
       darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
       devShells = forAllSystems (
         system:
