@@ -23,7 +23,15 @@
         "x86_64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      nixpkgsFor = forAllSystems (system: nixpkgs.legacyPackages.${system});
+      nixpkgsFor = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [
+            self.overlays.default
+          ];
+        }
+      );
       optionsDocFor = forAllSystems (
         system: import ./nix/module-options-doc.nix (nixpkgsFor."${system}")
       );
@@ -37,17 +45,23 @@
       );
     in
     {
-      overlays.default = final: prev: {
-        comin = final.callPackage ./nix/package.nix { };
+      overlays = {
+        default = import nix/overlay;
       };
 
       formatter = forAllSystems (system: treefmtStack.${system}.config.build.wrapper);
 
-      packages = forAllSystems (system: {
-        comin = nixpkgsFor."${system}".callPackage ./nix/package.nix { };
-        default = self.packages."${system}".comin;
-        generate-module-options = optionsDocFor."${system}".optionsDocCommonMarkGenerator;
-      });
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          inherit (pkgs) comin;
+          default = self.packages."${system}".comin;
+          generate-module-options = optionsDocFor."${system}".optionsDocCommonMarkGenerator;
+        }
+      );
       checks = forAllSystems (system: {
         module-options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
         # I don't understand why nix flake check does't build packages.default
