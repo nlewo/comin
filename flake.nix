@@ -23,9 +23,15 @@
         "x86_64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
-      nixpkgsFor = forAllSystems (system: nixpkgs.legacyPackages.${system});
-      optionsDocFor = forAllSystems (
-        system: import ./nix/module-options-doc.nix (nixpkgsFor."${system}")
+      nixpkgsFor = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [
+            self.overlays.default
+            self.overlays.tools
+          ];
+        }
       );
       treefmtStack = forAllSystems (
         system:
@@ -37,29 +43,39 @@
       );
     in
     {
-      overlays.default = final: prev: {
-        comin = final.callPackage ./nix/package.nix { };
+      overlays = {
+        default = import nix/overlay;
+        tools = import nix/overlay/tools.nix;
       };
 
       formatter = forAllSystems (system: treefmtStack.${system}.config.build.wrapper);
 
-      packages = forAllSystems (system: {
-        comin = nixpkgsFor."${system}".callPackage ./nix/package.nix { };
-        default = self.packages."${system}".comin;
-        generate-module-options = optionsDocFor."${system}".optionsDocCommonMarkGenerator;
-      });
-      checks = forAllSystems (system: {
-        module-options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
-        # I don't understand why nix flake check does't build packages.default
-        package = self.packages."${system}".comin;
-        formatting = treefmtStack.${system}.config.build.check self;
-        lint = import ./nix/lint.nix {
-          pkgs = nixpkgsFor."${system}";
-          comin = self.packages."${system}".comin;
-        };
-      });
-      nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
-      darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          inherit (pkgs) comin;
+          default = self.packages."${system}".comin;
+          generate-module-options = pkgs.comin-tools.optionsDocCommonMarkGenerator;
+        }
+      );
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          module-options-doc = pkgs.comin-tools.checkOptionsDocCommonMark;
+          # I don't understand why nix flake check does't build packages.default
+          package = self.packages."${system}".comin;
+          formatting = treefmtStack.${system}.config.build.check self;
+          lint = pkgs.callPackage ./nix/lint.nix { };
+        }
+      );
+      nixosModules.comin = ./nix/module.nix;
+      darwinModules.comin = ./nix/darwin-module.nix;
       devShells = forAllSystems (
         system:
         let

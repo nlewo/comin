@@ -1,4 +1,3 @@
-{ self }:
 {
   config,
   pkgs,
@@ -10,7 +9,6 @@ let
   cominConfigLib = import ./comin-config.nix { inherit config pkgs lib; };
   inherit (cominConfigLib) cominConfigYaml;
 
-  inherit (pkgs.stdenv.hostPlatform) system;
   inherit (cfg.services.comin) package;
 
   remoteWithAuth = lib.findFirst (r: r.auth.access_token_path != "") null cfg.services.comin.remotes;
@@ -27,18 +25,7 @@ in
 {
   imports = [ ./module-options.nix ];
   config = lib.mkIf cfg.services.comin.enable {
-    assertions = [
-      {
-        assertion = package != null;
-        message = "`services.comin.package` cannot be null.";
-      }
-      # If the package is null and our `system` isn't supported by the Flake, it's probably safe to show this error message
-      {
-        assertion = package == null -> lib.elem system (lib.attrNames self.packages);
-        message = "comin: ${system} is not supported by the Flake.";
-      }
-    ]
-    ++ lib.forEach cfg.services.comin.remotes (remote: {
+    assertions = lib.forEach cfg.services.comin.remotes (remote: {
       assertion = !(remote.auth.access_token_path != "" && remote.auth.ssh_deploy_key_path != "");
       message = "comin: remote `${remote.name}` sets both `auth.access_token_path` and `auth.ssh_deploy_key_path`; set at most one.";
     });
@@ -53,8 +40,6 @@ in
 
     environment.systemPackages = [ package ];
     networking.firewall.allowedTCPPorts = lib.optional cfg.services.comin.exporter.openFirewall cfg.services.comin.exporter.port;
-    # Use package from overlay first, then Flake package if available
-    services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     systemd.services.comin = {
       wantedBy = [ "multi-user.target" ];
       path = [
