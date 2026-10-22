@@ -35,6 +35,11 @@ This is a basic `flake.nix` example:
       myMachine = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
+          {
+            nixpkgs.overlays = [
+              comin.overlays.default
+            ];
+          }
           comin.nixosModules.comin
           ({
             services.comin = {
