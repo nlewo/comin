@@ -53,7 +53,7 @@ in
         ${lib.getBin final.diffutils}/bin/diff -q ${self.optionsDocCommonMark} ${generated}
         if [[ $? -ne 0 ]]
         then
-          echo "The ./docs/module-options.md file is not up to date."
+          echo "The ./docs/generated-module-options.md file is not up to date."
           echo "Run 'nix run .#generate-module-options' to generate it!"
           exit 1
         fi
