@@ -29,11 +29,9 @@
           inherit system;
           overlays = [
             self.overlays.default
+            self.overlays.tools
           ];
         }
-      );
-      optionsDocFor = forAllSystems (
-        system: import ./nix/module-options-doc.nix (nixpkgsFor."${system}")
       );
       treefmtStack = forAllSystems (
         system:
@@ -47,6 +45,7 @@
     {
       overlays = {
         default = import nix/overlay;
+        tools = import nix/overlay/tools.nix;
       };
 
       formatter = forAllSystems (system: treefmtStack.${system}.config.build.wrapper);
@@ -59,7 +58,7 @@
         {
           inherit (pkgs) comin;
           default = self.packages."${system}".comin;
-          generate-module-options = optionsDocFor."${system}".optionsDocCommonMarkGenerator;
+          generate-module-options = pkgs.comin-tools.optionsDocCommonMarkGenerator;
         }
       );
       checks = forAllSystems (
@@ -68,7 +67,7 @@
           pkgs = nixpkgsFor.${system};
         in
         {
-          module-options-doc = optionsDocFor."${system}".checkOptionsDocCommonMark;
+          module-options-doc = pkgs.comin-tools.checkOptionsDocCommonMark;
           # I don't understand why nix flake check does't build packages.default
           package = self.packages."${system}".comin;
           formatting = treefmtStack.${system}.config.build.check self;
