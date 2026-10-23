@@ -284,19 +284,11 @@ func commitSignedBySSH(r *git.Repository, commitId string, signers []sshAllowedS
 		return "", fmt.Errorf("commit %s has SSH signature namespace %q instead of git", commitId, signature.namespace)
 	}
 
-	encoded := &plumbing.MemoryObject{}
-	if err := commit.EncodeWithoutSignature(encoded); err != nil {
-		return "", err
-	}
-	reader, err := encoded.Reader()
+	payload, err := sshCommitPayload(r, commit.Hash)
 	if err != nil {
 		return "", err
 	}
-	defer reader.Close() // nolint:errcheck
-	payload, err := io.ReadAll(reader)
-	if err != nil {
-		return "", err
-	}
+
 	signedData, err := sshSignedData(signature.namespace, signature.reserved, signature.hashAlgorithm, payload)
 	if err != nil {
 		return "", err
@@ -315,6 +307,47 @@ func commitSignedBySSH(r *git.Repository, commitId string, signers []sshAllowedS
 		}
 	}
 	return "", fmt.Errorf("commit %s is not signed", commitId)
+}
+
+// sshCommitPayload preserves the original headers and message bytes. Re-encoding
+// an object.Commit drops unknown headers (such as Jujutsu's change-id), changing
+// the data covered by the signature.
+func sshCommitPayload(r *git.Repository, hash plumbing.Hash) ([]byte, error) {
+	encoded, err := r.Storer.EncodedObject(plumbing.CommitObject, hash)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := encoded.Reader()
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close() // nolint:errcheck
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	headers, message, ok := bytes.Cut(content, []byte("\n\n"))
+	if !ok {
+		return nil, fmt.Errorf("commit %s has no header/message separator", hash)
+	}
+
+	var payload bytes.Buffer
+	inSignature := false
+	for _, line := range bytes.Split(headers, []byte("\n")) {
+		if bytes.HasPrefix(line, []byte("gpgsig ")) {
+			inSignature = true
+			continue
+		}
+		if inSignature && bytes.HasPrefix(line, []byte(" ")) {
+			continue
+		}
+		inSignature = false
+		payload.Write(line)
+		payload.WriteByte('\n')
+	}
+	payload.WriteByte('\n')
+	payload.Write(message)
+	return payload.Bytes(), nil
 }
 
 func parseSSHAllowedSigners(allowedSigners string) ([]sshAllowedSigner, error) {
