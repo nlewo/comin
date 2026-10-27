@@ -166,6 +166,10 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation 
 		logrus.Infof("deployer: no previous deployment found for generation %s", generation.Uuid)
 		return false
 	}
+	if previous.ErrorMsg != "" {
+		logrus.Infof("deployer: previous deployment %s failed, so generation %s is not already deployed", previous.Uuid, generation.Uuid)
+		return false
+	}
 	if generation.OutPath != previous.Generation.OutPath {
 		logrus.Infof("deployer: out path %s differs from previous out path %s for generation %s", generation.OutPath, previous.Generation.OutPath, generation.Uuid)
 		return false

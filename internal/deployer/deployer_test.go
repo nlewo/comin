@@ -2,6 +2,7 @@ package deployer
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -287,4 +288,82 @@ func TestIsAlreadyDeployedUnchangedSystem(t *testing.T) {
 		assert.Equal(c, "gen-c", d.Deployment().Generation.Uuid)
 		assert.Equal(c, "path-A", d.Deployment().Generation.OutPath)
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+func newGeneration(uuid, outPath string) *protobuf.Generation {
+	return &protobuf.Generation{
+		Uuid:    uuid,
+		OutPath: outPath,
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedCommitId: uuid,
+				},
+			},
+		},
+	}
+}
+
+func waitDeploymentDone(t *testing.T, d *Deployer) *protobuf.Deployment {
+	t.Helper()
+	select {
+	case dpl := <-d.DeploymentDoneCh:
+		return dpl
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for deployment done")
+		return nil
+	}
+}
+
+func endDeployment(t *testing.T, deployErrs chan<- error, err error) {
+	t.Helper()
+	select {
+	case deployErrs <- err:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for a deployment to be started")
+	}
+}
+
+func assertNoDeploymentDone(t *testing.T, d *Deployer) {
+	t.Helper()
+	select {
+	case dpl := <-d.DeploymentDoneCh:
+		t.Fatalf("generation %s has been deployed", dpl.Generation.Uuid)
+	case <-time.After(1 * time.Second):
+	}
+}
+
+// A failed deployment's out path is deployed again.
+func TestIsAlreadyDeployedFailedDeployment(t *testing.T) {
+	deployErrs := make(chan error)
+	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+		if err := <-deployErrs; err != nil {
+			return false, "", err
+		}
+		return false, "profile-path", nil
+	}
+
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	d := New(s, deployFunc, nil, "", bk)
+	d.Run(t.Context())
+
+	d.Submit(newGeneration("gen-a", "path-A"), "switch", false, "")
+	endDeployment(t, deployErrs, errors.New("switch-to-configuration failed"))
+	dpl := waitDeploymentDone(t, d)
+	assert.Equal(t, "gen-a", dpl.Generation.Uuid)
+	assert.NotEmpty(t, dpl.ErrorMsg)
+
+	assert.False(t, d.IsAlreadyDeployed(newGeneration("gen-b", "path-A"), "switch"))
+	d.Submit(newGeneration("gen-b", "path-A"), "switch", false, "")
+	endDeployment(t, deployErrs, nil)
+	dpl = waitDeploymentDone(t, d)
+	assert.Equal(t, "gen-b", dpl.Generation.Uuid)
+	assert.Empty(t, dpl.ErrorMsg)
+
+	assert.True(t, d.IsAlreadyDeployed(newGeneration("gen-c", "path-A"), "switch"))
 }
