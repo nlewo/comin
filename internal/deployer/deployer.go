@@ -28,13 +28,12 @@ const (
 type DeployFunc func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error)
 
 type Deployer struct {
-	GenerationCh       chan *protobuf.Generation
-	deployerFunc       DeployFunc
-	DeploymentDoneCh   chan *protobuf.Deployment
-	mu                 sync.Mutex
-	deployment         atomic.Pointer[protobuf.Deployment]
-	previousDeployment atomic.Pointer[protobuf.Deployment]
-	isDeploying        atomic.Bool
+	GenerationCh     chan *protobuf.Generation
+	deployerFunc     DeployFunc
+	DeploymentDoneCh chan *protobuf.Deployment
+	mu               sync.Mutex
+	deployment       atomic.Pointer[protobuf.Deployment]
+	isDeploying      atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy *protobuf.Generation
 	// The operation to use for the next deployment
@@ -61,7 +60,6 @@ func (d *Deployer) State() *protobuf.Deployer {
 		GenerationToDeploy: d.GenerationToDeploy,
 		Operation:          d.Operation,
 		Deployment:         d.deployment.Load(),
-		PreviousDeployment: d.previousDeployment.Load(),
 		IsSuspended:        wrapperspb.Bool(d.isSuspended.Load()),
 	}
 }
@@ -108,11 +106,7 @@ func showDeployment(padding string, d *protobuf.Deployment) {
 func Show(s *protobuf.Deployer, padding string) {
 	fmt.Printf("  Deployer\n")
 	if s.Deployment == nil {
-		if s.PreviousDeployment == nil {
-			fmt.Printf("%sNo deployment yet\n", padding)
-			return
-		}
-		showDeployment(padding, s.PreviousDeployment)
+		fmt.Printf("%sNo deployment yet\n", padding)
 		return
 	}
 	showDeployment(padding, s.Deployment)
@@ -132,7 +126,6 @@ func New(store *store.Store, deployFunc DeployFunc, previousDeployment *protobuf
 
 		resumeCh: make(chan struct{}, 1),
 	}
-	deployer.previousDeployment.Store(previousDeployment)
 	deployer.deployment.Store(previousDeployment)
 
 	dState := store.GetState().Deployer
@@ -168,7 +161,7 @@ func (d *Deployer) Resume() {
 }
 
 func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation string) bool {
-	previous := d.previousDeployment.Load()
+	previous := d.deployment.Load()
 	if previous == nil {
 		logrus.Infof("deployer: no previous deployment found for generation %s", generation.Uuid)
 		return false
@@ -233,7 +226,6 @@ func (d *Deployer) Run(ctx context.Context) {
 			dpl := d.store.NewDeployment(g, operationSubmitted, d.Reason, booted, current)
 			operationComputed := dpl.Operation
 			d.mu.Lock()
-			d.previousDeployment.Swap(d.Deployment())
 			d.deployment.Store(dpl)
 			d.isDeploying.Store(true)
 			d.mu.Unlock()
