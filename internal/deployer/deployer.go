@@ -185,8 +185,9 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation 
 		logrus.Infof("deployer: out path %s differs from previous out path %s for generation %s", generation.OutPath, previous.Generation.OutPath, generation.Uuid)
 		return false
 	}
-	if previous.Operation != operation {
-		logrus.Infof("deployer: operation %s differs from previous operation %s for generation %s", operation, previous.Operation, generation.Uuid)
+	// The computed operation can differ (switch inhibitors)
+	if previous.OperationSubmitted != operation {
+		logrus.Infof("deployer: operation %s differs from previous submitted operation %s for generation %s", operation, previous.OperationSubmitted, generation.Uuid)
 		return false
 	}
 	logrus.Infof("deployer: skipping deployment of generation %s: out path %s with operation %s has already been deployed", generation.Uuid, generation.OutPath, operation)

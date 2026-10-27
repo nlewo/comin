@@ -12,6 +12,7 @@ import (
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestDeployerBasic(t *testing.T) {
@@ -464,4 +465,25 @@ func TestIsAlreadyDeployedSubmittedWhileQueued(t *testing.T) {
 	assertNoDeploymentDone(t, d)
 	assert.Equal(t, int32(1), started.Load())
 	assert.Equal(t, "gen-a", d.Deployment().Generation.Uuid)
+}
+
+// A switch computed to a boot is not deployed again for the same out path.
+func TestIsAlreadyDeployedComputedOperation(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	assert.Nil(t, err)
+	booted := &protobuf.Deployment{
+		Uuid:               "booted",
+		Generation:         newGeneration("gen-a", "path-A"),
+		OperationSubmitted: "switch",
+		Operation:          "boot",
+		Status:             "done",
+		EndedAt:            timestamppb.Now(),
+	}
+	d := New(s, nil, booted, "", bk)
+	assert.True(t, d.IsAlreadyDeployed(newGeneration("gen-b", "path-A"), "switch"))
+	assert.False(t, d.IsAlreadyDeployed(newGeneration("gen-b", "path-A"), "boot"))
 }
