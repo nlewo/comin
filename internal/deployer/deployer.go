@@ -34,10 +34,15 @@ type Deployer struct {
 	mu               sync.Mutex
 	deployment       atomic.Pointer[protobuf.Deployment]
 	isDeploying      atomic.Bool
+	// Whether GenerationToDeploy is set. Atomic because
+	// IsAlreadyDeployed reads it without holding the lock.
+	isQueued atomic.Bool
 	// The next generation to deploy. nil when there is no new generation to deploy
 	GenerationToDeploy *protobuf.Generation
 	// The operation to use for the next deployment
 	Operation string
+	// Whether the next deployment is forced
+	forceToDeploy bool
 	// Reason is the reason of the next deployment
 	Reason                string
 	generationAvailableCh chan struct{}
@@ -166,6 +171,12 @@ func (d *Deployer) IsAlreadyDeployed(generation *protobuf.Generation, operation 
 		logrus.Infof("deployer: no previous deployment found for generation %s", generation.Uuid)
 		return false
 	}
+	// The running deployment can still fail and a queued
+	// generation would replace it: the runner checks again.
+	if d.isQueued.Load() || d.isDeploying.Load() {
+		logrus.Infof("deployer: a generation is queued or being deployed, so generation %s is not already deployed", generation.Uuid)
+		return false
+	}
 	if previous.ErrorMsg != "" {
 		logrus.Infof("deployer: previous deployment %s failed, so generation %s is not already deployed", previous.Uuid, generation.Uuid)
 		return false
@@ -198,7 +209,9 @@ func (d *Deployer) Submit(generation *protobuf.Generation, operation string, for
 	if force || !d.IsAlreadyDeployed(generation, operation) {
 		d.GenerationToDeploy = generation
 		d.Operation = operation
+		d.forceToDeploy = force
 		d.Reason = reason
+		d.isQueued.Store(true)
 		select {
 		case d.generationAvailableCh <- struct{}{}:
 		default:
@@ -223,15 +236,29 @@ func (d *Deployer) Run(ctx context.Context) {
 			d.mu.Lock()
 			g := d.GenerationToDeploy
 			operationSubmitted := d.Operation
+			force := d.forceToDeploy
+			reason := d.Reason
 			d.GenerationToDeploy = nil
+			d.isQueued.Store(false)
+			// Already taken: Submit can signal again before we lock
+			if g == nil {
+				d.mu.Unlock()
+				continue
+			}
+			if !force && d.IsAlreadyDeployed(g, operationSubmitted) {
+				d.mu.Unlock()
+				logrus.Infof("deployer: generation %s is not deployed because its out path has been deployed since it was submitted", g.Uuid)
+				continue
+			}
+			// Under the lock taking g, so one of the flags is always set
+			d.isDeploying.Store(true)
 			d.mu.Unlock()
 			logrus.Infof("deployer: deploying generation %s with the submitted operation %s", g.Uuid, operationSubmitted)
 			booted, current := utils.GetBootedAndCurrentStorepaths()
-			dpl := d.store.NewDeployment(g, operationSubmitted, d.Reason, booted, current)
+			dpl := d.store.NewDeployment(g, operationSubmitted, reason, booted, current)
 			operationComputed := dpl.Operation
 			d.mu.Lock()
 			d.deployment.Store(dpl)
-			d.isDeploying.Store(true)
 			d.mu.Unlock()
 			if err := d.store.DeploymentStarted(dpl.Uuid, booted, current); err != nil {
 				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
