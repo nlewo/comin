@@ -48,6 +48,9 @@ in
       path = [ pkgs.libnotify ];
       serviceConfig = {
         ExecStart = ''${lib.getExe package} desktop --title "${cfg.services.comin.desktop.title}"'';
+        # comin fails when started  before the desktop notification service
+        Restart="on-failure";
+        RestartSec=5;
       };
     };
 
