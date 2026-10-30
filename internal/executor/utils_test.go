@@ -3,7 +3,10 @@ package executor
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,6 +42,33 @@ const drv_nix_2_33 string = `{
   "version": 4
 }
 `
+
+func TestCommandErrorIncludesCappedStderr(t *testing.T) {
+	var captured capturedStderr
+	captured.limit = 40
+	_, err := captured.Write([]byte("error: attribute 'networking.hostId' already defined"))
+	assert.NoError(t, err)
+
+	commandErr := commandError("nix eval", errors.New("exit status 1"), captured.String())
+	assert.Contains(t, commandErr.Error(), "exit status 1")
+	assert.Contains(t, commandErr.Error(), "networking.hostId")
+	assert.Contains(t, commandErr.Error(), "[earlier stderr truncated]")
+}
+
+func TestCapturedStderrKeepsLast100Lines(t *testing.T) {
+	var captured capturedStderr
+	captured.limit = maxCapturedStderrBytes
+	for line := range 102 {
+		_, err := captured.Write([]byte(fmt.Sprintf("line-%03d\n", line)))
+		assert.NoError(t, err)
+	}
+
+	lines := strings.Split(strings.TrimRight(captured.String(), "\n"), "\n")
+	assert.Len(t, lines, maxCapturedStderrLines+1)
+	assert.Equal(t, "[earlier stderr truncated]", lines[0])
+	assert.Equal(t, "line-002", lines[1])
+	assert.Equal(t, "line-101", lines[len(lines)-1])
+}
 
 const drv_nix_2_31 string = `{
   "/nix/store/plbm2vvs61q9868g8wh3m191dslvpgwi-nixos-system-tilia-25.11.20260122.078d69f.drv": {

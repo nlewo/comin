@@ -55,14 +55,67 @@ func (n *NopWriteCloser) Close() error {
 	return nil
 }
 
+// Keep the last 100 stderr lines in EvalErr and stream full output live.
+const (
+	maxCapturedStderrBytes = 32 * 1024
+	maxCapturedStderrLines = 100
+)
+
+type capturedStderr struct {
+	buffer    bytes.Buffer
+	limit     int
+	truncated bool
+}
+
+func (c *capturedStderr) Write(value []byte) (int, error) {
+	written := len(value)
+	if c.limit <= 0 || written == 0 {
+		return written, nil
+	}
+	if written >= c.limit {
+		value = value[written-c.limit:]
+		c.buffer.Reset()
+		c.truncated = true
+	}
+	if overflow := c.buffer.Len() + len(value) - c.limit; overflow > 0 {
+		c.buffer.Next(overflow)
+		c.truncated = true
+	}
+	_, _ = c.buffer.Write(value)
+	return written, nil
+}
+
+func (c *capturedStderr) String() string {
+	message := c.buffer.String()
+	lines := strings.Split(strings.TrimRight(message, "\n"), "\n")
+	if len(lines) > maxCapturedStderrLines {
+		lines = lines[len(lines)-maxCapturedStderrLines:]
+		c.truncated = true
+	}
+	message = strings.Join(lines, "\n")
+	if c.truncated {
+		message = "[earlier stderr truncated]\n" + message
+	}
+	return message
+}
+
+func commandError(command string, err error, stderr string) error {
+	if stderr = strings.TrimSpace(stderr); stderr != "" {
+		return fmt.Errorf("command '%s' fails with %s\nNix stderr:\n%s", command, err, stderr)
+	}
+	return fmt.Errorf("command '%s' fails with %s", command, err)
+}
+
 func runNixCommand(ctx context.Context, command string, args []string, stdout, stderr io.WriteCloser) (err error) {
 	logrus.Infof("nix: running %s %s", command, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	var captured capturedStderr
+	captured.limit = maxCapturedStderrBytes
+	cmd.Stderr = io.MultiWriter(&captured, stderr)
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("command '%s' with args '%s' fails with %s", command, args, err)
+		return commandError(fmt.Sprintf("%s %s", command, strings.Join(args, " ")), err, captured.String())
 	} else {
 		logrus.Infof("nix: command '%s' with args '%s' successfully executed", command, args)
 	}
@@ -76,10 +129,12 @@ func runNixFlakeCommand(ctx context.Context, args []string, stdout, stderr io.Wr
 	logrus.Infof("nix: running '%s'", cmdStr)
 	cmd := exec.CommandContext(ctx, "nix", args...)
 	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	var captured capturedStderr
+	captured.limit = maxCapturedStderrBytes
+	cmd.Stderr = io.MultiWriter(&captured, stderr)
 	err = cmd.Run()
 	if err != nil {
-		return fmt.Errorf("command '%s' fails with %s", cmdStr, err)
+		return commandError(cmdStr, err, captured.String())
 	} else {
 		logrus.Infof("nix: command '%s' successfully executed", cmdStr)
 	}
