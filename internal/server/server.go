@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"net"
 	"os"
 	osutil "os/user"
@@ -110,43 +110,49 @@ func (s *cominServer) Confirm(ctx context.Context, req *protobuf.ConfirmRequest)
 	return nil, nil
 }
 
-func (c *cominServer) Start() {
-	go func() {
-		if _, err := os.Stat(c.unixSocketPath); err == nil {
-			conn, err := net.Dial("unix", c.unixSocketPath)
-			if err == nil {
-				_ = conn.Close()
-				logrus.Fatalf("server: socket %s already in use by another server", c.unixSocketPath)
-			}
+func (c *cominServer) Init() (*grpc.Server, net.Listener, error) {
+	if _, err := os.Stat(c.unixSocketPath); err == nil {
+		conn, err := net.Dial("unix", c.unixSocketPath)
+		if err == nil {
+			_ = conn.Close()
+			return nil, nil, fmt.Errorf("server: socket %s already in use by another server", c.unixSocketPath)
 		}
-		if err := os.RemoveAll(c.unixSocketPath); err != nil {
-			log.Fatalf("server: failed to remove existing socket file: %s", err)
-		}
-		logrus.Infof("server: GRPC server starts listening on the Unix socket %s", c.unixSocketPath)
-		lis, err := net.Listen("unix", c.unixSocketPath)
+	}
+	if err := os.RemoveAll(c.unixSocketPath); err != nil {
+		return nil, nil, fmt.Errorf("server: failed to remove existing socket file: %w", err)
+	}
+	logrus.Infof("server: GRPC server starts listening on the Unix socket %s", c.unixSocketPath)
+	lis, err := net.Listen("unix", c.unixSocketPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("server: failed to listen on %s: %w", c.unixSocketPath, err)
+	}
+	// Parse the socket mode (e.g., "0770" -> 0770)
+	mode, err := strconv.ParseInt(c.unixSocketMode, 8, 32)
+	if err != nil {
+		return nil, nil, fmt.Errorf("server: failed to parse socket mode %s: %w", c.unixSocketMode, err)
+	}
+	if err := os.Chmod(c.unixSocketPath, os.FileMode(mode)); err != nil {
+		return nil, nil, fmt.Errorf("server: failed to change socket permissions: %w", err)
+	}
+	if c.unixSocketGroup != "" {
+		gid, err := getGroupId(c.unixSocketGroup)
 		if err != nil {
-			log.Fatalf("server: failed to listen on %s: %s", c.unixSocketPath, err)
+			return nil, nil, err
 		}
-		// Parse the socket mode (e.g., "0770" -> 0770)
-		mode, err := strconv.ParseInt(c.unixSocketMode, 8, 32)
-		if err != nil {
-			log.Fatalf("server: failed to parse socket mode %s: %s", c.unixSocketMode, err)
+		if err := os.Chown(c.unixSocketPath, -1, gid); err != nil {
+			return nil, nil, fmt.Errorf("server: failed to change socket group: %w", err)
 		}
-		if err := os.Chmod(c.unixSocketPath, os.FileMode(mode)); err != nil {
-			log.Fatalf("server: failed to change socket permissions: %s", err)
-		}
-		if c.unixSocketGroup != "" {
-			if err := os.Chown(c.unixSocketPath, -1, getGroupId(c.unixSocketGroup)); err != nil {
-				log.Fatalf("server: failed to change socket group: %s", err)
-			}
-		}
-		var opts []grpc.ServerOption
-		grpcServer := grpc.NewServer(opts...)
-		protobuf.RegisterCominServer(grpcServer, c)
-		if err := grpcServer.Serve(lis); err != nil {
-			log.Fatalf("server: failed to serve: %s", err)
-		}
-	}()
+	}
+	var opts []grpc.ServerOption
+	grpcServer := grpc.NewServer(opts...)
+	protobuf.RegisterCominServer(grpcServer, c)
+	return grpcServer, lis, nil
+}
+
+func (c *cominServer) Start(grpcServer *grpc.Server, socket net.Listener) {
+	if err := grpcServer.Serve(socket); err != nil {
+		logrus.Errorf("server: failed to serve: %s", err)
+	}
 }
 
 func New(broker *broker.Broker, manager *manager.Manager, unixSocketPath string, unixSocketMode string, unixSocketGroup string) *cominServer {
@@ -160,14 +166,14 @@ func New(broker *broker.Broker, manager *manager.Manager, unixSocketPath string,
 }
 
 // getGroupId returns the GID for a given group name
-func getGroupId(groupName string) int {
+func getGroupId(groupName string) (int, error) {
 	group, err := osutil.LookupGroup(groupName)
 	if err != nil {
-		log.Fatalf("server: failed to lookup group %s: %s", groupName, err)
+		return 0, fmt.Errorf("server: failed to lookup group %s: %w", groupName, err)
 	}
 	gid, err := strconv.Atoi(group.Gid)
 	if err != nil {
-		log.Fatalf("server: failed to convert GID %s to int: %s", group.Gid, err)
+		return 0, fmt.Errorf("server: failed to convert GID %s to int: %w", group.Gid, err)
 	}
-	return gid
+	return gid, nil
 }

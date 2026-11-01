@@ -139,8 +139,14 @@ var runCmd = &cobra.Command{
 			metrics,
 			cfg.ApiServer.ListenAddress, cfg.ApiServer.Port,
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
+
 		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath, cfg.Grpc.UnixSocketMode, cfg.Grpc.UnixSocketGroup)
-		srv.Start()
+		grpcServer, socket, err := srv.Init()
+		if err != nil {
+			logrus.Errorf("GRPC server didn't start because of initialisation error: %s", err)
+		} else {
+			go srv.Start(grpcServer, socket)
+		}
 
 		prometheus.Subscribe(broker, &metrics)
 
