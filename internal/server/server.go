@@ -5,6 +5,8 @@ import (
 	"log"
 	"net"
 	"os"
+	osutil "os/user"
+	"strconv"
 	"time"
 
 	"github.com/nlewo/comin/internal/broker"
@@ -21,9 +23,11 @@ import (
 
 type cominServer struct {
 	protobuf.CominServer
-	manager        *manager.Manager
-	broker         *broker.Broker
-	unixSocketPath string
+	manager         *manager.Manager
+	broker          *broker.Broker
+	unixSocketPath  string
+	unixSocketMode  string
+	unixSocketGroup string
 }
 
 func (s *cominServer) Events(_ *emptypb.Empty, stream grpc.ServerStreamingServer[protobuf.Event]) error {
@@ -123,8 +127,18 @@ func (c *cominServer) Start() {
 		if err != nil {
 			log.Fatalf("server: failed to listen on %s: %s", c.unixSocketPath, err)
 		}
-		if err := os.Chmod(c.unixSocketPath, 0777); err != nil {
+		// Parse the socket mode (e.g., "0770" -> 0770)
+		mode, err := strconv.ParseInt(c.unixSocketMode, 8, 32)
+		if err != nil {
+			log.Fatalf("server: failed to parse socket mode %s: %s", c.unixSocketMode, err)
+		}
+		if err := os.Chmod(c.unixSocketPath, os.FileMode(mode)); err != nil {
 			log.Fatalf("server: failed to change socket permissions: %s", err)
+		}
+		if c.unixSocketGroup != "" {
+			if err := os.Chown(c.unixSocketPath, -1, getGroupId(c.unixSocketGroup)); err != nil {
+				log.Fatalf("server: failed to change socket group: %s", err)
+			}
 		}
 		var opts []grpc.ServerOption
 		grpcServer := grpc.NewServer(opts...)
@@ -135,10 +149,25 @@ func (c *cominServer) Start() {
 	}()
 }
 
-func New(broker *broker.Broker, manager *manager.Manager, unixSocketPath string) *cominServer {
+func New(broker *broker.Broker, manager *manager.Manager, unixSocketPath string, unixSocketMode string, unixSocketGroup string) *cominServer {
 	return &cominServer{
-		manager:        manager,
-		unixSocketPath: unixSocketPath,
-		broker:         broker,
+		manager:         manager,
+		unixSocketPath:  unixSocketPath,
+		broker:          broker,
+		unixSocketMode:  unixSocketMode,
+		unixSocketGroup: unixSocketGroup,
 	}
+}
+
+// getGroupId returns the GID for a given group name
+func getGroupId(groupName string) int {
+	group, err := osutil.LookupGroup(groupName)
+	if err != nil {
+		log.Fatalf("server: failed to lookup group %s: %s", groupName, err)
+	}
+	gid, err := strconv.Atoi(group.Gid)
+	if err != nil {
+		log.Fatalf("server: failed to convert GID %s to int: %s", group.Gid, err)
+	}
+	return gid
 }

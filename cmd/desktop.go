@@ -153,7 +153,7 @@ func handler(event *protobuf.Event) error {
 
 func init() {
 	desktopCmd.Flags().StringVarP(&title, "title", "", "comin", "the notification title")
-	desktopCmd.Flags().StringP("unix-socket-path", "", "/var/lib/comin/grpc.sock", "the GRPC Unix socket path")
+	desktopCmd.Flags().StringP("unix-socket-path", "", "/run/comin-grpc.sock", "the GRPC Unix socket path")
 	desktopCmd.Flags().BoolP("test", "", false, "do not get events from the agent but from predefined scenari")
 	rootCmd.AddCommand(desktopCmd)
 }

@@ -19,7 +19,7 @@ var eventsCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
+			UnixSocketPath: "/run/comin-grpc.sock",
 		}
 		c, err := client.New(opts)
 		if err != nil {

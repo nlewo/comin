@@ -443,6 +443,90 @@ list of string
 
 
 
+## services\.comin\.grpc
+
+
+
+Options for the gRPC server\.
+
+
+
+*Type:*
+submodule
+
+
+
+*Default:*
+
+```nix
+{ }
+```
+
+
+
+## services\.comin\.grpc\.unix_socket_group
+
+
+
+Group owner for the Unix socket\. If empty, no group change is performed\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"users"
+```
+
+
+
+## services\.comin\.grpc\.unix_socket_mode
+
+
+
+File permissions for the Unix socket (in octal)\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"0770"
+```
+
+
+
+## services\.comin\.grpc\.unix_socket_path
+
+
+
+Path to the Unix socket for gRPC communication\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+"/run/comin-grpc.sock"
+```
+
+
+
 ## services\.comin\.hostname
 
 

@@ -14,7 +14,7 @@ var fetchCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		if unixSocketPath == "" {
-			unixSocketPath = "/var/lib/comin/grpc.sock"
+			unixSocketPath = "/run/comin-grpc.sock"
 		}
 		opts := client.ClientOpts{
 			UnixSocketPath: unixSocketPath,
@@ -30,5 +30,5 @@ var fetchCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(fetchCmd)
-	fetchCmd.PersistentFlags().StringVarP(&unixSocketPath, "unix-socket-path", "", "", "the GRPC Unix path (default to /var/lib/comin/grpc.sock)")
+	fetchCmd.PersistentFlags().StringVarP(&unixSocketPath, "unix-socket-path", "", "", "the GRPC Unix path (default to /run/comin-grpc.sock)")
 }

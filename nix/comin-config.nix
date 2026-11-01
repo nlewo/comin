@@ -21,6 +21,11 @@ rec {
       listen_address = cfg.services.comin.exporter.listen_address;
       port = cfg.services.comin.exporter.port;
     };
+    grpc = {
+      unix_socket_path = cfg.services.comin.grpc.unix_socket_path;
+      unix_socket_mode = cfg.services.comin.grpc.unix_socket_mode;
+      unix_socket_group = cfg.services.comin.grpc.unix_socket_group;
+    };
     gpg_public_key_paths = cfg.services.comin.gpgPublicKeyPaths;
     build_confirmer = cfg.services.comin.buildConfirmer;
     deploy_confirmer = cfg.services.comin.deployConfirmer;

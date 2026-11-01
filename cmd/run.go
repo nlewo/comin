@@ -139,7 +139,7 @@ var runCmd = &cobra.Command{
 			metrics,
 			cfg.ApiServer.ListenAddress, cfg.ApiServer.Port,
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
-		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath)
+		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath, cfg.Grpc.UnixSocketMode, cfg.Grpc.UnixSocketGroup)
 		srv.Start()
 
 		prometheus.Subscribe(broker, &metrics)
