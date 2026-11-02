@@ -23,7 +23,7 @@ var deploymentListCmd = &cobra.Command{
 	Args: cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
+			UnixSocketPath: "/run/comin-grpc.sock",
 		}
 		c, err := client.New(opts)
 		if err != nil {
@@ -115,7 +115,7 @@ var deploymentLatestCmd = &cobra.Command{
 	Args: cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
+			UnixSocketPath: "/run/comin-grpc.sock",
 		}
 		c, err := client.New(opts)
 		if err != nil {
@@ -163,7 +163,7 @@ var deploymentRetentionList = &cobra.Command{
 	Args: cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
+			UnixSocketPath: "/run/comin-grpc.sock",
 		}
 		c, err := client.New(opts)
 		if err != nil {
@@ -209,7 +209,7 @@ var deploymentLatestSubmitCmd = &cobra.Command{
 			logrus.Fatalf("The operation is '%s' while it must be one of [test, switch, boot]", operation)
 		}
 		opts := client.ClientOpts{
-			UnixSocketPath: "/var/lib/comin/grpc.sock",
+			UnixSocketPath: "/run/comin-grpc.sock",
 		}
 		c, err := client.New(opts)
 		if err != nil {

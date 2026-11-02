@@ -119,7 +119,7 @@ var statusCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		if unixSocketPath == "" {
-			unixSocketPath = "/var/lib/comin/grpc.sock"
+			unixSocketPath = "/run/comin-grpc.sock"
 		}
 		opts := client.ClientOpts{
 			UnixSocketPath: unixSocketPath,
@@ -145,6 +145,6 @@ var statusCmd = &cobra.Command{
 func init() {
 	statusCmd.PersistentFlags().BoolVarP(&statusOneline, "oneline", "", false, "oneline")
 	statusCmd.PersistentFlags().BoolVarP(&statusJson, "json", "", false, "json")
-	statusCmd.PersistentFlags().StringVarP(&unixSocketPath, "unix-socket-path", "", "", "the GRPC Unix path (default to /var/lib/comin/grpc.sock)")
+	statusCmd.PersistentFlags().StringVarP(&unixSocketPath, "unix-socket-path", "", "", "the GRPC Unix path (default to /run/comin-grpc.sock)")
 	rootCmd.AddCommand(statusCmd)
 }

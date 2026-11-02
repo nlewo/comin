@@ -56,7 +56,9 @@ type HttpServer struct {
 }
 
 type Grpc struct {
-	UnixSocketPath string `yaml:"unix_socket_path"`
+	UnixSocketPath    string `yaml:"unix_socket_path"`
+	UnixSocketMode    string `yaml:"unix_socket_mode"`
+	UnixSocketGroup   string `yaml:"unix_socket_group"`
 }
 
 type Confirmer struct {

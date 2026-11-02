@@ -151,6 +151,35 @@ in
             };
           };
         };
+        grpc = mkOption {
+          description = "Options for the gRPC server.";
+          default = { };
+          type = submodule {
+            options = {
+              unix_socket_path = mkOption {
+                type = str;
+                default = "/run/comin-grpc.sock";
+                description = ''
+                  Path to the Unix socket for gRPC communication.
+                '';
+              };
+              unix_socket_mode = mkOption {
+                type = str;
+                default = "0770";
+                description = ''
+                  File permissions for the Unix socket (in octal).
+                '';
+              };
+              unix_socket_group = mkOption {
+                type = str;
+                default = "users";
+                description = ''
+                  Group owner for the Unix socket. If empty, no group change is performed.
+                '';
+              };
+            };
+          };
+        };
         remotes = mkOption {
           description = "Ordered list of repositories to pull.";
           type = listOf (submodule {
