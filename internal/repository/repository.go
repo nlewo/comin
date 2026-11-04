@@ -138,6 +138,7 @@ func (r *repository) Update() error {
 			*r,
 			remote.Name,
 			remote.Main.Name,
+			false,
 			r.RepositoryStatus.MainCommitId)
 		if err != nil {
 			remote.Main.ErrorMsg = err.Error()
@@ -188,6 +189,7 @@ func (r *repository) Update() error {
 			*r,
 			remote.Name,
 			remote.Testing.Name,
+			true,
 			r.RepositoryStatus.MainCommitId)
 		if err != nil {
 			remote.Testing.ErrorMsg = err.Error()

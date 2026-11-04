@@ -733,6 +733,18 @@ func TestTestingHardReset(t *testing.T) {
 	assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
 	assert.Equal(t, "main", r.RepositoryStatus.SelectedBranchName)
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
+
+	// r1/main: c1 - c2 - *c3
+	// r1/testing: c1 - *c2
+	// The testing branch is reset to a commit that is not on top of main.
+	mainCommit, _ := r1.CommitObject(plumbing.NewHash(cMain))
+	ref = plumbing.NewHashReference("refs/heads/testing", mainCommit.ParentHashes[0])
+	_ = r1.Storer.SetReference(ref)
+	r.Fetch([]string{"r1"})
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.Contains(t, r.RepositoryStatus.Remotes[0].Testing.ErrorMsg, "not on top of the main branch")
+	assert.NotContains(t, r.RepositoryStatus.Remotes[0].Testing.ErrorMsg, "hard reset")
 }
 
 func TestFetchSshBadKeyPath(t *testing.T) {
