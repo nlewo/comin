@@ -41,7 +41,7 @@ func getRemoteCommitHash(r repository, remote, branch string) *plumbing.Hash {
 	return &commitId
 }
 
-func hasNotBeenHardReset(r repository, branchName string, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
+func hasNotBeenHardReset(r repository, branchName string, isTesting bool, currentMainHash *plumbing.Hash, remoteMainHead *plumbing.Hash) error {
 	if currentMainHash != nil && remoteMainHead != nil && *currentMainHash != *remoteMainHead {
 		var ok bool
 		ok, err := isAncestor(r.Repository, *currentMainHash, *remoteMainHead)
@@ -49,6 +49,11 @@ func hasNotBeenHardReset(r repository, branchName string, currentMainHash *plumb
 			return err
 		}
 		if !ok {
+			if isTesting {
+				// A testing branch can be hard reset as long as it stays on top of the main branch.
+				return fmt.Errorf("this branch is not on top of the main branch: its head '%s' is not on top of '%s'",
+					remoteMainHead.String(), currentMainHash.String())
+			}
 			return fmt.Errorf("this branch has been hard reset: its head '%s' is not on top of '%s'",
 				remoteMainHead.String(), currentMainHash.String())
 		}
@@ -56,7 +61,7 @@ func hasNotBeenHardReset(r repository, branchName string, currentMainHash *plumb
 	return nil
 }
 
-func getHeadFromRemoteAndBranch(r repository, remoteName, branchName, currentMainCommitId string) (newHead plumbing.Hash, msg string, err error) {
+func getHeadFromRemoteAndBranch(r repository, remoteName, branchName string, isTesting bool, currentMainCommitId string) (newHead plumbing.Hash, msg string, err error) {
 	var currentMainHash *plumbing.Hash
 	head := getRemoteCommitHash(r, remoteName, branchName)
 	if head == nil {
@@ -67,7 +72,7 @@ func getHeadFromRemoteAndBranch(r repository, remoteName, branchName, currentMai
 		currentMainHash = &c
 	}
 
-	if err = hasNotBeenHardReset(r, branchName, currentMainHash, head); err != nil {
+	if err = hasNotBeenHardReset(r, branchName, isTesting, currentMainHash, head); err != nil {
 		return
 	}
 
