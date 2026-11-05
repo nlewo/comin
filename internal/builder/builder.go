@@ -470,7 +470,11 @@ func (b *Builder) build(ctx context.Context, generationUuid string) error {
 		if err != nil {
 			logrus.Error(err)
 		}
-		b.runPostBuildCommandIfSet(&generation, store.Built.String(), errMsg(b.buildator.getErr()))
+		status := store.Built
+		if buildErr != nil {
+			status = store.BuildFailed
+		}
+		b.runPostBuildCommandIfSet(&generation, status.String(), errMsg(buildErr))
 		b.isBuilding.Store(false)
 		select {
 		case b.BuildDone <- generationUuid:
