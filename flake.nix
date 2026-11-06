@@ -58,7 +58,10 @@
           comin = self.packages."${system}".comin;
         };
       });
-      nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
+      nixosModules = {
+        comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
+        default = self.nixosModules.comin;
+      };
       darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
       devShells = forAllSystems (
         system:
