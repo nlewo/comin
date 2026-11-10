@@ -111,6 +111,13 @@ func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, 
 	for i, d := range gcs {
 		gcsUuids[i] = d.Uuid
 		d.Gc = true
+		// Remove symlink for deployment marked for GC
+		symlinkPath := path.Join(s.gcRoot, "deployment-"+d.Uuid)
+		if err := os.Remove(symlinkPath); err != nil && !os.IsNotExist(err) {
+			logrus.Warnf("store: failed to remove gcroot %s: %v", symlinkPath, err)
+		} else if err == nil {
+			logrus.Infof("store: removed gcroot %s for deployment %s", symlinkPath, d.Uuid)
+		}
 	}
 	logDiff("gc deployments", s.persisted.DeploymentsGc, gcsUuids)
 	s.persisted.DeploymentsGc = gcsUuids
@@ -154,6 +161,13 @@ func (s *Store) NewDeployment(g *protobuf.Generation, operationSubmitted, reason
 		NewInhibitors:      newInhibitors,
 	}
 	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
+
+	symlinkPath := path.Join(s.gcRoot, "deployment-"+d.Uuid)
+	if err := os.Symlink(g.OutPath, symlinkPath); err != nil {
+		logrus.Warnf("store: failed to create symlink from %s to %s: %v", symlinkPath, g.OutPath, err)
+		logrus.Warn("store:   be careful since this means Nix storepaths used by the bootloader could be garbage collected, leading to a non bootable machine")
+	}
+
 	s.Commit()
 	return d
 
