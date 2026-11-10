@@ -73,7 +73,7 @@ func logDiff(name string, old, new []string) {
 
 // updateDataDeployments is not thread safe
 func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, new *protobuf.Deployment) {
-	dpls, current, booted, bootEntries, successful, any := retention(s.persisted.Deployments, new, bootedStorepath, currentStorepath, int(s.persisted.DeploymentBootEntryCapacity), int(s.persisted.DeploymentSuccessfulCapacity), int(s.persisted.DeploymentAnyCapacity), int(s.persisted.DeploymentCapacity))
+	dpls, current, booted, bootEntries, successful, any, gcs := retention(s.persisted.Deployments, new, bootedStorepath, currentStorepath, int(s.persisted.DeploymentBootEntryCapacity), int(s.persisted.DeploymentSuccessfulCapacity), int(s.persisted.DeploymentAnyCapacity), int(s.persisted.DeploymentCapacity))
 
 	s.persisted.Deployments = dpls
 	if current.Uuid != s.persisted.DeploymentSwitched {
@@ -106,6 +106,14 @@ func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, 
 	}
 	logDiff("any deployments", s.persisted.DeploymentsAny, anyUuids)
 	s.persisted.DeploymentsAny = anyUuids
+
+	gcsUuids := make([]string, len(gcs))
+	for i, d := range gcs {
+		gcsUuids[i] = d.Uuid
+		d.Gc = true
+	}
+	logDiff("gc deployments", s.persisted.DeploymentsGc, gcsUuids)
+	s.persisted.DeploymentsGc = gcsUuids
 
 	s.Commit()
 }
