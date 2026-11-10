@@ -24,7 +24,7 @@ import (
 var emptyConfigurationOperations = map[string]map[string]string{}
 
 var mkDeployerMock = func(t *testing.T) *deployer.Deployer {
-	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, []*protobuf.Deployment, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		return false, "", nil
 	}
 	tmp := t.TempDir()
@@ -51,7 +51,7 @@ func (n ExecutorMock) NeedToReboot(_, _ string) bool {
 func (n ExecutorMock) IsStorePathExist(storePath string) bool {
 	return false
 }
-func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
+func (n ExecutorMock) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, deploymentHistory []*protobuf.Deployment, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
 	return false, "", nil
 }
 func (n ExecutorMock) Eval(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error) {
@@ -92,7 +92,7 @@ func TestBuild(t *testing.T) {
 	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1, 1)
 	eMock := NewExecutorMock("")
 	b := builder.New(s, eMock, bk, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second, 0, 30*time.Second, "")
-	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, []*protobuf.Deployment, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "", bk)
@@ -206,7 +206,7 @@ func TestDeploy(t *testing.T) {
 	eMock.evalOk <- true
 	eMock.buildOk <- true
 	b := builder.New(s, eMock, bk, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second, 0, 30*time.Second, "")
-	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, []*protobuf.Deployment, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		return false, "profile-path", nil
 	}
 	d := deployer.New(s, deployFunc, nil, "", bk)

@@ -36,7 +36,7 @@ func New(repositoryType, repositoryPath string, submodules bool) (e Executor, er
 type Executor interface {
 	Eval(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
 	Build(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error)
-	Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error)
+	Deploy(ctx context.Context, outPath, operation string, profilePaths []string, deploymentHistory []*protobuf.Deployment, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error)
 	NeedToReboot(outPath, operation string) bool
 	ReadMachineId() (string, error)
 	// IsStorePathExist returns true if a storepath exists. This
