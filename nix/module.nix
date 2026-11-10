@@ -41,7 +41,35 @@ in
     ++ lib.forEach cfg.services.comin.remotes (remote: {
       assertion = !(remote.auth.access_token_path != "" && remote.auth.ssh_deploy_key_path != "");
       message = "comin: remote `${remote.name}` sets both `auth.access_token_path` and `auth.ssh_deploy_key_path`; set at most one.";
-    });
+    })
+    ++ lib.optionalAttrs (cfg.services.comin.retention.deployment_boot_entry_capacity != null) {
+      assertions = [
+        {
+          assertion = cfg.services.comin.retention.deployment_boot_entry_capacity > 1;
+          message = "comin: `services.comin.retention.deployment_boot_entry_capacity` must be greater than 1.";
+        }
+      ];
+    }
+    ++ lib.optionalAttrs (cfg.services.comin.retention.deployment_any_capacity != null) {
+      assertions = [
+        {
+          assertion = cfg.services.comin.retention.deployment_any_capacity > 3;
+          message = "comin: `services.comin.retention.deployment_any_capacity` must be greater than 3.";
+        }
+      ];
+    }
+    ++ lib.optionalAttrs (cfg.services.comin.retention.deployment_capacity != null) {
+      assertions = [
+        {
+          assertion = cfg.services.comin.retention.deployment_capacity > (
+            cfg.services.comin.retention.deployment_boot_entry_capacity
+            + cfg.services.comin.retention.deployment_successful_capacity
+            + cfg.services.comin.retention.deployment_any_capacity
+          );
+          message = "comin: `services.comin.retention.deployment_capacity` must be greater than the sum of deployment_boot_entry_capacity, deployment_successful_capacity, and deployment_any_capacity.";
+        }
+      ];
+    }
 
     systemd.user.services.comin-desktop = lib.mkIf cfg.services.comin.desktop.enable {
       wantedBy = [ "graphical-session.target" ];
