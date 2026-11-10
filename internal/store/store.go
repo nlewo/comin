@@ -2,7 +2,6 @@ package store
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 
@@ -36,16 +35,21 @@ type Store struct {
 
 func New(broker *broker.Broker, filename, gcRootsDir string, bootEntryCapacity, successfulCapacity, anyCapacity, capacity int) (*Store, error) {
 	if bootEntryCapacity < 1 {
-		return nil, fmt.Errorf("store: bootEntryCapacity cannot be < 1")
+		logrus.Warnf("store: bootEntryCapacity cannot be < 1, it has then been set to 1")
+		bootEntryCapacity = 1
 	}
 	if successfulCapacity < 1 {
-		return nil, fmt.Errorf("store: successfulCapacity cannot be < 1")
+		logrus.Warnf("store: successfulCapacity cannot be < 1, it has then been set to 1")
+		successfulCapacity = 1
 	}
-	if anyCapacity < 1 {
-		return nil, fmt.Errorf("store: anyCapacity cannot be < 1")
+	if anyCapacity < 3 {
+		logrus.Warnf("store: anyCapacity cannot be < 3, it has then been set to 3")
+		anyCapacity = 3
 	}
-	if capacity < 1 {
-		return nil, fmt.Errorf("store: capacity cannot be < 1")
+	if capacity < bootEntryCapacity+anyCapacity {
+		logrus.Warnf("store: capacity cannot be < bootEntryCapacity+anyCapacity, it has then been set to %d", bootEntryCapacity+anyCapacity)
+		capacity = bootEntryCapacity + anyCapacity
+
 	}
 
 	data := &protobuf.Store{
