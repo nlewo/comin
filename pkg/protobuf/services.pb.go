@@ -1899,6 +1899,7 @@ type Store struct {
 	DeploymentBootEntryCapacity  int32                  `protobuf:"varint,9,opt,name=deployment_boot_entry_capacity,json=deploymentBootEntryCapacity" json:"deployment_boot_entry_capacity,omitempty"`
 	DeploymentSuccessfulCapacity int32                  `protobuf:"varint,10,opt,name=deployment_successful_capacity,json=deploymentSuccessfulCapacity" json:"deployment_successful_capacity,omitempty"`
 	DeploymentAnyCapacity        int32                  `protobuf:"varint,11,opt,name=deployment_any_capacity,json=deploymentAnyCapacity" json:"deployment_any_capacity,omitempty"`
+	DeploymentCapacity           int32                  `protobuf:"varint,12,opt,name=deployment_capacity,json=deploymentCapacity" json:"deployment_capacity,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -2006,6 +2007,13 @@ func (x *Store) GetDeploymentSuccessfulCapacity() int32 {
 func (x *Store) GetDeploymentAnyCapacity() int32 {
 	if x != nil {
 		return x.DeploymentAnyCapacity
+	}
+	return 0
+}
+
+func (x *Store) GetDeploymentCapacity() int32 {
+	if x != nil {
+		return x.DeploymentCapacity
 	}
 	return 0
 }

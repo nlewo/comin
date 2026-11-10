@@ -73,7 +73,7 @@ func logDiff(name string, old, new []string) {
 
 // updateDataDeployments is not thread safe
 func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, new *protobuf.Deployment) {
-	dpls, current, booted, bootEntries, successful, any := retention(s.persisted.Deployments, new, bootedStorepath, currentStorepath, int(s.persisted.DeploymentBootEntryCapacity), int(s.persisted.DeploymentSuccessfulCapacity), int(s.persisted.DeploymentAnyCapacity))
+	dpls, current, booted, bootEntries, successful, any := retention(s.persisted.Deployments, new, bootedStorepath, currentStorepath, int(s.persisted.DeploymentBootEntryCapacity), int(s.persisted.DeploymentSuccessfulCapacity), int(s.persisted.DeploymentAnyCapacity), int(s.persisted.DeploymentCapacity))
 
 	s.persisted.Deployments = dpls
 	if current.Uuid != s.persisted.DeploymentSwitched {
@@ -236,7 +236,6 @@ func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRe
 	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
 	return nil
 }
-
 
 type inhibitorChange struct {
 	old string

@@ -293,7 +293,7 @@ message DeployerState {
 message Store {
   repeated Deployment deployments = 1;
   repeated Generation generations = 2;
- 
+  
   string deployment_switched = 3;
   string deployment_booted = 4;
   repeated string deployments_boot_entry = 5;
@@ -304,4 +304,5 @@ message Store {
   int32 deployment_boot_entry_capacity = 9;
   int32 deployment_successful_capacity = 10;
   int32 deployment_any_capacity = 11;
+  int32 deployment_capacity = 12;
 }

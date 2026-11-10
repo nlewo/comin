@@ -16,16 +16,16 @@ func TestDeploymentCommitAndLoad(t *testing.T) {
 	filename := tmp + "/state.json"
 	bk := broker.New()
 	bk.Start()
-	s, _ := New(bk, filename, tmp+"/gcroots", 2, 2, 5)
+	s, _ := New(bk, filename, tmp+"/gcroots", 2, 2, 5, 5)
 	s.Commit()
 
-	s1, _ := New(bk, filename, tmp+"/gcroots", 2, 2, 5)
+	s1, _ := New(bk, filename, tmp+"/gcroots", 2, 2, 5, 5)
 	err := s1.Load()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(s.persisted.Deployments))
 
 	s.NewDeployment(&protobuf.Generation{}, "", "", "", "")
-	s1, _ = New(bk, filename, tmp+"/gcroots", 2, 2, 5)
+	s1, _ = New(bk, filename, tmp+"/gcroots", 2, 2, 5, 5)
 	err = s1.Load()
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(s.persisted.Deployments))
@@ -35,7 +35,7 @@ func TestLastDeployment(t *testing.T) {
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
-	s, _ := New(bk, "state.json", tmp+"/gcroots", 2, 2, 5)
+	s, _ := New(bk, "state.json", tmp+"/gcroots", 2, 2, 5, 5)
 	ok, _ := s.LastDeployment()
 	assert.False(t, ok)
 	s.NewDeployment(&protobuf.Generation{Uuid: "1"}, "", "", "", "")
@@ -49,7 +49,7 @@ func TestNewGeneration(t *testing.T) {
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
-	s, _ := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
+	s, _ := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5, 5)
 	s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
 }
 
@@ -89,7 +89,7 @@ func TestGenerationBuildCanceledIsNotAFailure(t *testing.T) {
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
-	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
+	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5, 5)
 	assert.Nil(t, err)
 
 	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
@@ -121,7 +121,7 @@ func TestGenerationBuildErrorIsAFailure(t *testing.T) {
 	tmp := t.TempDir()
 	bk := broker.New()
 	bk.Start()
-	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5)
+	s, err := New(bk, tmp+"/filename", tmp+"/gcroots", 2, 2, 5, 5)
 	assert.Nil(t, err)
 
 	g := s.NewGeneration("hostname", "repositoryDir", "systemAttr", &protobuf.GitRepositoryStatus{}, 0)
