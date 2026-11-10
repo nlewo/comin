@@ -15,7 +15,7 @@ func isBootEntry(d *protobuf.Deployment) bool {
 }
 
 // bootedStorepath + switchedStorepath <= successfulCapacity <= allCapacity <= totalCapacity
-func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStorepath, switchedStorepath string, bootEntryOutpathCapacity, successfulOutpathCapacity, anyStorepathCapacity int) (result []*protobuf.Deployment, current, booted *protobuf.Deployment, deploymentsBootEntry, deploymentsSuccessful, deploymentsAny []*protobuf.Deployment) {
+func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStorepath, switchedStorepath string, bootEntryOutpathCapacity, successfulOutpathCapacity, anyStorepathCapacity, capacity int) (result []*protobuf.Deployment, current, booted *protobuf.Deployment, deploymentsBootEntry, deploymentsSuccessful, deploymentsAny []*protobuf.Deployment) {
 	current = nil
 	booted = nil
 	deploymentsBootEntry = make([]*protobuf.Deployment, 0)
@@ -154,6 +154,17 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 	}
 
 	slices.SortFunc(result, endedAtCmp)
+
+	// Add first deployments from result list ensuring capacity is not reached
+	if capacity > 0 && len(result) < capacity {
+		remaining := capacity - len(result)
+		for i := 0; i < len(dpls) && remaining > 0; i++ {
+			if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == dpls[i].Uuid }) {
+				result = append(result, dpls[i])
+				remaining--
+			}
+		}
+	}
 
 	return
 }

@@ -70,6 +70,7 @@ type Retention struct {
 	DeploymentBootEntryCapacity  int `yaml:"deployment_boot_entry_capacity"`
 	DeploymentSuccessfulCapacity int `yaml:"deployment_successful_capacity"`
 	DeploymentAnyCapacity        int `yaml:"deployment_any_capacity"`
+	DeploymentCapacity           int `yaml:"deployment_capacity"`
 }
 
 type Configuration struct {
