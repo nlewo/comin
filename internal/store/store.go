@@ -19,6 +19,7 @@ type Store struct {
 	persisted          *protobuf.Store
 	mu                 sync.Mutex
 	filename           string
+	gcRoot             string
 	generationGcRoot   string
 	bootEntryCapacity  int
 	successfulCapacity int
@@ -58,6 +59,7 @@ func New(broker *broker.Broker, filename, gcRootsDir string, bootEntryCapacity, 
 	}
 	st := Store{
 		filename:           filename,
+		gcRoot:             gcRootsDir,
 		generationGcRoot:   gcRootsDir + "/last-built-generation",
 		bootEntryCapacity:  bootEntryCapacity,
 		successfulCapacity: successfulCapacity,
