@@ -9,12 +9,14 @@ import (
 	"github.com/nlewo/comin/internal/broker"
 	"github.com/nlewo/comin/internal/store"
 	"github.com/nlewo/comin/pkg/protobuf"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeployerBasic(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, []*protobuf.Deployment, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -58,7 +60,7 @@ func TestDeployerBasic(t *testing.T) {
 
 func TestDeployerSubmit(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, []*protobuf.Deployment, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -135,7 +137,7 @@ func TestDeployerSubmit(t *testing.T) {
 
 func TestDeployerSuspend(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, []*protobuf.Deployment, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
