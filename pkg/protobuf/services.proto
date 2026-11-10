@@ -199,6 +199,7 @@ message Deployment {
   google.protobuf.Timestamp created_at = 11;
   map<string, string> current_inhibitors = 13;
   map<string, string> new_inhibitors = 14;
+  bool gc = 16;
 }
 
 message State {
