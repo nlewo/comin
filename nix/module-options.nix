@@ -333,7 +333,7 @@ in
             This is mainly useful for server migration: this allows
             to migrate a configuration from a machine to another
             machine (with different hardware for instance) without
-            impacting both.
+           impacting both.
             Note it is only used by comin at evaluation.
           '';
         };
@@ -449,7 +449,7 @@ in
           };
         };
         retention = mkOption {
-          description = "The deployments and profiles retention policyes.";
+          description = "The deployments and profiles retention policies.";
           default = { };
           type = submodule {
             options = {
@@ -457,16 +457,19 @@ in
                 type = int;
                 default = 3;
                 description = ''
-                  Number of boot entries to keep. Controls how many successful
-                  deployments generating boot entries (boot or switch operations)
-                  with unique storepaths are retained.
+
+                  Number of boot entries storepaths to keep. Controls
+                  how many successful deployments generating boot
+                  entries (boot or switch operations) with unique
+                  storepaths are retained. This must be higher than 1
+                  to ensure the booted deployment is preserved.
                 '';
               };
               deployment_successful_capacity = mkOption {
                 type = int;
                 default = 3;
                 description = ''
-                  Number of successful deployments to keep. Includes all deployments
+                  Number of successful deployment storepaths to keep. Includes all deployments
                   with status=done, regardless of operation type.
                 '';
               };
@@ -474,8 +477,23 @@ in
                 type = int;
                 default = 5;
                 description = ''
-                  Total number of deployments to keep. Includes all deployments
-                  regardless of status (including failed deployments).
+                  Total number of deployment storepaths to keep. Includes all
+                  deployments regardless of status (including failed
+                  deployments). This must to be higher than 3, to
+                  ensure the booted, current and a new deployment are
+                  preserved in the list.
+                '';
+              };
+              deployment_capacity = mkOption {
+                type = int;
+                default = 12;
+                description = ''
+                  Maximum number of deployments to keep in
+                  total. TThis is used to control the number of
+                  deployment kept in the history, even if they have
+                  been garbage collected.
+                  This must to be higher than
+                  deployment_boot_entry_capacity + deployment_successful_capacity + deployment_any_capacity.
                 '';
               };
             };
