@@ -36,7 +36,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 
 	// 1. Always keep the current booted system
 	for _, d := range dpls {
-		if isBootEntry(d) && d.Status == "done" && d.Generation.OutPath == bootedStorepath {
+		if isBootEntry(d) && d.Status == "done" && d.Generation.OutPath == bootedStorepath && !d.Gc {
 			booted = d
 			if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
 				result = append(result, d)
@@ -65,7 +65,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 
 	// 2. Always keep the current switched system
 	for _, d := range dpls {
-		if d.Status == "done" && d.Generation.OutPath == switchedStorepath {
+		if d.Status == "done" && d.Generation.OutPath == switchedStorepath && !d.Gc {
 			current = d
 			if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
 				result = append(result, d)
@@ -100,7 +100,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 		if len(storepaths) >= bootEntryOutpathCapacity {
 			break
 		}
-		if !isBootEntry(d) || d.Status != "done" {
+		if !isBootEntry(d) || d.Status != "done" && !d.Gc {
 			continue
 		}
 		if _, exists := storepaths[d.Generation.OutPath]; exists {
@@ -118,7 +118,7 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 	// 4. Successful deployments (any operation) with storepath deduplication
 	storepaths = make(map[string]struct{})
 	for _, d := range dpls {
-		if d.Status != "done" {
+		if d.Status != "done" && !d.Gc {
 			continue
 		}
 		if len(storepaths) >= successfulOutpathCapacity {
@@ -139,6 +139,9 @@ func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStor
 	// 5. All deployments (any status) with storepath deduplication
 	storepaths = make(map[string]struct{})
 	for _, d := range dpls {
+		if d.Gc {
+			continue
+		}
 		if len(storepaths) >= anyStorepathCapacity {
 			break
 		}
