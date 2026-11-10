@@ -71,21 +71,21 @@ func TestDeploymentRetentionMinimal(t *testing.T) {
 		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
 	}
 
-	_, current, booted, bootEntries, successful, any := retention(dpls, nil, "st1", "st1", 1, 1, 1, 1)
+	_, current, booted, bootEntries, successful, any, _ := retention(dpls, nil, "st1", "st1", 1, 1, 1, 1)
 	assert.Equal(t, current.Uuid, "5")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4"})
 	assert.Equal(t, uuids(successful), []string{"5"})
 	assert.Equal(t, uuids(any), []string{"5"})
 
-	_, current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "st1", 1, 2, 2, 2)
+	_, current, booted, bootEntries, successful, any, _ = retention(dpls, nil, "st1", "st1", 1, 2, 2, 2)
 	assert.Equal(t, current.Uuid, "5")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4"})
 	assert.Equal(t, uuids(successful), []string{"5", "1"})
 	assert.Equal(t, uuids(any), []string{"5", "1"})
 
-	_, current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "st1", 1, 3, 3, 3)
+	_, current, booted, bootEntries, successful, any, _ = retention(dpls, nil, "st1", "st1", 1, 3, 3, 3)
 	assert.Equal(t, current.Uuid, "5")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4"})
@@ -99,7 +99,7 @@ func TestDeploymentRetentionMinimal(t *testing.T) {
 // multiple executions with the same parameters.
 func TestDeploymentRetentionInitialization(t *testing.T) {
 	// Start with empty deployments - should create dummy entries for booted (st1) and current (st2)
-	newDpls, current, booted, bootEntries, successful, any := retention([]*protobuf.Deployment{}, nil, "st1", "st2", 3, 3, 5, 5)
+	newDpls, current, booted, bootEntries, successful, any, _ := retention([]*protobuf.Deployment{}, nil, "st1", "st2", 3, 3, 5, 5)
 	assert.Equal(t, 2, len(bootEntries))
 	assert.Equal(t, 2, len(successful))
 	assert.Equal(t, 2, len(any))
@@ -110,7 +110,7 @@ func TestDeploymentRetentionInitialization(t *testing.T) {
 	assert.Equal(t, 2, len(newDpls))
 
 	// Ensure this is stable across execution - running again with same params should give same results
-	newDpls, current, booted, bootEntries, successful, any = retention(newDpls, nil, "st1", "st2", 3, 3, 5, 5)
+	newDpls, current, booted, bootEntries, successful, any, _ = retention(newDpls, nil, "st1", "st2", 3, 3, 5, 5)
 	assert.Equal(t, 2, len(bootEntries))
 	assert.Equal(t, 2, len(successful))
 	assert.Equal(t, 2, len(any))
@@ -129,7 +129,7 @@ func TestDeploymentRetentionInitialization(t *testing.T) {
 			OutPath: "st3",
 		},
 	}
-	newDpls, current, booted, bootEntries, successful, any = retention(newDpls, test, "st1", "st3", 3, 3, 5, 5)
+	newDpls, current, booted, bootEntries, successful, any, _ = retention(newDpls, test, "st1", "st3", 3, 3, 5, 5)
 	assert.Equal(t, 2, len(bootEntries))
 	assert.Equal(t, 3, len(successful))
 	assert.Equal(t, 3, len(any))
@@ -166,7 +166,7 @@ func TestDeploymentRetention(t *testing.T) {
 	}
 
 	// Both booted and switched are st1, so should keep: current (1), booted (4), and 2 successful (5,6)
-	_, current, booted, bootEntries, successful, any := retention(dpls, new, "st1", "st1", 2, 2, 2, 2)
+	_, current, booted, bootEntries, successful, any, _ := retention(dpls, new, "st1", "st1", 2, 2, 2, 2)
 	assert.Equal(t, current.Uuid, "6")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4", "1"})
@@ -174,7 +174,7 @@ func TestDeploymentRetention(t *testing.T) {
 	assert.Equal(t, uuids(any), []string{"6", "1"})
 
 	// Both booted and switched are st2, so should keep: current (1), booted (1), and 2 successful (5,6)
-	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st2", "st2", 2, 2, 2, 2)
+	_, current, booted, bootEntries, successful, any, _ = retention(dpls, new, "st2", "st2", 2, 2, 2, 2)
 	assert.Equal(t, current.Uuid, "1")
 	assert.Equal(t, booted.Uuid, "1")
 	assert.Equal(t, uuids(bootEntries), []string{"4", "1"})
@@ -182,7 +182,7 @@ func TestDeploymentRetention(t *testing.T) {
 	assert.Equal(t, uuids(any), []string{"6", "1"})
 
 	// With capacity 1,1,1 - should keep only the essentials: current (1), booted (4), and 1 successful (6)
-	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "st2", 1, 1, 1, 1)
+	_, current, booted, bootEntries, successful, any, _ = retention(dpls, new, "st1", "st2", 1, 1, 1, 1)
 	assert.Equal(t, current.Uuid, "1")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4"})
@@ -204,7 +204,7 @@ func TestDeploymentRetention(t *testing.T) {
 		{Uuid: "2", Operation: "boot", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(2)},
 		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
 	}
-	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "st1", 2, 7, 7, 7)
+	_, current, booted, bootEntries, successful, any, _ = retention(dpls, new, "st1", "st1", 2, 7, 7, 7)
 	assert.Equal(t, current.Uuid, "11")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4", "1"})
@@ -231,7 +231,7 @@ func TestDeploymentNewAlwaysPreserved(t *testing.T) {
 	}
 
 	// Both booted and switched are st1, so should keep: current (1), booted (4), and 2 successful (5,6)
-	_, current, booted, bootEntries, successful, any := retention(dpls, new, "st1", "st2", 1, 1, 1, 1)
+	_, current, booted, bootEntries, successful, any, _ := retention(dpls, new, "st1", "st2", 1, 1, 1, 1)
 	assert.Equal(t, current.Uuid, "1")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4"})
@@ -258,11 +258,38 @@ func TestDeploymentCapacity(t *testing.T) {
 	}
 
 	// Both booted and switched are st1, so should keep: current (1), booted (4), and 2 successful (5,6)
-	result, current, booted, bootEntries, successful, any := retention(dpls, new, "st1", "st2", 1, 1, 1, 4)
+	result, current, booted, bootEntries, successful, any, _ := retention(dpls, new, "st1", "st2", 1, 1, 1, 4)
 	assert.Equal(t, current.Uuid, "1")
 	assert.Equal(t, booted.Uuid, "4")
 	assert.Equal(t, uuids(bootEntries), []string{"4"})
 	assert.Equal(t, uuids(successful), []string{"5"})
 	assert.Equal(t, uuids(any), []string{"6"})
 	assert.Equal(t, uuids(result), []string{"6", "5", "4", "1"})
+}
+
+func TestDeploymentGcs(t *testing.T) {
+	secs := func(s int) *timestamppb.Timestamp {
+		return timestamppb.New(time.Date(1970, time.January, 01, 0, 0, s, 0, time.UTC))
+	}
+	gWithSt := func(st string) *protobuf.Generation {
+		return &protobuf.Generation{OutPath: st}
+	}
+
+	new := &protobuf.Deployment{Uuid: "7", Operation: "test", Status: "init", Generation: gWithSt("st7"), CreatedAt: secs(6)}
+	dpls := []*protobuf.Deployment{
+		{Uuid: "6", Operation: "test", Status: "done", Generation: gWithSt("st6"), CreatedAt: secs(5)},
+		{Uuid: "5", Operation: "boot", Status: "done", Generation: gWithSt("st5"), CreatedAt: secs(4)},
+		{Uuid: "4", Operation: "test", Status: "done", Generation: gWithSt("st4"), CreatedAt: secs(3)},
+		{Uuid: "3", Operation: "boot", Status: "done", Generation: gWithSt("st3"), CreatedAt: secs(2)},
+		{Uuid: "2", Operation: "boot", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(2)},
+		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(1)},
+	}
+
+	_, current, booted, bootEntries, successful, any, gcs := retention(dpls, new, "st1", "st2", 1, 1, 1, 7)
+	assert.Equal(t, current.Uuid, "2")
+	assert.Equal(t, booted.Uuid, "1")
+	assert.Equal(t, uuids(bootEntries), []string{"5"})
+	assert.Equal(t, uuids(successful), []string{"6"})
+	assert.Equal(t, uuids(any), []string{"7"})
+	assert.Equal(t, uuids(gcs), []string{"4", "3"})
 }

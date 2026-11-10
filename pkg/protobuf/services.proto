@@ -305,4 +305,5 @@ message Store {
   int32 deployment_successful_capacity = 10;
   int32 deployment_any_capacity = 11;
   int32 deployment_capacity = 12;
+  repeated string deployments_gc = 13;
 }

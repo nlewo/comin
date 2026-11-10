@@ -1900,6 +1900,7 @@ type Store struct {
 	DeploymentSuccessfulCapacity int32                  `protobuf:"varint,10,opt,name=deployment_successful_capacity,json=deploymentSuccessfulCapacity" json:"deployment_successful_capacity,omitempty"`
 	DeploymentAnyCapacity        int32                  `protobuf:"varint,11,opt,name=deployment_any_capacity,json=deploymentAnyCapacity" json:"deployment_any_capacity,omitempty"`
 	DeploymentCapacity           int32                  `protobuf:"varint,12,opt,name=deployment_capacity,json=deploymentCapacity" json:"deployment_capacity,omitempty"`
+	DeploymentsGc               []string               `protobuf:"bytes,13,rep,name=deployments_gc,json=deploymentsGc" json:"deployments_gc,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -2016,6 +2017,13 @@ func (x *Store) GetDeploymentCapacity() int32 {
 		return x.DeploymentCapacity
 	}
 	return 0
+}
+
+func (x *Store) GetDeploymentsGc() []string {
+	if x != nil {
+		return x.DeploymentsGc
+	}
+	return nil
 }
 
 type Event_EvalStarted struct {
