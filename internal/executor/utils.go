@@ -13,7 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nlewo/comin/internal/deployer"
 	"github.com/nlewo/comin/internal/profile"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 )
 
@@ -294,14 +296,15 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool, 
 	return nil
 }
 
-func deploy(ctx context.Context, outPath, operation, systemAttr string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
+func deploy(ctx context.Context, outPath, operation, systemAttr string, profilePaths []string, deploymentHistory []*protobuf.Deployment, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
 	if systemAttr == "darwinConfigurations" {
 		return deployDarwin(ctx, outPath, operation, profilePaths, stdout, stderr)
 	}
-	return deployLinux(ctx, outPath, operation, profilePaths, stdout, stderr)
+	// FIXME: do not hardcode the genlist.json path
+	return deployLinux(ctx, outPath, operation, profilePaths, deploymentHistory, "/nix/var/nix/profiles/genlist.json", stdout, stderr)
 }
 
-func deployLinux(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
+func deployLinux(ctx context.Context, outPath, operation string, profilePaths []string, deploymentHistory []*protobuf.Deployment, genlistPath string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
 	// FIXME: this check doesn't have to be here. It should be
 	// done by the manager.
 	beforeCominUnitFileHash := cominUnitFileHashLinux()
@@ -313,6 +316,11 @@ func deployLinux(ctx context.Context, outPath, operation string, profilePaths []
 	}
 	// We append the new profile path to the list of profile to preserve
 	profile.RemoveProfiles(append(profilePaths, profilePath))
+
+	// This is currently to support lanzaboote but it would be nice if this could become the standard!
+	if err = deployer.GenlistFromDeploymentHistory(deploymentHistory, genlistPath); err != nil {
+		return
+	}
 
 	if err = switchToConfigurationLinux(operation, outPath, false, stdout, stderr); err != nil {
 		return

@@ -222,6 +222,10 @@ func (s *Store) GetDeploymentProfilePaths() []string {
 	return slices.Collect(maps.Keys(m))
 }
 
+func (s *Store) GetDeploymentHistory() []*protobuf.Deployment {
+	return s.persisted.Deployments
+}
+
 func (s *Store) DeploymentStarted(uuid, bootedStorepath, currentStorepath string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

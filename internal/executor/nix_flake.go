@@ -77,8 +77,8 @@ func (n *GitNixFlake) Build(ctx context.Context, drvPath string, stdout, stdin i
 	return buildWithFlake(ctx, drvPath, stdout, stdin)
 }
 
-func (n *GitNixFlake) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation, n.systemAttr, profilePaths, stdout, stderr)
+func (n *GitNixFlake) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, deploymentHistory []*protobuf.Deployment, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
+	return deploy(ctx, outPath, operation, n.systemAttr, profilePaths, deploymentHistory, stdout, stderr)
 }
 
 type Path struct {

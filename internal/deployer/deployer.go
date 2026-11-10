@@ -25,7 +25,7 @@ const (
 	ReasonDeploymentManual  = "manual"
 )
 
-type DeployFunc func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error)
+type DeployFunc func(context.Context, string, string, []string, []*protobuf.Deployment, io.WriteCloser, io.WriteCloser) (bool, string, error)
 
 type Deployer struct {
 	GenerationCh       chan *protobuf.Generation
@@ -238,17 +238,19 @@ func (d *Deployer) Run(ctx context.Context) {
 			d.isDeploying.Store(true)
 			d.mu.Unlock()
 			if err := d.store.DeploymentStarted(dpl.Uuid, booted, current); err != nil {
-				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
+				logrus.Errorf("deployer: could not update the deployment %s in the store: %s", dpl.Uuid, err)
 				continue
 			}
 			if operationComputed != types.OperationNull {
 				profilePaths := d.store.GetDeploymentProfilePaths()
+				deploymentHistory := d.store.GetDeploymentHistory()
 				stdout, stderr := d.broker.GetLogger("deployment", g.Uuid)
 				cominNeedRestart, profilePath, err = d.deployerFunc(
 					ctx,
 					g.OutPath,
 					operationComputed,
 					profilePaths,
+					deploymentHistory,
 					stdout,
 					stderr,
 				)
