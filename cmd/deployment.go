@@ -194,6 +194,10 @@ var deploymentRetentionList = &cobra.Command{
 		fmt.Printf("Retention for the deployments history (capacity: %d)\n", st.DeploymentAnyCapacity)
 		printDeployments(st, st.DeploymentsAny)
 		fmt.Printf("\n")
+
+		fmt.Printf("Deployments marked for garbage collection:\n")
+		printDeployments(st, st.DeploymentsGc)
+		fmt.Printf("\n")
 	},
 }
 
