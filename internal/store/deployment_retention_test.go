@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -72,26 +71,26 @@ func TestDeploymentRetentionMinimal(t *testing.T) {
 		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
 	}
 
-	// With capacity 1,1,1: should keep current booted (4) and most recent successful (5)
 	_, current, booted, bootEntries, successful, any := retention(dpls, nil, "st1", "st1", 1, 1, 1)
-	result := retentionUuids(current, booted, bootEntries, successful, any)
-	expected := []string{"4", "5"}
-	slices.Sort(expected)
-	assert.Equal(t, expected, result)
+	assert.Equal(t, current.Uuid, "5")
+	assert.Equal(t, booted.Uuid, "4")
+	assert.Equal(t, uuids(bootEntries), []string{"4"})
+	assert.Equal(t, uuids(successful), []string{"5"})
+	assert.Equal(t, uuids(any), []string{"5"})
 
-	// With capacity 1,2,2: should keep current booted (4) and 2 most recent successful (4,5)
 	_, current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "st1", 1, 2, 2)
-	result = retentionUuids(current, booted, bootEntries, successful, any)
-	expected = []string{"4", "5"}
-	slices.Sort(expected)
-	assert.Equal(t, expected, result)
+	assert.Equal(t, current.Uuid, "5")
+	assert.Equal(t, booted.Uuid, "4")
+	assert.Equal(t, uuids(bootEntries), []string{"4"})
+	assert.Equal(t, uuids(successful), []string{"5", "1"})
+	assert.Equal(t, uuids(any), []string{"5", "1"})
 
-	// With capacity 1,3,3: should keep current booted (4) and 3 most recent successful (3,4,5)
 	_, current, booted, bootEntries, successful, any = retention(dpls, nil, "st1", "st1", 1, 3, 3)
-	result = retentionUuids(current, booted, bootEntries, successful, any)
-	expected = []string{"3", "4", "5"}
-	slices.Sort(expected)
-	assert.Equal(t, expected, result)
+	assert.Equal(t, current.Uuid, "5")
+	assert.Equal(t, booted.Uuid, "4")
+	assert.Equal(t, uuids(bootEntries), []string{"4"})
+	assert.Equal(t, uuids(successful), []string{"5", "1"})
+	assert.Equal(t, uuids(any), []string{"5", "1"})
 }
 
 // TestDeploymentRetentionInitialization tests the retention policy when starting with an empty deployment list.
@@ -138,9 +137,6 @@ func TestDeploymentRetentionInitialization(t *testing.T) {
 	assert.NotNil(t, booted)
 	assert.Equal(t, "st1", booted.Generation.OutPath)
 	assert.Equal(t, "st3", current.Generation.OutPath)
-	for _, d := range newDpls {
-		fmt.Printf("HEEEEERE: %#v\n", d)
-	}
 	assert.Equal(t, 3, len(newDpls))
 
 }
@@ -171,28 +167,31 @@ func TestDeploymentRetention(t *testing.T) {
 
 	// Both booted and switched are st1, so should keep: current (1), booted (4), and 2 successful (5,6)
 	_, current, booted, bootEntries, successful, any := retention(dpls, new, "st1", "st1", 2, 2, 2)
-	result := retentionUuids(current, booted, bootEntries, successful, any)
-	expected := []string{"1", "4", "5", "6"}
-	slices.Sort(expected)
-	assert.Equal(t, expected, result)
+	assert.Equal(t, current.Uuid, "6")
+	assert.Equal(t, booted.Uuid, "4")
+	assert.Equal(t, uuids(bootEntries), []string{"4", "1"})
+	assert.Equal(t, uuids(successful), []string{"6", "1"})
+	assert.Equal(t, uuids(any), []string{"6", "1"})
 
 	// Both booted and switched are st2, so should keep: current (1), booted (1), and 2 successful (5,6)
 	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st2", "st2", 2, 2, 2)
-	result = retentionUuids(current, booted, bootEntries, successful, any)
-	expected = []string{"1", "4", "5", "6"}
-	slices.Sort(expected)
-	assert.Equal(t, expected, result)
+	assert.Equal(t, current.Uuid, "1")
+	assert.Equal(t, booted.Uuid, "1")
+	assert.Equal(t, uuids(bootEntries), []string{"4", "1"})
+	assert.Equal(t, uuids(successful), []string{"6", "1"})
+	assert.Equal(t, uuids(any), []string{"6", "1"})
 
 	// With capacity 1,1,1 - should keep only the essentials: current (1), booted (4), and 1 successful (6)
 	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "st2", 1, 1, 1)
-	result = retentionUuids(current, booted, bootEntries, successful, any)
-	expected = []string{"1", "4", "6"}
-	slices.Sort(expected)
-	assert.Equal(t, expected, result)
+	assert.Equal(t, current.Uuid, "1")
+	assert.Equal(t, booted.Uuid, "4")
+	assert.Equal(t, uuids(bootEntries), []string{"4"})
+	assert.Equal(t, uuids(successful), []string{"6"})
+	assert.Equal(t, uuids(any), []string{"6"})
 
 	// Test with larger dataset and higher capacities
 	// With capacity 2,7,7 - should keep current (1), booted (4), 2 boot entries, and 7 successful
-	new = &protobuf.Deployment{Uuid: "11", Operation: "test", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(6)}
+	new = &protobuf.Deployment{Uuid: "11", Operation: "test", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(11)}
 	dpls = []*protobuf.Deployment{
 		{Uuid: "10", Operation: "test", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(10)},
 		{Uuid: "9", Operation: "test", Status: "done", Generation: gWithSt("st1"), CreatedAt: secs(9)},
@@ -206,11 +205,11 @@ func TestDeploymentRetention(t *testing.T) {
 		{Uuid: "1", Operation: "switch", Status: "done", Generation: gWithSt("st2"), CreatedAt: secs(1)},
 	}
 	_, current, booted, bootEntries, successful, any = retention(dpls, new, "st1", "st1", 2, 7, 7)
-	result = retentionUuids(current, booted, bootEntries, successful, any)
-	expected = []string{"1", "4", "5", "6", "7", "8", "9", "10", "11"}
-	slices.Sort(expected)
-
-	assert.Equal(t, expected, result)
+	assert.Equal(t, current.Uuid, "11")
+	assert.Equal(t, booted.Uuid, "4")
+	assert.Equal(t, uuids(bootEntries), []string{"4", "1"})
+	assert.Equal(t, uuids(successful), []string{"11", "1"})
+	assert.Equal(t, uuids(any), []string{"11", "1"})
 }
 
 func TestDeploymentNewAlwaysPreserved(t *testing.T) {

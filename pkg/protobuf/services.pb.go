@@ -935,6 +935,7 @@ type Deployment struct {
 	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
 	CurrentInhibitors  map[string]string      `protobuf:"bytes,13,rep,name=current_inhibitors,json=currentInhibitors" json:"current_inhibitors,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	NewInhibitors      map[string]string      `protobuf:"bytes,14,rep,name=new_inhibitors,json=newInhibitors" json:"new_inhibitors,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Gc                 bool                   `protobuf:"varint,16,opt,name=gc" json:"gc,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1072,6 +1073,13 @@ func (x *Deployment) GetNewInhibitors() map[string]string {
 		return x.NewInhibitors
 	}
 	return nil
+}
+
+func (x *Deployment) GetGc() bool {
+	if x != nil {
+		return x.Gc
+	}
+	return false
 }
 
 type State struct {
@@ -3027,7 +3035,7 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"\x0ebuild_ended_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\fbuildEndedAt\x12\x1b\n" +
 	"\tbuild_err\x18\x17 \x01(\tR\bbuildErr\x12%\n" +
 	"\x0eattempt_number\x18\x1c \x01(\x05R\rattemptNumber\x120\n" +
-	"\x14build_attempts_limit\x18\x1d \x01(\x05R\x12buildAttemptsLimit\"\xe2\x06\n" +
+	"\x14build_attempts_limit\x18\x1d \x01(\x05R\x12buildAttemptsLimit\"\xf2\x06\n" +
 	"\n" +
 	"Deployment\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x16\n" +
@@ -3049,7 +3057,8 @@ const file_pkg_protobuf_services_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12Z\n" +
 	"\x12current_inhibitors\x18\r \x03(\v2+.protobuf.Deployment.CurrentInhibitorsEntryR\x11currentInhibitors\x12N\n" +
-	"\x0enew_inhibitors\x18\x0e \x03(\v2'.protobuf.Deployment.NewInhibitorsEntryR\rnewInhibitors\x1aD\n" +
+	"\x0enew_inhibitors\x18\x0e \x03(\v2'.protobuf.Deployment.NewInhibitorsEntryR\rnewInhibitors\x12\x0e\n" +
+	"\x02gc\x18\x10 \x01(\bR\x02gc\x1aD\n" +
 	"\x16CurrentInhibitorsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
