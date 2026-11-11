@@ -7,6 +7,10 @@
     url = "github:NixOS/flake-compat";
     flake = false;
   };
+  inputs.lanzaboote = {
+    url = "github:nlewo/lanzaboote/genlist";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
   outputs =
     {
@@ -14,6 +18,7 @@
       nixpkgs,
       treefmt-nix,
       flake-compat,
+      lanzaboote,
     }:
     let
       systems = [
@@ -56,6 +61,20 @@
         lint = import ./nix/lint.nix {
           pkgs = nixpkgsFor."${system}";
           comin = self.packages."${system}".comin;
+        };
+        lanzaboote-test = import ./tests/lanzaboote.nix {
+          inherit (nixpkgsFor."${system}") lib;
+          inherit self;
+          nixpkgsFor = nixpkgsFor;
+          lanzaboote = lanzaboote.nixosModules.lanzaboote;
+          lanzabootePackage = lanzaboote.packages."${system}".lzbt;
+          cominPackage = self.packages."${system}".comin;
+        };
+        comin-test = import ./tests/comin.nix {
+          inherit (nixpkgsFor."${system}") lib;
+          inherit self;
+          nixpkgsFor = nixpkgsFor;
+          cominPackage = self.packages."${system}".comin;
         };
       });
       nixosModules.comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
