@@ -76,7 +76,7 @@
         }
       );
       nixosModules = {
-        comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
+        comin = ./nix/module.nix;
         default = self.nixosModules.comin;
       };
       darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
