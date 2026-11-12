@@ -1,8 +1,9 @@
 # golangci-lint needs a vendor directory
-{ pkgs, comin }:
+{ comin, golangci-lint }:
+
 comin.overrideAttrs (old: {
   name = "golangci-lint";
-  nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.golangci-lint ];
+  nativeBuildInputs = old.nativeBuildInputs ++ [ golangci-lint ];
   buildPhase = ''
     HOME=$TMPDIR golangci-lint run --timeout 360s
   '';
