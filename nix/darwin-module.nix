@@ -1,4 +1,3 @@
-{ self }:
 {
   config,
   pkgs,
@@ -8,27 +7,14 @@
 let
   cfg = config;
   cominConfigLib = import ./comin-config.nix { inherit config pkgs lib; };
-  inherit (cominConfigLib) cominConfig cominConfigYaml;
+  inherit (cominConfigLib) cominConfigYaml;
 
-  inherit (pkgs.stdenv.hostPlatform) system;
   inherit (cfg.services.comin) package;
 in
 {
   imports = [ ./module-options.nix ];
   config = lib.mkIf cfg.services.comin.enable {
-    assertions = [
-      {
-        assertion = package != null;
-        message = "`services.comin.package` cannot be null.";
-      }
-      {
-        assertion = package == null -> lib.elem system (lib.attrNames self.packages);
-        message = "comin: ${system} is not supported by the Flake.";
-      }
-    ];
-
     environment.systemPackages = [ package ];
-    services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
     launchd.daemons.comin = {
       command = lib.concatStringsSep " " (
         [

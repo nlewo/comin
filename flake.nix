@@ -79,7 +79,7 @@
         comin = ./nix/module.nix;
         default = self.nixosModules.comin;
       };
-      darwinModules.comin = nixpkgs.lib.modules.importApply ./nix/darwin-module.nix { inherit self; };
+      darwinModules.comin = ./nix/darwin-module.nix;
       devShells = forAllSystems (
         system:
         let
