@@ -141,6 +141,23 @@ func handler(event *protobuf.Event) error {
 		}
 	case *protobuf.Event_RebootRequired_:
 		message = "The machine needs to be rebooted to take the deployment into account."
+	// High-frequency/internal events: silenced (empty case avoids default-branch error spam)
+	case *protobuf.Event_ManagerState_: // startup state sync
+	case *protobuf.Event_Fetched_: // poll tick (default 60s; notifying would spam)
+	case *protobuf.Event_Log_: // streaming build/deploy logs
+	// Confirmation lifecycle events
+	case *protobuf.Event_ConfirmationSubmittedType:
+		c := event.Type.(*protobuf.Event_ConfirmationSubmittedType).ConfirmationSubmittedType
+		switch c.Mode {
+		case "without": // immediately confirmed, no user action needed (e.g. default build confirmer)
+		case "auto":
+			message = "A deployment is pending confirmation (auto-confirming shortly)."
+		default: // manual
+			message = "A deployment is pending confirmation."
+		}
+	case *protobuf.Event_ConfirmationConfirmedType: // immediately followed by DeploymentStarted, redundant
+	case *protobuf.Event_ConfirmationCancelledType:
+		message = "The deployment has been cancelled."
 	}
 	if message != "" {
 		err := beeep.Notify(title, message, []byte{})
