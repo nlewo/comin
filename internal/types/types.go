@@ -23,16 +23,19 @@ type GitConfig struct {
 	// The repository Path
 	Path string
 	// The directory in the repository
-	Dir               string
-	Remotes           []Remote
-	GpgPublicKeyPaths []string
-	Submodules        bool
+	Dir                   string
+	Remotes               []Remote
+	GpgPublicKeyPaths     []string
+	SshAllowedSignersPath string
+	Submodules            bool
 }
 
 type Auth struct {
-	AccessToken     string
-	AccessTokenPath string `yaml:"access_token_path"`
-	Username        string
+	AccessToken       string
+	AccessTokenPath   string `yaml:"access_token_path"`
+	SshDeployKeyPath  string `yaml:"ssh_deploy_key_path"`
+	SshKnownHostsPath string `yaml:"ssh_known_hosts_path"`
+	Username          string
 }
 
 type Branch struct {
@@ -58,7 +61,7 @@ type Grpc struct {
 
 type Confirmer struct {
 	Mode         string `yaml:"mode"`
-	AutoDuration int    `yaml:"auto_duration"`
+	AutoDuration int    `yaml:"autoconfirm_duration"`
 }
 
 type Retention struct {
@@ -81,8 +84,14 @@ type Configuration struct {
 	Grpc                  Grpc       `yaml:"grpc"`
 	Exporter              HttpServer `yaml:"exporter"`
 	GpgPublicKeyPaths     []string   `yaml:"gpg_public_key_paths"`
+	SshAllowedSignersPath string     `yaml:"ssh_allowed_signers_path"`
 	PostDeploymentCommand string     `yaml:"post_deployment_command"`
+	PostBuildCommand      string     `yaml:"post_build_command"`
 	BuildConfirmer        Confirmer  `yaml:"build_confirmer"`
 	DeployConfirmer       Confirmer  `yaml:"deploy_confirmer"`
 	Retention             Retention  `yaml:"retention"`
+	EvalTimeout           int        `yaml:"eval_timeout"`
+	BuildTimeout          int        `yaml:"build_timeout"`
+	BuildAttemptsLimit    int        `yaml:"build_attempts_limit"`
+	BuildRetryTimer       int        `yaml:"build_retry_timer"`
 }

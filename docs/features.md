@@ -1,0 +1,31 @@
+## Features
+
+- [x] NixOS configurations or [nix-darwin](./docs/howtos.md#how-to-deploy-a-nix-darwin-configuration)
+- [x] Support flake and [non-flake](./docs/howtos.md#how-to-use-comin-without-nix-flake) repositories
+- [x] Support testing branches to [try changes](./docs/howtos.md#how-to-test-a-nixos-configuration-change)
+- [x] Poll [multiple Git remotes](./docs/generated-module-options.md#servicescominremotes) to avoid SPOF
+- [x] Support [machines migrations](./docs/howtos.md#how-to-migrate-a-configuration-from-a-machine-to-another-one)
+- [x] Fast iterations with [local remotes](./docs/howtos.md#iterate-faster-with-local-repository)
+- [x] Observable via [Prometheus metrics](./docs/generated-module-options.md#servicescominexporter)
+- [x] Create and delete system profiles
+- [x] GPG and SSH [Git commit signatures](./docs/howtos.md#check-git-commit-signatures)
+- [x] Git repositories token authentification
+- [x] Git repositories SSH authentification
+- [x] CLI to interact with the agent
+- [x] CLI to watch with the agent status
+- [x] Suspend and resume the agent
+- [x] Switch inhibitors support
+- [x] Swaybar via `comin status --oneline`
+- [x] Desktop notifications
+- [x] Reboot detection
+- [x] Post deployment user scripts
+- [x] Post build user scripts
+- [x] User confirmations for build and deployments
+- [x] Git submodules
+- [x] Generation retention policies
+- [x] Stream logs
+- [ ] Desktop tray: https://github.com/nlewo/comin/pull/151
+- [ ] Home manager support: https://github.com/nlewo/comin/issues/11
+- [ ] Auto reboot
+- [ ] No local evaluation mode with Niks3/Cachix pinning support https://github.com/nlewo/comin/pull/207
+

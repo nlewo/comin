@@ -3,7 +3,7 @@ package icons
 import (
 	_ "embed"
 
-	"github.com/nlewo/comin/internal/client"
+	"github.com/nlewo/comin/pkg/client"
 	"github.com/sirupsen/logrus"
 )
 

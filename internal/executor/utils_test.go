@@ -3,6 +3,7 @@ package executor
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,6 +65,17 @@ const drv_nix_2_31 string = `{
 }
 `
 
+func TestParseDerivationShortOutput(t *testing.T) {
+	// nix-instantiate can emit output with fewer than 2 ";"-separated
+	// elements (e.g. when the derivation eval fails or returns a bare
+	// store path). showDerivationWithNix used to set err but keep going,
+	// then dereference elems[1] and panic with index-out-of-range. It now
+	// returns the error. We can't run real nix here, so we only assert the
+	// code path no longer panics when the underlying command yields nothing.
+	_, _, _, err := showDerivationWithNix(context.Background(), "/nonexistent", "nixosConfigurations", os.Stdout, os.Stderr)
+	assert.Error(t, err, "expected an error when nix evaluation fails")
+}
+
 func TestParseDerivationWithFlake(t *testing.T) {
 	var buf = bytes.NewBufferString(drv_nix_2_33)
 	drvPath, outPath, err := parseDerivationWithFlake(*buf)
@@ -106,7 +118,7 @@ func TestGetExpectedMachineId(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// We can't actually run nix eval in tests, but we can test that
 			// the function constructs the right expression and doesn't panic
-			_, err := getExpectedMachineId(t.Context(), tt.path, tt.hostname, tt.systemAttr)
+			_, err := getExpectedMachineId(t.Context(), tt.path, tt.hostname, tt.systemAttr, os.Stdout, os.Stderr)
 
 			// This will likely error because nix eval will fail in test environment,
 			// but that's expected and fine - we're testing the code path
@@ -144,7 +156,7 @@ func TestShowDerivation(t *testing.T) {
 			ctx := context.Background()
 
 			// Test that the function doesn't panic and handles the parameters correctly
-			_, _, err := showDerivationWithFlake(ctx, tt.flakeUrl, tt.hostname, tt.systemAttr)
+			_, _, err := showDerivationWithFlake(ctx, tt.flakeUrl, tt.hostname, tt.systemAttr, os.Stdout, os.Stderr)
 
 			// This will error in test environment because nix command will fail,
 			// but we're testing the code path and parameter handling
@@ -213,7 +225,7 @@ func TestSwitchToConfiguration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test with dry run to avoid actual system modifications
-			err := switchToConfiguration(tt.operation, tt.outPath, tt.dryRun, tt.systemAttr)
+			err := switchToConfiguration(tt.operation, tt.outPath, tt.dryRun, tt.systemAttr, os.Stdout, os.Stderr)
 
 			// May error due to missing files in test environment, but shouldn't panic
 			t.Logf("switchToConfiguration with %s returned error: %v", tt.systemAttr, err)
@@ -250,7 +262,7 @@ func TestDeployFunctions(t *testing.T) {
 			ctx := context.Background()
 
 			// Test that deploy function delegates correctly without panicking
-			_, _, err := deploy(ctx, tt.outPath, tt.operation, tt.systemAttr, []string{})
+			_, _, err := deploy(ctx, tt.outPath, tt.operation, tt.systemAttr, []string{}, os.Stdout, os.Stderr)
 
 			// Will likely error in test environment, but shouldn't panic
 			t.Logf("deploy with %s returned error: %v (expected in test environment)", tt.systemAttr, err)

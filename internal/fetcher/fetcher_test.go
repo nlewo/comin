@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/nlewo/comin/internal/broker"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/utils"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,8 +15,12 @@ func TestFetcher(t *testing.T) {
 	r := utils.NewRepositoryMock()
 	bk := broker.New()
 	bk.Start()
-	f := NewFetcher(r, bk)
+	f := NewGitFetcher(r, bk)
 	f.Start(t.Context())
+
+	// Subscribe to broker events
+	brokerEvents := bk.Subscribe("fetcher-test")
+
 	var commitId string
 
 	for i := range 2 {
@@ -29,34 +33,42 @@ func TestFetcher(t *testing.T) {
 
 		// This is to simulate a git fetch
 		commitId = fmt.Sprintf("id-%d", i)
-		r.RsCh <- &protobuf.RepositoryStatus{
+		r.RsCh <- &protobuf.GitRepositoryStatus{
 			SelectedCommitId: commitId,
 		}
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
-			rs := <-f.RepositoryStatusCh
-			assert.Equal(c, commitId, rs.SelectedCommitId)
+			e := <-brokerEvents
+			fetched := e.GetFetched()
+			assert.NotNil(c, fetched)
+			assert.Equal(c, commitId, fetched.GetGitRepositoryStatus().SelectedCommitId)
 		}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
 		assert.False(t, f.IsFetching())
 	}
 
 	f.TriggerFetch([]string{"remote"})
-	r.RsCh <- &protobuf.RepositoryStatus{
+	r.RsCh <- &protobuf.GitRepositoryStatus{
 		SelectedCommitId: "id-5",
 	}
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		rs := <-f.RepositoryStatusCh
-		assert.Equal(c, "id-5", rs.SelectedCommitId)
+		e := <-brokerEvents
+		fetched := e.GetFetched()
+		assert.NotNil(c, fetched)
+		assert.Equal(c, "id-5", fetched.GetGitRepositoryStatus().SelectedCommitId)
 	}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 
-	r.RsCh <- &protobuf.RepositoryStatus{
+	r.RsCh <- &protobuf.GitRepositoryStatus{
 		SelectedCommitId: "id-5",
 	}
-	r.RsCh <- &protobuf.RepositoryStatus{
+	r.RsCh <- &protobuf.GitRepositoryStatus{
 		SelectedCommitId: "id-6",
 	}
-	rs := <-f.RepositoryStatusCh
-	assert.NotEqual(t, "id-5", rs.SelectedCommitId)
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		e := <-brokerEvents
+		fetched := e.GetFetched()
+		assert.NotNil(c, fetched)
+		assert.Equal(c, "id-6", fetched.GetGitRepositoryStatus().SelectedCommitId)
+	}, 5*time.Second, 100*time.Millisecond, "fetcher failed to fetch")
 }
 
 func TestUnion(t *testing.T) {

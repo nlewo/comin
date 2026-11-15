@@ -19,20 +19,20 @@ import (
 
 // GetExpectedMachineId evals nixosConfigurations or darwinConfigurations based on systemAttr
 // returns (machine-id, nil) is comin.machineId is set, ("", nil) otherwise.
-func getExpectedMachineId(ctx context.Context, path, hostname, systemAttr string) (machineId string, err error) {
+func getExpectedMachineId(ctx context.Context, path, hostname, systemAttr string, stdout, stderr io.WriteCloser) (machineId string, err error) {
 	expr := fmt.Sprintf("%s#%s.\"%s\".config.services.comin.machineId", path, systemAttr, hostname)
 	args := []string{
 		"eval",
 		expr,
 		"--json",
 	}
-	var stdout bytes.Buffer
-	err = runNixFlakeCommand(ctx, args, &stdout, os.Stderr)
+	var stdoutBuf bytes.Buffer
+	err = runNixFlakeCommand(ctx, args, &NopWriteCloser{Writer: &stdoutBuf}, &NopWriteCloser{Writer: stderr})
 	if err != nil {
 		return
 	}
 	var machineIdPtr *string
-	err = json.Unmarshal(stdout.Bytes(), &machineIdPtr)
+	err = json.Unmarshal(stdoutBuf.Bytes(), &machineIdPtr)
 	if err != nil {
 		return
 	}
@@ -46,7 +46,16 @@ func getExpectedMachineId(ctx context.Context, path, hostname, systemAttr string
 	return
 }
 
-func runNixCommand(ctx context.Context, command string, args []string, stdout, stderr io.Writer) (err error) {
+// NopWriteCloser wraps an io.Writer to implement io.WriteCloser with a no-op Close method
+type NopWriteCloser struct {
+	io.Writer
+}
+
+func (n *NopWriteCloser) Close() error {
+	return nil
+}
+
+func runNixCommand(ctx context.Context, command string, args []string, stdout, stderr io.WriteCloser) (err error) {
 	logrus.Infof("nix: running %s %s", command, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, command, args...)
 	cmd.Stdout = stdout
@@ -60,7 +69,7 @@ func runNixCommand(ctx context.Context, command string, args []string, stdout, s
 	return nil
 }
 
-func runNixFlakeCommand(ctx context.Context, args []string, stdout, stderr io.Writer) (err error) {
+func runNixFlakeCommand(ctx context.Context, args []string, stdout, stderr io.WriteCloser) (err error) {
 	commonArgs := []string{"--extra-experimental-features", "flakes nix-command", "--accept-flake-config"}
 	args = append(commonArgs, args...)
 	cmdStr := fmt.Sprintf("nix %s", strings.Join(args, " "))
@@ -77,12 +86,12 @@ func runNixFlakeCommand(ctx context.Context, args []string, stdout, stderr io.Wr
 	return nil
 }
 
-func showDerivationWithNix(ctx context.Context, directory, systemAttr string) (drvPath, outPath, machineId string, err error) {
-	var stdout bytes.Buffer
+func showDerivationWithNix(ctx context.Context, directory, systemAttr string, stdout, stderr io.WriteCloser) (drvPath, outPath, machineId string, err error) {
+	var stdoutBuf bytes.Buffer
 
 	// This is to create the .drv file
 	toplevel := fmt.Sprintf("%s.toplevel", systemAttr)
-	err = runNixCommand(ctx, "nix-instantiate", []string{directory, "-A", toplevel}, &stdout, os.Stderr)
+	err = runNixCommand(ctx, "nix-instantiate", []string{directory, "-A", toplevel}, &NopWriteCloser{Writer: &stdoutBuf}, &NopWriteCloser{Writer: stderr})
 	if err != nil {
 		return
 	}
@@ -92,12 +101,12 @@ func showDerivationWithNix(ctx context.Context, directory, systemAttr string) (d
 	expr := fmt.Sprintf(exprTpl, directory, systemAttr, systemAttr, systemAttr, systemAttr)
 
 	// --raw is not supported by Lyx and --json doesn't work with Nix...
-	err = runNixCommand(ctx, "nix-instantiate", []string{"--strict", "--eval", "-E", expr}, &stdout, os.Stderr)
+	err = runNixCommand(ctx, "nix-instantiate", []string{"--strict", "--eval", "-E", expr}, &NopWriteCloser{Writer: &stdoutBuf}, &NopWriteCloser{Writer: stderr})
 	if err != nil {
 		return
 	}
-	logrus.Debugf("nix: output of nix-instantiate: '%s'", stdout.String())
-	lines := strings.Split(stdout.String(), "\n")
+	logrus.Debugf("nix: output of nix-instantiate: '%s'", stdoutBuf.String())
+	lines := strings.Split(stdoutBuf.String(), "\n")
 	if len(lines) < 2 {
 		return "", "", "", fmt.Errorf("nix: nix-instantiate should return at least 2 lines")
 	}
@@ -105,7 +114,7 @@ func showDerivationWithNix(ctx context.Context, directory, systemAttr string) (d
 	sanitized = strings.TrimSuffix(sanitized, `"`)
 	elems := strings.Split(sanitized, ";")
 	if len(elems) < 2 {
-		err = fmt.Errorf("nix: the output of the evalucation Nix command must at least return 2 lines")
+		return "", "", "", fmt.Errorf("nix: the output of the evaluation Nix command must at least return 2 elements")
 	}
 	drvPath = elems[0]
 	outPath = elems[1]
@@ -149,7 +158,7 @@ func parseDerivationWithFlake(buf bytes.Buffer) (drvPath string, outPath string,
 	return
 }
 
-func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr string) (drvPath string, outPath string, err error) {
+func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr string, stdout, stderr io.WriteCloser) (drvPath string, outPath string, err error) {
 	installable := fmt.Sprintf("%s#%s.\"%s\".config.system.build.toplevel", flakeUrl, systemAttr, hostname)
 	args := []string{
 		"derivation",
@@ -158,33 +167,35 @@ func showDerivationWithFlake(ctx context.Context, flakeUrl, hostname, systemAttr
 		"-L",
 		"--show-trace",
 	}
-	var stdout bytes.Buffer
-	err = runNixFlakeCommand(ctx, args, &stdout, os.Stderr)
+	var stdoutBuf bytes.Buffer
+	err = runNixFlakeCommand(ctx, args, &NopWriteCloser{Writer: &stdoutBuf}, &NopWriteCloser{Writer: stderr})
 	if err != nil {
 		return
 	}
-	return parseDerivationWithFlake(stdout)
+	return parseDerivationWithFlake(stdoutBuf)
 }
 
-func buildWithFlake(ctx context.Context, drvPath string) (err error) {
+func buildWithFlake(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
 	args := []string{
 		"build",
 		fmt.Sprintf("%s^*", drvPath),
 		"-L",
 		"--no-link"}
-	err = runNixFlakeCommand(ctx, args, os.Stdout, os.Stderr)
+	err = runNixFlakeCommand(ctx, args, stdout, stdin)
 	if err != nil {
+		logrus.Debugf("buildWithFlake: exit with error: %s", err)
 		return
 	}
+	logrus.Debugf("buildWithFlake: exit with no error")
 	return
 }
 
-func buildWithNix(ctx context.Context, drvPath string) (err error) {
+func buildWithNix(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) (err error) {
 	args := []string{
 		"-r",
 		drvPath,
 	}
-	err = runNixCommand(ctx, "nix-store", args, os.Stdout, os.Stderr)
+	err = runNixCommand(ctx, "nix-store", args, stdout, stdin)
 	if err != nil {
 		return
 	}
@@ -230,19 +241,19 @@ func cominUnitFileHashDarwin() string {
 	return hash
 }
 
-func switchToConfiguration(operation string, outPath string, dryRun bool, systemAttr string) error {
+func switchToConfiguration(operation string, outPath string, dryRun bool, systemAttr string, stdout, stderr io.WriteCloser) error {
 	if systemAttr == "darwinConfigurations" {
-		return switchToConfigurationDarwin(operation, outPath, dryRun)
+		return switchToConfigurationDarwin(operation, outPath, dryRun, stdout, stderr)
 	}
-	return switchToConfigurationLinux(operation, outPath, dryRun)
+	return switchToConfigurationLinux(operation, outPath, dryRun, stdout, stderr)
 }
 
-func switchToConfigurationLinux(operation string, outPath string, dryRun bool) error {
+func switchToConfigurationLinux(operation string, outPath string, dryRun bool, stdout, stderr io.WriteCloser) error {
 	switchToConfigurationExe := filepath.Join(outPath, "bin", "switch-to-configuration")
 	logrus.Infof("nix: running '%s %s'", switchToConfigurationExe, operation)
 	cmd := exec.Command(switchToConfigurationExe, operation)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	if dryRun {
 		logrus.Infof("nix: dry-run enabled: '%s %s' has not been executed", switchToConfigurationExe, operation)
 	} else {
@@ -254,7 +265,7 @@ func switchToConfigurationLinux(operation string, outPath string, dryRun bool) e
 	return nil
 }
 
-func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) error {
+func switchToConfigurationDarwin(operation string, outPath string, dryRun bool, stdout, stderr io.WriteCloser) error {
 	activateUserExe := filepath.Join(outPath, "activate-user")
 	activateExe := filepath.Join(outPath, "activate")
 
@@ -265,16 +276,16 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) 
 
 	logrus.Infof("nix: activating user environment: '%s'", activateUserExe)
 	userCmd := exec.Command(activateUserExe)
-	userCmd.Stdout = os.Stdout
-	userCmd.Stderr = os.Stderr
+	userCmd.Stdout = stdout
+	userCmd.Stderr = stderr
 	if err := userCmd.Run(); err != nil {
 		return fmt.Errorf("user activation command %s fails with %s", activateUserExe, err)
 	}
 
 	logrus.Infof("nix: activating system environment: '%s'", activateExe)
 	cmd := exec.Command(activateExe)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("system activation command %s fails with %s", activateExe, err)
 	}
@@ -283,14 +294,14 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool) 
 	return nil
 }
 
-func deploy(ctx context.Context, outPath, operation, systemAttr string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
+func deploy(ctx context.Context, outPath, operation, systemAttr string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
 	if systemAttr == "darwinConfigurations" {
-		return deployDarwin(ctx, outPath, operation, profilePaths)
+		return deployDarwin(ctx, outPath, operation, profilePaths, stdout, stderr)
 	}
-	return deployLinux(ctx, outPath, operation, profilePaths)
+	return deployLinux(ctx, outPath, operation, profilePaths, stdout, stderr)
 }
 
-func deployLinux(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
+func deployLinux(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
 	// FIXME: this check doesn't have to be here. It should be
 	// done by the manager.
 	beforeCominUnitFileHash := cominUnitFileHashLinux()
@@ -303,7 +314,7 @@ func deployLinux(ctx context.Context, outPath, operation string, profilePaths []
 	// We append the new profile path to the list of profile to preserve
 	profile.RemoveProfiles(append(profilePaths, profilePath))
 
-	if err = switchToConfigurationLinux(operation, outPath, false); err != nil {
+	if err = switchToConfigurationLinux(operation, outPath, false, stdout, stderr); err != nil {
 		return
 	}
 
@@ -318,7 +329,7 @@ func deployLinux(ctx context.Context, outPath, operation string, profilePaths []
 	return
 }
 
-func deployDarwin(ctx context.Context, outPath, operation string, profilePaths []string) (needToRestartComin bool, profilePath string, err error) {
+func deployDarwin(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
 	// FIXME: this check doesn't have to be here. It should be
 	// done by the manager.
 	beforeCominUnitFileHash := cominUnitFileHashDarwin()
@@ -331,7 +342,7 @@ func deployDarwin(ctx context.Context, outPath, operation string, profilePaths [
 	// We append the new profile path to the list of profile to preserve
 	profile.RemoveProfiles(append(profilePaths, profilePath))
 
-	if err = switchToConfigurationDarwin(operation, outPath, false); err != nil {
+	if err = switchToConfigurationDarwin(operation, outPath, false, stdout, stderr); err != nil {
 		return
 	}
 

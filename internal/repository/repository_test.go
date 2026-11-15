@@ -41,6 +41,7 @@ func TestNew(t *testing.T) {
 
 func TestNewGpg(t *testing.T) {
 	gitConfig := types.GitConfig{
+		Path:              t.TempDir(),
 		GpgPublicKeyPaths: []string{"./fail.public", "./test.public"},
 	}
 	r, err := New(gitConfig, "", prometheus.New())
@@ -48,10 +49,29 @@ func TestNewGpg(t *testing.T) {
 	assert.Equal(t, 2, len(r.gpgPubliKeys))
 
 	gitConfig = types.GitConfig{
+		Path:              t.TempDir(),
 		GpgPublicKeyPaths: []string{"./fail.public", "./test.public", "./invalid.public"},
 	}
 	_, err = New(gitConfig, "", prometheus.New())
 	assert.ErrorContains(t, err, "failed to read the GPG public key")
+}
+
+func TestNewSSHAllowedSigners(t *testing.T) {
+	dir := t.TempDir()
+	allowedSignersPath := dir + "/allowed_signers"
+	assert.Nil(t, os.WriteFile(allowedSignersPath, []byte(""), 0644))
+
+	gitConfig := types.GitConfig{
+		Path:                  t.TempDir(),
+		SshAllowedSignersPath: allowedSignersPath,
+	}
+	_, err := New(gitConfig, "", prometheus.New())
+	assert.ErrorContains(t, err, "failed to read the SSH allowed signers file")
+
+	assert.Nil(t, os.WriteFile(allowedSignersPath, []byte("ssh@example.com "+testSSHPublicKey), 0644))
+	r, err := New(gitConfig, "", prometheus.New())
+	assert.Nil(t, err)
+	assert.NotEmpty(t, r.sshAllowedSigners)
 }
 
 func TestPreferMain(t *testing.T) {
@@ -715,6 +735,29 @@ func TestTestingHardReset(t *testing.T) {
 	assert.Equal(t, "r1", r.RepositoryStatus.SelectedRemoteName)
 }
 
+func TestFetchSshBadKeyPath(t *testing.T) {
+	r1Dir := t.TempDir()
+	cominRepositoryDir := t.TempDir()
+	_, _ = initRemoteRepostiory(r1Dir, true)
+	gitConfig := types.GitConfig{
+		Path: cominRepositoryDir,
+		Remotes: []types.Remote{{
+			Name: "r1",
+			URL:  r1Dir,
+			Auth: types.Auth{
+				SshDeployKeyPath: "/nonexistent/key",
+				Username:         "git",
+			},
+			Branches: types.Branches{Main: types.Branch{Name: "main"}},
+			Timeout:  30,
+		}},
+	}
+	r, err := New(gitConfig, "", prometheus.New())
+	assert.Nil(t, err)
+	r.Fetch([]string{"r1"})
+	assert.NotEmpty(t, r.RepositoryStatus.Remotes[0].FetchErrorMsg)
+}
+
 func TestUpdateGpg(t *testing.T) {
 	dir := t.TempDir()
 	cominRepositoryDir := t.TempDir()
@@ -785,4 +828,35 @@ func TestUpdateGpg(t *testing.T) {
 	assert.False(t, r.RepositoryStatus.SelectedCommitSigned.GetValue())
 	assert.Equal(t, "", r.RepositoryStatus.SelectedCommitSignedBy)
 	assert.False(t, r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue())
+}
+
+func TestUpdateSSHSigning(t *testing.T) {
+	dir, allowedSignersPath, cMain := initSSHSignedRemoteRepository(t)
+	cominRepositoryDir := t.TempDir()
+
+	gitConfig := types.GitConfig{
+		Path:                  cominRepositoryDir,
+		SshAllowedSignersPath: allowedSignersPath,
+		Remotes: []types.Remote{
+			{
+				Name: "r1",
+				URL:  dir,
+				Branches: types.Branches{
+					Main: types.Branch{
+						Name: "main",
+					},
+				},
+				Timeout: 30,
+			},
+		},
+	}
+	r, err := New(gitConfig, "", prometheus.New())
+	assert.Nil(t, err)
+	r.Fetch([]string{"r1"})
+	err = r.Update()
+	assert.Nil(t, err)
+	assert.Equal(t, cMain, r.RepositoryStatus.SelectedCommitId)
+	assert.True(t, r.RepositoryStatus.SelectedCommitSigned.GetValue())
+	assert.Equal(t, "ssh@example.com", r.RepositoryStatus.SelectedCommitSignedBy)
+	assert.True(t, r.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue())
 }

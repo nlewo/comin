@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v0.14.0] - 2025-07-19
+
+### Added
+
+- **SSH commit signature verification**: Support for verifying Git commits signed with SSH keys ([#171](https://github.com/nlewo/comin/pull/171)
+- **SSH key authentication**: Support for SSH key authentication for Git operations ([#168](https://github.com/nlewo/comin/pull/168))
+- Customizable build and evaluation timeouts ([#174](https://github.com/nlewo/comin/pull/174))
+- Support for switch inhibitors ([#156](https://github.com/nlewo/comin/pull/156))
+
+### Changed
+
+- `deployent submit-latest` command replacing `switch-latest` ([#152](https://github.com/nlewo/comin/pull/152))
+- Use bare local repository for git operations ([#154](https://github.com/nlewo/comin/pull/154))
+
+### Contributors
+
+- Antoine Eiche ([@nlewo](https://github.com/nlewo))
+- Arunesh Dwivedi ([@AruneshDwivedi](https://github.com/AruneshDwivedi))
+- Bas Nijholt ([@basnijholt](https://github.com/basnijholt))
+- Cameron Ackerman ([@camja014](https://github.com/camja014))
+- Eli Saado ([@elisaado](https://github.com/elisaado))
+- Krzysztof Kuśmierczyk ([@krzysztofkusmierczyk](https://github.com/krzysztofkusmierczyk))
+- Lucas ([@Keyruu](https://github.com/Keyruu))
+
 ## [v0.13.0] - 2026-05-07
 
 ### Added

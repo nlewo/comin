@@ -3,7 +3,7 @@ package cmd
 import (
 	"time"
 
-	"github.com/nlewo/comin/internal/client"
+	"github.com/nlewo/comin/pkg/client"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -15,11 +15,17 @@ func dStarted(status string) *protobuf.Event {
 		Operation: "switch",
 		Status:    status,
 		Generation: &protobuf.Generation{
-			Uuid:               "d3b9c304-cb7d-4682-a052-57abd427e2b0",
-			SelectedRemoteName: "origin",
-			SelectedBranchName: "main",
-			SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
-			SelectedCommitMsg:  "commit message\nmulti line",
+			Uuid:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
+			Source: &protobuf.Source{
+				Source: &protobuf.Source_Git{
+					Git: &protobuf.Git{
+						SelectedRemoteName: "origin",
+						SelectedBranchName: "main",
+						SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
+						SelectedCommitMsg:  "commit message\nmulti line",
+					},
+				},
+			},
 		},
 	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
@@ -29,32 +35,50 @@ func dFinished(status string) *protobuf.Event {
 		Operation: "switch",
 		Status:    status,
 		Generation: &protobuf.Generation{
-			SelectedRemoteName: "origin",
-			SelectedBranchName: "main",
-			Uuid:               "d3b9c304-cb7d-4682-a052-57abd427e2b0",
-			SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
-			SelectedCommitMsg:  "commit message\nmulti line",
+			Uuid:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
+			Source: &protobuf.Source{
+				Source: &protobuf.Source_Git{
+					Git: &protobuf.Git{
+						SelectedRemoteName: "origin",
+						SelectedBranchName: "main",
+						SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
+						SelectedCommitMsg:  "commit message\nmulti line",
+					},
+				},
+			},
 		},
 	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
 func bStarted(status string) *protobuf.Event {
 	return &protobuf.Event{Type: &protobuf.Event_BuildStartedType{BuildStartedType: &protobuf.Event_BuildStarted{Generation: &protobuf.Generation{
-		Uuid:               "b9c9c304-cb7d-4682-a052-57abd427e2b0",
-		BuildStatus:        status,
-		SelectedRemoteName: "origin",
-		SelectedBranchName: "main",
-		SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
-		SelectedCommitMsg:  "commit message\nmulti line",
+		Uuid:        "b9c9c304-cb7d-4682-a052-57abd427e2b0",
+		BuildStatus: status,
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedRemoteName: "origin",
+					SelectedBranchName: "main",
+					SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
+					SelectedCommitMsg:  "commit message\nmulti line",
+				},
+			},
+		},
 	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
 func bFinished(status string) *protobuf.Event {
 	return &protobuf.Event{Type: &protobuf.Event_BuildFinishedType{BuildFinishedType: &protobuf.Event_BuildFinished{Generation: &protobuf.Generation{
-		Uuid:               "b9c9c304-cb7d-4682-a052-57abd427e2b0",
-		BuildStatus:        status,
-		SelectedRemoteName: "origin",
-		SelectedBranchName: "main",
-		SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
-		SelectedCommitMsg:  "commit message\nmulti line",
+		Uuid:        "b9c9c304-cb7d-4682-a052-57abd427e2b0",
+		BuildStatus: status,
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedRemoteName: "origin",
+					SelectedBranchName: "main",
+					SelectedCommitId:   "d3b9c304-cb7d-4682-a052-57abd427e2b0",
+					SelectedCommitMsg:  "commit message\nmulti line",
+				},
+			},
+		},
 	}}}, CreatedAt: timestamppb.New(time.Now().UTC())}
 }
 

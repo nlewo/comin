@@ -67,7 +67,28 @@ message Event {
     State state = 1;
   }
   message Fetched {
-    RepositoryStatus repositoryStatus = 1;
+    bool verified = 2;
+    oneof Type {
+      GitRepositoryStatus gitRepositoryStatus = 3;
+    }
+  }
+  message Log {
+    string object_type = 4;
+    string object_uuid = 5;
+    message Open {
+    }
+    message Close {
+    }
+    message Line {
+      // stdout or stdin
+      string source = 1;
+      string msg = 4;
+    }
+    oneof Type {
+      Open open = 1;
+      Close close = 2;
+      Line line = 3;
+    }
   }
   oneof Type {
     EvalStarted evalStartedType = 1;
@@ -84,6 +105,7 @@ message Event {
     RebootRequired rebootRequired = 12;
     ManagerState managerState = 13;
     Fetched fetched = 14;
+    Log log = 16;
   }
   google.protobuf.Timestamp createdAt = 15;
 }
@@ -93,14 +115,9 @@ message ConfirmRequest {
   string for = 2;  // possible values: "build", "deploy", "all"
 }
 
-// We consider each created genration is legit to be deployed: hard
-// reset is ensured at RepositoryStatus creation.
-message Generation {
-  string uuid = 1;
-
-  string repository_path = 24;
-  string repository_subdir = 25;
-  string system_attr = 26;
+message Git {
+  string repository_subdir = 1;
+  string system_attr = 2;
   string hostname = 3;
 
   string selected_remote_url = 4;
@@ -113,6 +130,38 @@ message Generation {
   string main_commit_id = 10;
   string main_remote_name = 11;
   string main_branch_name = 12;
+}
+
+message Source {
+  oneof source {
+    Git git = 1;
+  }
+}
+
+message Generation {
+  string uuid = 1;
+
+  Source source = 2;
+
+  // This field is no longer part of a generation
+  string repository_path = 24 [deprecated = true];;
+
+  // Deprecated: These fields are kept for backward compatibility with existing store files.
+  // They will be migrated to the Source.git field on load.
+  string repository_subdir = 25 [deprecated = true];
+  string system_attr = 26 [deprecated = true];
+  string hostname = 3 [deprecated = true];
+
+  string selected_remote_url = 4 [deprecated = true];
+  string selected_remote_name = 5 [deprecated = true];
+  string selected_branch_name = 6 [deprecated = true];
+  string selected_commit_id = 7 [deprecated = true];
+  string selected_commit_msg = 8 [deprecated = true];
+  google.protobuf.BoolValue selected_branch_is_testing = 9 [deprecated = true];
+
+  string main_commit_id = 10 [deprecated = true];
+  string main_remote_name = 11 [deprecated = true];
+  string main_branch_name = 12 [deprecated = true];
 
   string eval_status = 13;
   google.protobuf.Timestamp eval_started_at = 14;
@@ -128,6 +177,8 @@ message Generation {
   google.protobuf.Timestamp build_started_at = 21;
   google.protobuf.Timestamp build_ended_at = 22;
   string build_err = 23;
+  int32 attempt_number = 28;
+  int32 build_attempts_limit = 29;
 }
 
 message Deployment {
@@ -177,6 +228,8 @@ message Builder {
   string generation_uuid = 4;
   google.protobuf.BoolValue is_suspended = 5;
   string hostname = 6;
+  string repository_path = 7;
+  google.protobuf.Timestamp build_retry_at = 8;
 }
 
 message Confirmer {
@@ -190,7 +243,9 @@ message Confirmer {
 
 message Fetcher {
   google.protobuf.BoolValue is_fetching = 1;
-  RepositoryStatus repository_status = 2;
+  oneof status {
+    GitRepositoryStatus git_repository_status = 2;
+  }
 }
 
 message Branch {
@@ -211,7 +266,7 @@ message Remote {
   google.protobuf.BoolValue fetched = 7;
 }
 
-message RepositoryStatus {
+message GitRepositoryStatus {
   // This is the deployed Main commit ID. It is used to ensure fast forward
   string selected_commit_id = 1;
   string selected_commit_msg = 2;
@@ -243,5 +298,9 @@ message Store {
   repeated string deployments_boot_entry = 5;
   repeated string deployments_successful = 6;
   repeated string deployments_any = 7;
+
   DeployerState deployer = 8;
+  int32 deployment_boot_entry_capacity = 9;
+  int32 deployment_successful_capacity = 10;
+  int32 deployment_any_capacity = 11;
 }

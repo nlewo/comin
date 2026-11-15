@@ -1,6 +1,8 @@
 package store
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -22,6 +24,9 @@ const (
 	Evaluating
 	Evaluated
 	EvalFailed
+	// EvalCanceled is an evaluation that was preempted by a newer
+	// commit rather than one that errored. See BuildCanceled.
+	EvalCanceled
 )
 
 func (s EvalStatus) String() string {
@@ -34,6 +39,8 @@ func (s EvalStatus) String() string {
 		return "evaluated"
 	case EvalFailed:
 		return "failed"
+	case EvalCanceled:
+		return "canceled"
 	}
 	return "unknown"
 }
@@ -48,6 +55,8 @@ func StringToEvalStatus(statusStr string) EvalStatus {
 		return Evaluated
 	case "failed":
 		return EvalFailed
+	case "canceled":
+		return EvalCanceled
 	default:
 		return EvalInit // Default value
 	}
@@ -60,6 +69,14 @@ const (
 	Building
 	Built
 	BuildFailed
+	// BuildCanceled is a build that was preempted by a newer commit.
+	// Builder.Eval calls Builder.Stop() before starting a new
+	// generation, which cancels the build context, so this is a
+	// routine part of operation and not an error: the newer
+	// generation is built immediately afterwards. Keeping it out of
+	// BuildFailed is what stops comin_last_build_failed from
+	// alarming every time two commits land close together.
+	BuildCanceled
 )
 
 func (s BuildStatus) String() string {
@@ -72,6 +89,8 @@ func (s BuildStatus) String() string {
 		return "built"
 	case BuildFailed:
 		return "failed"
+	case BuildCanceled:
+		return "canceled"
 	}
 	return "unknown"
 }
@@ -86,38 +105,60 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 		return Built
 	case "failed":
 		return BuildFailed
+	case "canceled":
+		return BuildCanceled
 	default:
 		return BuildInit
 	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryPath, repositoryDir, systemAttr string, rs *protobuf.RepositoryStatus) (g protobuf.Generation) {
-	g = protobuf.Generation{
-		Uuid:                    uuid.New().String(),
-		RepositoryPath:          repositoryPath,
-		RepositorySubdir:        repositoryDir,
-		SystemAttr:              systemAttr,
-		Hostname:                hostname,
-		SelectedRemoteName:      rs.SelectedRemoteName,
-		SelectedBranchName:      rs.SelectedBranchName,
-		SelectedCommitId:        rs.SelectedCommitId,
-		SelectedCommitMsg:       rs.SelectedCommitMsg,
-		SelectedBranchIsTesting: rs.SelectedBranchIsTesting,
-		MainRemoteName:          rs.MainBranchName,
-		MainBranchName:          rs.MainBranchName,
-		MainCommitId:            rs.MainCommitId,
-		EvalStatus:              EvalInit.String(),
-		BuildStatus:             BuildInit.String(),
+func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *protobuf.GitRepositoryStatus, buildAttemptsLimit int) (g protobuf.Generation) {
+	// Find the selected remote URL
+	selectedRemoteUrl := ""
+	for _, remote := range rs.Remotes {
+		if remote.Name == rs.SelectedRemoteName {
+			selectedRemoteUrl = remote.Url
+			break
+		}
 	}
-	s.data.Generations = append(s.data.Generations, &g)
+
+	g = protobuf.Generation{
+		Uuid:   uuid.New().String(),
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					RepositorySubdir:        repositoryDir,
+					SystemAttr:              systemAttr,
+					Hostname:                hostname,
+					SelectedRemoteUrl:       selectedRemoteUrl,
+					SelectedRemoteName:      rs.SelectedRemoteName,
+					SelectedBranchName:      rs.SelectedBranchName,
+					SelectedCommitId:        rs.SelectedCommitId,
+					SelectedCommitMsg:       rs.SelectedCommitMsg,
+					SelectedBranchIsTesting: rs.SelectedBranchIsTesting,
+					MainCommitId:            rs.MainCommitId,
+					MainRemoteName:          rs.MainRemoteName,
+					MainBranchName:          rs.MainBranchName,
+				},
+			},
+		},
+		EvalStatus:   EvalInit.String(),
+		BuildStatus: BuildInit.String(),
+		AttemptNumber: 0,
+		BuildAttemptsLimit: int32(buildAttemptsLimit),
+	}
+	s.persisted.Generations = append(s.persisted.Generations, &g)
 	return
 }
 
 func GenerationShow(g *protobuf.Generation) {
 	padding := "    "
 	fmt.Printf("%sGeneration UUID %s\n", padding, g.Uuid)
-	fmt.Printf("%sCommit ID %s from %s/%s\n", padding, g.SelectedCommitId, g.SelectedRemoteName, g.SelectedBranchName)
-	fmt.Printf("%sCommit message: %s\n", padding, strings.Trim(g.SelectedCommitMsg, "\n"))
+	if g.Source != nil && g.Source.GetGit() != nil {
+		git := g.Source.GetGit()
+		fmt.Printf("%sCommit ID %s from %s/%s\n", padding, git.SelectedCommitId, git.SelectedRemoteName, git.SelectedBranchName)
+		fmt.Printf("%sCommit message: %s\n", padding, strings.Trim(git.SelectedCommitMsg, "\n"))
+	}
 
 	if g.EvalStatus == EvalInit.String() {
 		fmt.Printf("%sNo evaluation started\n", padding)
@@ -133,6 +174,8 @@ func GenerationShow(g *protobuf.Generation) {
 		fmt.Printf("%s  DrvPath: %s\n", padding, g.DrvPath)
 	case EvalFailed.String():
 		fmt.Printf("%sEvaluation failed %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
+	case EvalCanceled.String():
+		fmt.Printf("%sEvaluation canceled %s\n", padding, humanize.Time(g.EvalEndedAt.AsTime()))
 	}
 	if g.BuildStatus == BuildInit.String() {
 		fmt.Printf("%sNo build started\n", padding)
@@ -148,24 +191,26 @@ func GenerationShow(g *protobuf.Generation) {
 		fmt.Printf("%s  Outpath:  %s\n", padding, g.OutPath)
 	case BuildFailed.String():
 		fmt.Printf("%sBuild failed %s\n", padding, humanize.Time(g.BuildEndedAt.AsTime()))
+	case BuildCanceled.String():
+		fmt.Printf("%sBuild canceled %s\n", padding, humanize.Time(g.BuildEndedAt.AsTime()))
 	}
 }
 
 // generationsGC garbage collects unwanted generations. This is not thread safe.
 func (s *Store) generationsGC() {
 	alive := make([]*protobuf.Generation, 0)
-	for _, g := range s.data.Generations {
+	for _, g := range s.persisted.Generations {
 		if g == s.lastEvalStarted || g == s.lastEvalFinished || g == s.lastBuildStarted || g == s.lastBuildFinished {
 			alive = append(alive, g)
 		}
 	}
-	for _, g := range s.data.Generations {
+	for _, g := range s.persisted.Generations {
 		keep := slices.Contains(alive, g)
 		if !keep {
 			logrus.Infof("store: generation %s removed from the store", g.Uuid)
 		}
 	}
-	s.data.Generations = alive
+	s.persisted.Generations = alive
 }
 
 func (s *Store) GenerationEvalStarted(uuid string) error {
@@ -192,7 +237,10 @@ func (s *Store) GenerationEvalFinished(uuid string, drvPath, outPath, machineId 
 	if err != nil {
 		return err
 	}
-	if evalErr != nil {
+	if errors.Is(evalErr, context.Canceled) {
+		g.EvalErr = evalErr.Error()
+		g.EvalStatus = EvalCanceled.String()
+	} else if evalErr != nil {
 		g.EvalErr = evalErr.Error()
 		g.EvalStatus = EvalFailed.String()
 	} else {
@@ -219,6 +267,7 @@ func (s *Store) GenerationBuildStart(uuid, reason string) error {
 	g.BuildStartedAt = timestamppb.New(time.Now().UTC())
 	g.BuildStatus = Building.String()
 	g.BuildReason = reason
+	g.AttemptNumber++
 	s.lastBuildStarted = g
 	s.generationsGC()
 	e := &protobuf.Event_BuildStarted{Generation: g}
@@ -235,6 +284,7 @@ func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 	}
 	g.BuildEndedAt = timestamppb.New(time.Now().UTC())
 	if buildErr == nil {
+		g.BuildErr = ""
 		g.BuildStatus = Built.String()
 		// We create a gcroots for the last built generation
 		// in order to avoid the Nix garbage collector to
@@ -248,6 +298,9 @@ func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 		if err := os.Symlink(g.OutPath, s.generationGcRoot); err != nil {
 			logrus.Errorf("Could not create the gcroot symlink for the generation %s: %s", g.Uuid, err)
 		}
+	} else if errors.Is(buildErr, context.Canceled) {
+		g.BuildStatus = BuildCanceled.String()
+		g.BuildErr = buildErr.Error()
 	} else {
 		g.BuildStatus = BuildFailed.String()
 		g.BuildErr = buildErr.Error()
@@ -263,7 +316,7 @@ func (s *Store) GenerationBuildFinished(uuid string, buildErr error) error {
 func (s *Store) GenerationGet(uuid string) (protobuf.Generation, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, g := range s.data.Generations {
+	for _, g := range s.persisted.Generations {
 		if g.Uuid == uuid {
 			return *(proto.CloneOf(g)), nil
 		}
@@ -272,7 +325,7 @@ func (s *Store) GenerationGet(uuid string) (protobuf.Generation, error) {
 }
 
 func (s *Store) generationGet(uuid string) (g *protobuf.Generation, err error) {
-	for _, g := range s.data.Generations {
+	for _, g := range s.persisted.Generations {
 		if g.Uuid == uuid {
 			return g, nil
 		}

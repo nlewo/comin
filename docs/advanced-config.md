@@ -3,6 +3,8 @@
 ```nix
 services.comin = {
   enable = true;
+  evalTimeout = 600; # 10 minutes
+  buildTimeout = 7200; # 2 hours
   remotes = [
     {
       name = "origin";

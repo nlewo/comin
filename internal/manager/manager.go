@@ -17,11 +17,11 @@ import (
 	"github.com/nlewo/comin/internal/executor"
 	"github.com/nlewo/comin/internal/fetcher"
 	"github.com/nlewo/comin/internal/prometheus"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/scheduler"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -42,7 +42,7 @@ type Manager struct {
 	prometheus      prometheus.Prometheus
 	storage         *store.Store
 	scheduler       scheduler.Scheduler
-	Fetcher         *fetcher.Fetcher
+	Fetcher         *fetcher.GitFetcher
 	Builder         *builder.Builder
 	deployer        *deployer.Deployer
 	executor        executor.Executor
@@ -53,13 +53,23 @@ type Manager struct {
 
 	isSuspended bool
 
-	broker *broker.Broker
+	// Store the last fetched repository state to detect updates
+	lastFetchedCommitId string
+	lastFetchedBranchIsTesting *wrapperspb.BoolValue
+
+	broker       *broker.Broker
+	brokerEvents chan *protobuf.Event
+}
+
+func filterEvents(event *protobuf.Event) bool {
+	_, ok := event.Type.(*protobuf.Event_Fetched_)
+	return ok
 }
 
 func New(s *store.Store,
 	p prometheus.Prometheus,
 	sched scheduler.Scheduler,
-	fetcher *fetcher.Fetcher,
+	fetcher *fetcher.GitFetcher,
 	builder *builder.Builder,
 	deployer *deployer.Deployer,
 	machineId string,
@@ -73,7 +83,7 @@ func New(s *store.Store,
 
 	m := &Manager{
 		machineId: machineId,
-		Hostname:   hostname,
+		Hostname:  hostname,
 
 		stateRequestCh:          make(chan struct{}),
 		stateResultCh:           make(chan *protobuf.State),
@@ -88,6 +98,7 @@ func New(s *store.Store,
 		DeployConfirmer:         deployConfirmer,
 		broker:                  broker,
 		configurationOperations: configurationOperations,
+		brokerEvents:            broker.SubscribeWithFilter("manager", filterEvents),
 	}
 	return m
 }
@@ -117,13 +128,14 @@ func (m *Manager) DeploymentLatestSubmit(operation string) error {
 	}
 	// If no operation is provided, use default based on branch type
 	if operation == "" {
-		if latest.Generation.SelectedBranchIsTesting != nil && latest.Generation.SelectedBranchIsTesting.Value {
+		if latest.Generation.Source != nil && latest.Generation.Source.GetGit() != nil && latest.Generation.Source.GetGit().SelectedBranchIsTesting != nil && latest.Generation.Source.GetGit().SelectedBranchIsTesting.Value {
 			operation = "test"
 		} else {
 			operation = "switch"
 		}
 	}
-	m.deployer.Submit(latest.Generation, operation, true)
+	reason := fmt.Sprintf("The latest deployment %s has been resubmitted", latest.Uuid)
+	m.deployer.Submit(latest.Generation, operation, true, reason)
 	return nil
 }
 
@@ -136,8 +148,6 @@ func (m *Manager) Suspend() error {
 	}
 	m.deployer.Suspend("manager has been manually suspended")
 	m.isSuspended = true
-	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
-	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Suspend_{Suspend: &protobuf.Event_Suspend{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
 }
@@ -151,8 +161,6 @@ func (m *Manager) Resume(ctx context.Context) error {
 	}
 	m.deployer.Resume()
 	m.isSuspended = false
-	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
-	m.prometheus.SetIsSuspended(m.isSuspended)
 	m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_Resume_{Resume: &protobuf.Event_Resume{}}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	return nil
 }
@@ -164,15 +172,29 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 	go func() {
 		for {
 			select {
-			case rs := <-m.Fetcher.RepositoryStatusCh:
-				if !rs.SelectedCommitShouldBeSigned.GetValue() || rs.SelectedCommitSigned.GetValue() {
-					logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
-					err := m.Builder.Eval(ctx, rs)
-					if err != nil {
-						logrus.Error(err)
+			case e := <-m.brokerEvents:
+				if fetched := e.GetFetched(); fetched != nil {
+					rs := fetched.GetGitRepositoryStatus()
+					// Check if the repository has been updated by comparing with last fetched state
+					updated := m.lastFetchedCommitId != rs.SelectedCommitId ||
+						(m.lastFetchedBranchIsTesting != nil && rs.SelectedBranchIsTesting != nil &&
+						m.lastFetchedBranchIsTesting.GetValue() != rs.SelectedBranchIsTesting.GetValue())
+					if !updated {
+						continue
 					}
-				} else {
-					logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
+					// Update the stored state for next comparison
+					m.lastFetchedCommitId = rs.SelectedCommitId
+					m.lastFetchedBranchIsTesting = rs.SelectedBranchIsTesting
+					if fetched.Verified {
+						logrus.Infof("manager: a generation is evaluating for commit %s", rs.SelectedCommitId)
+						generation := m.storage.NewGeneration(m.Builder.GetHostname(), m.Builder.GetRepositoryDir(), m.Builder.GetSystemAttr(), rs, m.Builder.GetBuildAttemptsLimit())
+						err := m.Builder.Eval(ctx, &generation)
+						if err != nil {
+							logrus.Error(err)
+						}
+					} else {
+						logrus.Infof("manager: the commit %s is not evaluated because it is not signed", rs.SelectedCommitId)
+					}
 				}
 			case generationUUID := <-m.Builder.EvaluationDone:
 				generation, err := m.storage.GenerationGet(generationUUID)
@@ -199,11 +221,14 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					continue
 				}
 				if generation.BuildErr == "" {
-					logrus.Infof("manager: a generation is available for deployment with commit %s", generation.SelectedCommitId)
-					operation := m.getOperationFromConfigurationOperations(generation.SelectedRemoteName, generation.SelectedBranchName)
+					git := generation.Source.GetGit()
+					logrus.Infof("manager: a generation is available for deployment with commit %s", git.SelectedCommitId)
+					operation := m.getOperationFromConfigurationOperations(git.SelectedRemoteName, git.SelectedBranchName)
 					if !m.deployer.IsAlreadyDeployed(&generation, operation) {
 						m.DeployConfirmer.Submit(generationUUID)
 					}
+				} else {
+					logrus.Debugf("manager: the generation %s is not being deployed because it has the error: %s", generationUUID, generation.BuildErr)
 				}
 			case generationUUID := <-m.DeployConfirmer.confirmed:
 				generation, err := m.storage.GenerationGet(generationUUID)
@@ -211,8 +236,10 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					logrus.Error(err)
 					continue
 				}
-				operation := m.getOperationFromConfigurationOperations(generation.SelectedRemoteName, generation.SelectedBranchName)
-				m.deployer.Submit(&generation, operation, false)
+				git := generation.Source.GetGit()
+				operation := m.getOperationFromConfigurationOperations(git.SelectedRemoteName, git.SelectedBranchName)
+				reason := fmt.Sprintf("The generation %s needs to be deployed", generationUUID)
+				m.deployer.Submit(&generation, operation, false, reason)
 			}
 		}
 	}()
@@ -244,9 +271,6 @@ func (m *Manager) Run(ctx context.Context) {
 	if lastDpl != nil {
 		m.needToReboot = m.executor.NeedToReboot(lastDpl.Generation.OutPath, lastDpl.Operation)
 	}
-	m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
-	m.prometheus.SetNeedToReboot(m.needToReboot)
-	m.prometheus.SetIsSuspended(m.isSuspended)
 
 	m.FetchAndBuild(ctx)
 	m.deployer.Run(ctx)
@@ -256,14 +280,11 @@ func (m *Manager) Run(ctx context.Context) {
 		case <-m.stateRequestCh:
 			m.stateResultCh <- m.toState()
 		case dpl := <-m.deployer.DeploymentDoneCh:
-			m.prometheus.SetDeploymentInfo(dpl.Generation.SelectedCommitId, dpl.Status)
 			m.needToReboot = m.executor.NeedToReboot(dpl.Generation.OutPath, dpl.Operation)
 			if m.needToReboot {
 				e := &protobuf.Event_RebootRequired{Deployment: dpl}
 				m.broker.Publish(&protobuf.Event{Type: &protobuf.Event_RebootRequired_{RebootRequired: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 			}
-			m.prometheus.SetHostInfo(m.needToReboot, m.isSuspended)
-			m.prometheus.SetNeedToReboot(m.needToReboot)
 			if dpl.RestartComin.GetValue() {
 				// TODO: stop contexts
 				logrus.Infof("manager: comin needs to be restarted")

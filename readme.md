@@ -1,10 +1,10 @@
-# comin - GitOps for NixOS Machines
+# comin - GitOps for NixOS Servers and Laptops
 
 **comin** is a NixOS deployment tool operating in pull mode. Running
 on a machine, it periodically polls Git repositories and deploys the
 NixOS configuration associated to the machine.
 
-## Features
+## Main features
 
 - :snowflake: Git push to deploy NixOS configurations (or [nix-darwin](./docs/howtos.md#how-to-deploy-a-nix-darwin-configuration))
 - :handshake: Support flake and [non-flake](./docs/howtos.md#how-to-use-comin-without-nix-flake) repositories
@@ -14,7 +14,8 @@ NixOS configuration associated to the machine.
 - :fast_forward: Fast iterations with [local remotes](./docs/howtos.md#iterate-faster-with-local-repository)
 - :satellite: Observable via [Prometheus metrics](./docs/generated-module-options.md#servicescominexporter)
 - :pushpin: Create and delete system profiles
-- :lock: Optionally check [Git commit signatures](./docs/howtos.md#check-git-commit-signatures)
+- :lock: Optionally check GPG and SSH [Git commit signatures](./docs/howtos.md#check-git-commit-signatures)
+- [All others features](./docs/features.md)
 
 ## Quick start
 

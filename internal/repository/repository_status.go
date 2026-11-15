@@ -5,8 +5,8 @@ import (
 	"github.com/nlewo/comin/internal/types"
 )
 
-func NewRepositoryStatus(config types.GitConfig, mainCommitId string) *pb.RepositoryStatus {
-	r := &pb.RepositoryStatus{
+func NewGitRepositoryStatus(config types.GitConfig, mainCommitId string) *pb.GitRepositoryStatus {
+	r := &pb.GitRepositoryStatus{
 		MainCommitId: mainCommitId,
 	}
 	r.Remotes = make([]*pb.Remote, len(config.Remotes))
@@ -26,11 +26,11 @@ func NewRepositoryStatus(config types.GitConfig, mainCommitId string) *pb.Reposi
 	return r
 }
 
-// func (r RepositoryStatus) IsTesting() bool {
+// func (r GitRepositoryStatus) IsTesting() bool {
 // 	return r.SelectedBranchIsTesting
 // }
 
-func GetRemote(r *pb.RepositoryStatus, remoteName string) *pb.Remote {
+func GetRemote(r *pb.GitRepositoryStatus, remoteName string) *pb.Remote {
 	for _, remote := range r.Remotes {
 		if remote.Name == remoteName {
 			return remote

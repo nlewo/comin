@@ -11,8 +11,8 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v5"
 	"github.com/nlewo/comin/internal/prometheus"
-	pb "github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/types"
+	pb "github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -20,17 +20,18 @@ import (
 )
 
 type repository struct {
-	Repository       *git.Repository
-	GitConfig        types.GitConfig
-	RepositoryStatus *pb.RepositoryStatus
-	prometheus       prometheus.Prometheus
-	gpgPubliKeys     []string
+	Repository        *git.Repository
+	GitConfig         types.GitConfig
+	RepositoryStatus  *pb.GitRepositoryStatus
+	prometheus        prometheus.Prometheus
+	gpgPubliKeys      []string
+	sshAllowedSigners []sshAllowedSigner
 }
 
 type Repository interface {
-	FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan *pb.RepositoryStatus)
+	FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan *pb.GitRepositoryStatus)
 	// GetRepositoryStatus is currently not thread safe and is only used to initialize the fetcher
-	GetRepositoryStatus() *pb.RepositoryStatus
+	GetRepositoryStatus() *pb.GitRepositoryStatus
 }
 
 // repositoryStatus is the last saved repositoryStatus
@@ -47,10 +48,22 @@ func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prom
 		}
 		gpgPublicKeys[i] = string(k)
 	}
+	var sshAllowedSigners []sshAllowedSigner
+	if config.SshAllowedSignersPath != "" {
+		k, err := os.ReadFile(config.SshAllowedSignersPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open the SSH allowed signers file %s: %w", config.SshAllowedSignersPath, err)
+		}
+		sshAllowedSigners, err = parseSSHAllowedSigners(string(k))
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the SSH allowed signers file %s: %w", config.SshAllowedSignersPath, err)
+		}
+	}
 
 	r = &repository{
-		prometheus:   prometheus,
-		gpgPubliKeys: gpgPublicKeys,
+		prometheus:        prometheus,
+		gpgPubliKeys:      gpgPublicKeys,
+		sshAllowedSigners: sshAllowedSigners,
 	}
 
 	r.GitConfig = config
@@ -62,17 +75,17 @@ func New(config types.GitConfig, mainCommitId string, prometheus prometheus.Prom
 	if err != nil {
 		return
 	}
-	r.RepositoryStatus = NewRepositoryStatus(config, mainCommitId)
+	r.RepositoryStatus = NewGitRepositoryStatus(config, mainCommitId)
 
 	return
 }
 
-func (r *repository) GetRepositoryStatus() *pb.RepositoryStatus {
+func (r *repository) GetRepositoryStatus() *pb.GitRepositoryStatus {
 	return proto.CloneOf(r.RepositoryStatus)
 }
 
-func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan *pb.RepositoryStatus) {
-	rsCh = make(chan *pb.RepositoryStatus)
+func (r *repository) FetchAndUpdate(ctx context.Context, remoteNames []string) (rsCh chan *pb.GitRepositoryStatus) {
+	rsCh = make(chan *pb.GitRepositoryStatus)
 	go func() {
 		// FIXME: switch to the FetchContext to clean resource up on timeout
 		r.Fetch(remoteNames)
@@ -202,18 +215,18 @@ func (r *repository) Update() error {
 		r.RepositoryStatus.SelectedCommitId = selectedCommitId
 	}
 
-	if len(r.gpgPubliKeys) > 0 {
+	if len(r.gpgPubliKeys) > 0 || len(r.sshAllowedSigners) > 0 {
 		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(true)
-		signedBy, err := commitSignedBy(r.Repository, selectedCommitId, r.gpgPubliKeys)
+		signedBy, err := commitSignedBy(r.Repository, selectedCommitId, r.gpgPubliKeys, r.sshAllowedSigners)
 		if err != nil {
 			r.RepositoryStatus.ErrorMsg = err.Error()
 		}
-		if signedBy == nil {
+		if signedBy == "" {
 			r.RepositoryStatus.SelectedCommitSigned = wrapperspb.Bool(false)
 			r.RepositoryStatus.SelectedCommitSignedBy = ""
 		} else {
 			r.RepositoryStatus.SelectedCommitSigned = wrapperspb.Bool(true)
-			r.RepositoryStatus.SelectedCommitSignedBy = signedBy.PrimaryIdentity().Name
+			r.RepositoryStatus.SelectedCommitSignedBy = signedBy
 		}
 	} else {
 		r.RepositoryStatus.SelectedCommitShouldBeSigned = wrapperspb.Bool(false)

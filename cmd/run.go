@@ -3,7 +3,6 @@ package cmd
 import (
 	"os"
 	"path"
-	"runtime"
 	"time"
 
 	brokerPkg "github.com/nlewo/comin/internal/broker"
@@ -15,14 +14,22 @@ import (
 	"github.com/nlewo/comin/internal/http"
 	"github.com/nlewo/comin/internal/manager"
 	"github.com/nlewo/comin/internal/prometheus"
-	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/nlewo/comin/internal/repository"
 	"github.com/nlewo/comin/internal/scheduler"
 	"github.com/nlewo/comin/internal/server"
 	storePkg "github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+// getGitFromGeneration is a helper function to safely extract Git source from a Generation
+func getGitFromGeneration(g *protobuf.Generation) *protobuf.Git {
+	if g != nil && g.Source != nil {
+		return g.Source.GetGit()
+	}
+	return &protobuf.Git{}
+}
 
 var configFilepath string
 
@@ -54,18 +61,10 @@ var runCmd = &cobra.Command{
 		}
 
 		var executor executorPkg.Executor
-		switch cfg.RepositoryType {
-		case "flake":
-			executor, err = executorPkg.NewNixOSFlake()
-			if runtime.GOOS == "darwin" {
-				executor, err = executorPkg.NewNixDarwinFlake()
-			}
-		case "nix":
-			executor, err = executorPkg.NewNixOSNix()
-		}
+		executor, err = executorPkg.New(cfg.RepositoryType, gitConfig.Path, gitConfig.Submodules)
 		if err != nil {
-			logrus.Errorf("Failed to create the executor: %s", err)
-			return
+			logrus.Error(err)
+			os.Exit(1)
 		}
 
 		machineId, err := executor.ReadMachineId()
@@ -94,9 +93,10 @@ var runCmd = &cobra.Command{
 		var mainCommitId string
 		var lastDeployment *protobuf.Deployment
 		if ok, ld := store.LastDeployment(); ok {
-			mainCommitId = ld.Generation.MainCommitId
+			git := getGitFromGeneration(ld.Generation)
+			mainCommitId = git.MainCommitId
 			lastDeployment = ld
-			metrics.SetDeploymentInfo(ld.Generation.SelectedCommitId, ld.Status)
+			metrics.SetDeploymentInfo(git.SelectedCommitId, ld.Status)
 		}
 		repository, err := repository.New(gitConfig, mainCommitId, metrics)
 		if err != nil {
@@ -104,13 +104,13 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fetcher := fetcher.NewFetcher(repository, broker)
+		fetcher := fetcher.NewGitFetcher(repository, broker)
 		fetcher.Start(cmd.Context())
 		sched := scheduler.New()
 		sched.FetchRemotes(fetcher, cfg.Remotes)
 
-		builder := builder.New(store, executor, gitConfig.Path, gitConfig.Dir, cfg.SystemAttr, cfg.Hostname, gitConfig.Submodules, 30*time.Minute, 30*time.Minute)
-		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand)
+		builder := builder.New(store, executor, broker, gitConfig.Path, gitConfig.Dir, cfg.SystemAttr, cfg.Hostname, gitConfig.Submodules, time.Duration(cfg.EvalTimeout)*time.Second, time.Duration(cfg.BuildTimeout)*time.Second, cfg.BuildAttemptsLimit, time.Duration(cfg.BuildRetryTimer)*time.Second, cfg.PostBuildCommand)
+		deployer := deployer.New(store, executor.Deploy, lastDeployment, cfg.PostDeploymentCommand, broker)
 
 		mode, err := manager.ParseMode(cfg.BuildConfirmer.Mode)
 		if err != nil {
@@ -141,6 +141,9 @@ var runCmd = &cobra.Command{
 			cfg.Exporter.ListenAddress, cfg.Exporter.Port)
 		srv := server.New(broker, manager, cfg.Grpc.UnixSocketPath)
 		srv.Start()
+
+		prometheus.Subscribe(broker, &metrics)
+
 		manager.Run(cmd.Context())
 	},
 }

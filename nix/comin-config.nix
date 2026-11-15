@@ -25,9 +25,19 @@ rec {
     build_confirmer = cfg.services.comin.buildConfirmer;
     deploy_confirmer = cfg.services.comin.deployConfirmer;
     retention = cfg.services.comin.retention;
+    eval_timeout = cfg.services.comin.evalTimeout;
+    build_timeout = cfg.services.comin.buildTimeout;
+    build_attempts_limit = cfg.services.comin.buildAttemptsLimit;
+    build_retry_timer = cfg.services.comin.buildRetryTimer;
   }
+  // (lib.optionalAttrs (cfg.services.comin.sshAllowedSignersPath != null) {
+    ssh_allowed_signers_path = cfg.services.comin.sshAllowedSignersPath;
+  })
   // (lib.optionalAttrs (cfg.services.comin.postDeploymentCommand != null) {
     post_deployment_command = cfg.services.comin.postDeploymentCommand;
+  })
+  // (lib.optionalAttrs (cfg.services.comin.postBuildCommand != null) {
+    post_build_command = cfg.services.comin.postBuildCommand;
   });
   cominConfigYaml = yaml.generate "comin.yaml" cominConfig;
 }

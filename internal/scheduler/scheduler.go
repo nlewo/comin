@@ -24,7 +24,7 @@ func New() Scheduler {
 	return sched
 }
 
-func (s Scheduler) FetchRemotes(fetcher *fetcher.Fetcher, remotes []types.Remote) {
+func (s Scheduler) FetchRemotes(fetcher *fetcher.GitFetcher, remotes []types.Remote) {
 	for _, remote := range remotes {
 		if remote.Poller.Period != 0 {
 			logrus.Infof("scheduler: starting the period job for the remote '%s' with period %ds", remote.Name, remote.Poller.Period)

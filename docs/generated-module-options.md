@@ -47,6 +47,28 @@ null or package
 
 
 
+## services\.comin\.buildAttemptsLimit
+
+
+
+Maximum number of build attempts before giving up\. When set to 0,
+comin will retry forever on build failures\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+0
+```
+
+
+
 ## services\.comin\.buildConfirmer
 
 
@@ -110,6 +132,48 @@ one of “without”, “auto”, “manual”
 
 ```nix
 "without"
+```
+
+
+
+## services\.comin\.buildRetryTimer
+
+
+
+Duration in seconds between each build retry attempt\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+30
+```
+
+
+
+## services\.comin\.buildTimeout
+
+
+
+Maximum duration in seconds for a Nix build before comin cancels it\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+1800
 ```
 
 
@@ -281,6 +345,28 @@ true
 
 
 
+## services\.comin\.evalTimeout
+
+
+
+Maximum duration in seconds for a Nix evaluation (flake/nix eval)
+before comin cancels it\.
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+
+```nix
+1800
+```
+
+
+
 ## services\.comin\.exporter
 
 
@@ -440,15 +526,52 @@ null
 
 
 
+## services\.comin\.postBuildCommand
+
+
+
+A path to a script executed after each
+build (including builds that are already in the Nix store)\.
+comin provides to the script the same environment variables as
+for the post deployment command, with ` COMIN_PHASE ` set to
+` build `\. The ` COMIN_STATUS ` is one of ` built `, ` failed ` or
+` already built `\.
+
+
+
+*Type:*
+null or absolute path
+
+
+
+*Default:*
+
+```nix
+null
+```
+
+
+
+*Example:*
+
+```nix
+pkgs.writers.writeBash "post-build" "echo $COMIN_GIT_SHA";
+
+```
+
+
+
 ## services\.comin\.postDeploymentCommand
 
 
 
 A path to a script executed after each
 deployment\. comin provides to the script the following
-environment variables: ` COMIN_GIT_SHA `, ` COMIN_GIT_REF `,
-` COMIN_GIT_MSG `, ` COMIN_HOSTNAME `, ` COMIN_FLAKE_URL `,
-` COMIN_GENERATION `, ` COMIN_STATUS ` and ` COMIN_ERROR_MSG `\.
+environment variables: ` COMIN_PHASE ` (set to ` deploy `),
+` COMIN_GIT_SHA `, ` COMIN_GIT_REF `, ` COMIN_GIT_MSG `,
+` COMIN_HOSTNAME `, ` COMIN_GENERATION `, ` COMIN_STATUS `
+(one of ` init `, ` running `, ` done ` or ` failed `) and
+` COMIN_ERROR_MSG `\.
 
 
 
@@ -513,6 +636,51 @@ submodule
 
 
 The path of the auth file\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.remotes\.\*\.auth\.ssh_deploy_key_path
+
+
+
+Path to the SSH private key used to authenticate to the Git remote\.
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+
+```nix
+""
+```
+
+
+
+## services\.comin\.remotes\.\*\.auth\.ssh_known_hosts_path
+
+
+
+Path to the known_hosts file used to verify the SSH
+host key of the Git remote\. Defaults to
+/etc/ssh/ssh_known_hosts when unset\. The remote’s host
+key must be present in this file\.
 
 
 
@@ -918,6 +1086,27 @@ signed integer
 
 
 
+## services\.comin\.sshAllowedSignersPath
+
+
+
+An OpenSSH allowed signers file path used to verify SSH-signed Git commits\.
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+
+```nix
+null
+```
+
+
+
 ## services\.comin\.submodules
 
 
@@ -961,5 +1150,3 @@ null or string
 ```nix
 null
 ```
-
-

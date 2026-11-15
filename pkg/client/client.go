@@ -80,31 +80,6 @@ func (c Client) Stream(ctx context.Context) (ch chan Streamer) {
 	return ch
 }
 
-func (c Client) Events(handler func(*protobuf.Event) error) error {
-	for {
-		stream, err := c.cominClient.Events(context.Background(), &emptypb.Empty{})
-		if err != nil {
-			logrus.Infof("failed to connect to the stream: %s", err)
-			time.Sleep(time.Second)
-			continue
-		}
-		for {
-			event, err := stream.Recv()
-			if err == io.EOF {
-				logrus.Infof("server closed stream: %s", err)
-				break
-			}
-			if err != nil {
-				logrus.Infof("failed to receive from the stream: %s", err)
-				break
-			}
-			if err := handler(event); err != nil {
-				return err
-			}
-		}
-	}
-}
-
 func (c Client) Fetch() {
 	c.cominClient.Fetch(context.Background(), &emptypb.Empty{}) // nolint: errcheck
 }

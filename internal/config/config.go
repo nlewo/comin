@@ -72,16 +72,26 @@ func Read(path string) (config types.Configuration, err error) {
 	if config.Grpc.UnixSocketPath == "" {
 		config.Grpc.UnixSocketPath = filepath.Join(config.StateDir, "grpc.sock")
 	}
+	if config.EvalTimeout == 0 {
+		config.EvalTimeout = 1800
+	}
+	if config.BuildTimeout == 0 {
+		config.BuildTimeout = 1800
+	}
+	if config.BuildRetryTimer == 0 {
+		config.BuildRetryTimer = 30
+	}
 	logrus.Debugf("Config is '%#v'", config)
 	return
 }
 
 func MkGitConfig(config types.Configuration) types.GitConfig {
 	return types.GitConfig{
-		Path:              filepath.Join(config.StateDir, "repository"),
-		Dir:               config.RepositorySubdir,
-		Remotes:           config.Remotes,
-		GpgPublicKeyPaths: config.GpgPublicKeyPaths,
-		Submodules:        config.Submodules,
+		Path:                  filepath.Join(config.StateDir, "repository"),
+		Dir:                   config.RepositorySubdir,
+		Remotes:               config.Remotes,
+		GpgPublicKeyPaths:     config.GpgPublicKeyPaths,
+		SshAllowedSignersPath: config.SshAllowedSignersPath,
+		Submodules:            config.Submodules,
 	}
 }

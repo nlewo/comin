@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"runtime"
 
 	"github.com/nlewo/comin/internal/executor"
@@ -21,7 +22,7 @@ var buildCmd = &cobra.Command{
 		} else {
 			systemAttr = "nixosConfigurations"
 		}
-		executor, _ := executor.NewNixFlakeExecutor(systemAttr)
+		executor, _ := executor.NewGitNixFlake(systemAttr, ".", false)
 		if hostname != "" {
 			hosts[0] = hostname
 		} else {
@@ -34,7 +35,7 @@ var buildCmd = &cobra.Command{
 			if err != nil {
 				logrus.Errorf("Failed to evaluate the configuration '%s': '%s'", host, err)
 			}
-			err = executor.Build(ctx, drvPath)
+			err = executor.Build(ctx, drvPath, os.Stdout, os.Stdin)
 			if err != nil {
 				logrus.Errorf("Failed to build the configuration '%s': '%s'", host, err)
 			}

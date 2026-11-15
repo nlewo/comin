@@ -21,7 +21,7 @@ var evalCmd = &cobra.Command{
 		} else {
 			systemAttr = "nixosConfigurations"
 		}
-		executor, _ := executor.NewNixFlakeExecutor(systemAttr)
+		executor, _ := executor.NewGitNixFlake(systemAttr, ".", false)
 		if hostname != "" {
 			hosts[0] = hostname
 		} else {

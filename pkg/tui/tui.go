@@ -1,0 +1,374 @@
+package tui
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	lipgloss "charm.land/lipgloss/v2"
+	"github.com/dustin/go-humanize"
+	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/pkg/protobuf"
+)
+
+var (
+	sectionStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4"))
+	labelStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	activeStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
+	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+)
+
+// getGitFromGeneration is a helper function to safely extract Git source from a Generation
+func getGitFromGeneration(g *protobuf.Generation) *protobuf.Git {
+	if g != nil && g.Source != nil {
+		return g.Source.GetGit()
+	}
+	return &protobuf.Git{}
+}
+
+func formatTime(t time.Time) string {
+	if time.Since(t) < 10*time.Second {
+		return "less than 10 seconds ago"
+	}
+	return humanize.Time(t)
+}
+
+func commitMsgSummary(msg string) string {
+	parts := strings.SplitN(strings.TrimSpace(msg), "\n", 2)
+
+	if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+		return parts[0] + "..."
+	}
+	return parts[0]
+}
+
+func boolToString(v bool) string {
+	if v {
+		return warnStyle.Render("yes")
+	}
+	return "no"
+}
+
+// FetcherModel holds the current fetcher state and renders it.
+type FetcherModel struct {
+	IsFetching          bool
+	GitRepositoryStatus *protobuf.GitRepositoryStatus
+}
+
+func (fm FetcherModel) View() string {
+	var b strings.Builder
+
+	var status string
+	if fm.IsFetching {
+		status = activeStyle.Render("fetching")
+	} else {
+		status = dimStyle.Render("idle")
+	}
+	b.WriteString(sectionStyle.Render("Fetcher") + "      " + status + "\n")
+
+	if fm.GitRepositoryStatus == nil {
+		return b.String()
+	}
+	for _, r := range fm.GitRepositoryStatus.Remotes {
+		fetchedAt := ""
+		if r.FetchedAt != nil {
+			fetchedAt = dimStyle.Render(" fetched " + formatTime(r.FetchedAt.AsTime()))
+		}
+		b.WriteString("  " + labelStyle.Render("Remote:    ") + r.Name + fetchedAt + "\n")
+		b.WriteString("    " + labelStyle.Render("URL:     ") + r.Url + "\n")
+		if r.FetchErrorMsg != "" {
+			b.WriteString("    " + labelStyle.Render("Error:   ") + r.FetchErrorMsg + "\n")
+		}
+		if r.Main != nil {
+			commitID := r.Main.CommitId
+			if len(commitID) > 8 {
+				commitID = commitID[:8]
+			}
+			b.WriteString("    " + labelStyle.Render("Main:    ") +
+				r.Main.Name + "/" + commitID + "  " + commitMsgSummary(r.Main.CommitMsg) + "\n")
+			if r.Main.ErrorMsg != "" {
+				b.WriteString("      " + labelStyle.Render("Error: ") + r.Main.ErrorMsg + "\n")
+			}
+		}
+		if r.Testing != nil {
+			commitID := r.Testing.CommitId
+			if len(commitID) > 8 {
+				commitID = commitID[:8]
+			}
+			if r.Testing.Name != "" {
+				b.WriteString("    " + labelStyle.Render("Testing: ") +
+					r.Testing.Name + "/" + commitID + "  " + commitMsgSummary(r.Testing.CommitMsg) + "\n")
+				if r.Testing.ErrorMsg != "" {
+					b.WriteString("      " + labelStyle.Render("Error: ") + r.Testing.ErrorMsg + "\n")
+				}
+			} else {
+				b.WriteString("    " + labelStyle.Render("Testing: not defined in the configuration") + "\n")
+			}
+		}
+	}
+	return b.String()
+}
+
+// BuilderModel holds the current builder state and renders it.
+type BuilderModel struct {
+	IsEvaluating bool
+	IsBuilding   bool
+	IsSuspended  bool
+	Generation   *protobuf.Generation
+	LogLines     []string
+	SpinnerFrame int
+}
+
+var SpinnerFrames = []string{"●∙∙", "∙●∙", "∙∙●", "∙●∙"}
+
+func (bm BuilderModel) View() string {
+	var b strings.Builder
+	var status string
+	if bm.IsSuspended {
+		status = warnStyle.Render("⏸ suspended")
+	} else if bm.IsEvaluating {
+		spinnerFrame := SpinnerFrames[bm.SpinnerFrame]
+		status = activeStyle.Render(spinnerFrame + " evaluating")
+	} else if bm.IsBuilding {
+		spinnerFrame := SpinnerFrames[bm.SpinnerFrame]
+		status = activeStyle.Render(spinnerFrame + " building")
+	} else {
+		status = dimStyle.Render("idle")
+	}
+	b.WriteString(sectionStyle.Render("Builder") + "    " + status + "\n")
+
+	if bm.Generation != nil {
+		g := bm.Generation
+		git := getGitFromGeneration(g)
+		commitID := git.SelectedCommitId
+		if len(commitID) > 8 {
+			commitID = commitID[:8]
+		}
+		b.WriteString("  " + labelStyle.Render("Commit:  ") +
+			fmt.Sprintf("%s from %s/%s\n", commitID, git.SelectedRemoteName, git.SelectedBranchName))
+		if msg := commitMsgSummary(git.SelectedCommitMsg); msg != "" {
+			b.WriteString("  " + labelStyle.Render("Message: ") + msg + "\n")
+		}
+
+		switch g.EvalStatus {
+		case store.Evaluating.String():
+			b.WriteString("  " + labelStyle.Render("Eval:    ") +
+				activeStyle.Render("running") +
+				fmt.Sprintf(" since %s\n", formatTime(g.EvalStartedAt.AsTime())))
+		case store.Evaluated.String():
+			b.WriteString("  " + labelStyle.Render("Eval:    ") +
+				successStyle.Render("succeeded") +
+				fmt.Sprintf(" %s\n", formatTime(g.EvalEndedAt.AsTime())))
+		case store.EvalFailed.String():
+			b.WriteString("  " + labelStyle.Render("Eval:    ") +
+				errorStyle.Render("failed") +
+				fmt.Sprintf(" %s\n", formatTime(g.EvalEndedAt.AsTime())))
+		case store.EvalCanceled.String():
+			b.WriteString("  " + labelStyle.Render("Eval:    ") +
+				"canceled" +
+				fmt.Sprintf(" %s\n", formatTime(g.EvalEndedAt.AsTime())))
+		}
+
+		switch g.BuildStatus {
+		case store.Building.String():
+			b.WriteString("  " + labelStyle.Render("Build:   ") +
+				activeStyle.Render("running") +
+				fmt.Sprintf(" since %s\n", formatTime(g.BuildStartedAt.AsTime())))
+		case store.Built.String():
+			b.WriteString("  " + labelStyle.Render("Build:   ") +
+				successStyle.Render("succeeded") +
+				fmt.Sprintf(" %s\n", formatTime(g.BuildEndedAt.AsTime())))
+		case store.BuildFailed.String():
+			b.WriteString("  " + labelStyle.Render("Build:   ") +
+				errorStyle.Render("failed") +
+				fmt.Sprintf(" %s\n", formatTime(g.BuildEndedAt.AsTime())))
+		case store.BuildCanceled.String():
+			b.WriteString("  " + labelStyle.Render("Build:   ") +
+				"canceled" +
+				fmt.Sprintf(" %s\n", formatTime(g.BuildEndedAt.AsTime())))
+		}
+	}
+	b.WriteString("  " + labelStyle.Render("Logs:") + "\n")
+	start := 0
+	if len(bm.LogLines) > 10 {
+		start = len(bm.LogLines) - 10
+	}
+	for i := start; i < len(bm.LogLines); i++ {
+		b.WriteString("    " + bm.LogLines[i] + "\n")
+	}
+	return b.String()
+}
+
+// DeployerModel holds the current deployer state and renders it.
+type DeployerModel struct {
+	IsDeploying bool
+	IsSuspended bool
+	Deployment  *protobuf.Deployment
+	LogLines    []string
+}
+
+func (dm DeployerModel) View() string {
+	var b strings.Builder
+	var status string
+	if dm.IsSuspended {
+		status = warnStyle.Render("⏸ suspended")
+	} else if dm.IsDeploying {
+		status = activeStyle.Render("deploying...")
+	} else {
+		status = dimStyle.Render("idle")
+	}
+	b.WriteString(sectionStyle.Render("Deployer") + "     " + status + "\n")
+
+	if dm.Deployment != nil {
+		d := dm.Deployment
+		if d.Generation != nil {
+			g := d.Generation
+			git := getGitFromGeneration(g)
+			commitID := git.SelectedCommitId
+			if len(commitID) > 8 {
+				commitID = commitID[:8]
+			}
+			b.WriteString("  " + labelStyle.Render("Commit:    ") +
+				fmt.Sprintf("%s from %s/%s\n", commitID, git.SelectedRemoteName, git.SelectedBranchName))
+			if msg := commitMsgSummary(git.SelectedCommitMsg); msg != "" {
+				b.WriteString("  " + labelStyle.Render("Message:   ") + msg + "\n")
+			}
+		}
+		operation := d.Operation
+		b.WriteString("  " + labelStyle.Render("Operation: ") + operation + "\n")
+
+		switch d.Status {
+		case store.StatusToString(store.Running):
+			b.WriteString("  " + labelStyle.Render("Status:    ") +
+				activeStyle.Render("running") +
+				fmt.Sprintf(" since %s\n", formatTime(d.StartedAt.AsTime())))
+		case store.StatusToString(store.Done):
+			b.WriteString("  " + labelStyle.Render("Status:    ") +
+				successStyle.Render("done") +
+				fmt.Sprintf(" %s\n", formatTime(d.EndedAt.AsTime())))
+		case store.StatusToString(store.Failed):
+			b.WriteString("  " + labelStyle.Render("Status:    ") +
+				errorStyle.Render("failed") +
+				fmt.Sprintf(" %s\n", formatTime(d.EndedAt.AsTime())))
+		}
+	}
+	// Deployer logs
+	b.WriteString("  " + labelStyle.Render("Logs:") + "\n")
+	start := 0
+	if len(dm.LogLines) > 10 {
+		start = len(dm.LogLines) - 10
+	}
+	for i := start; i < len(dm.LogLines); i++ {
+		b.WriteString("    " + dm.LogLines[i] + "\n")
+	}
+	return b.String()
+}
+
+// ManagerModel holds the current manager state and renders it.
+type ManagerModel struct {
+	NeedToReboot  bool
+	IsSuspended   bool
+	Hostname      string
+	ConnectionMsg string
+	Fetcher       FetcherModel
+	Builder       BuilderModel
+	Deployer      DeployerModel
+}
+
+func (mm ManagerModel) View() string {
+	var b strings.Builder
+
+	if mm.ConnectionMsg != "" {
+		b.WriteString(warnStyle.Render("Disconnected: "+mm.ConnectionMsg) + "\n")
+		return b.String()
+	}
+	b.WriteString(dimStyle.Render("Connected:       ") + boolToString(true) + "\n")
+	b.WriteString(dimStyle.Render("Hostname:        ") + mm.Hostname + "\n")
+	b.WriteString(labelStyle.Render("Suspended:       ") + boolToString(mm.IsSuspended) + "\n")
+	b.WriteString(labelStyle.Render("Reboot required: ") + boolToString(mm.NeedToReboot) + "\n")
+	b.WriteString("\n")
+	b.WriteString(mm.Fetcher.View())
+	b.WriteString("\n")
+	b.WriteString(mm.Builder.View())
+	b.WriteString("\n")
+	b.WriteString(mm.Deployer.View())
+	return b.String()
+}
+
+// UpdateManager updates the ManagerModel based on the received event.
+func UpdateManager(manager *ManagerModel, event *protobuf.Event) {
+	switch e := event.Type.(type) {
+	case *protobuf.Event_ManagerState_:
+		state := e.ManagerState.State
+		manager.NeedToReboot = state.NeedToReboot.GetValue()
+		manager.IsSuspended = state.IsSuspended.GetValue()
+		if state.Builder != nil {
+			manager.Hostname = state.Builder.Hostname
+			manager.Builder.IsEvaluating = state.Builder.IsEvaluating.GetValue()
+			manager.Builder.IsBuilding = state.Builder.IsBuilding.GetValue()
+			manager.Builder.IsSuspended = state.Builder.IsSuspended.GetValue()
+			manager.Builder.Generation = state.Builder.Generation
+		}
+		if state.Deployer != nil {
+			manager.Deployer.IsDeploying = state.Deployer.IsDeploying.GetValue()
+			manager.Deployer.IsSuspended = state.Deployer.IsSuspended.GetValue()
+			manager.Deployer.Deployment = state.Deployer.Deployment
+		}
+		if state.Fetcher != nil {
+			manager.Fetcher.IsFetching = state.Fetcher.IsFetching.GetValue()
+			manager.Fetcher.GitRepositoryStatus = state.Fetcher.GetGitRepositoryStatus()
+		}
+	case *protobuf.Event_EvalStartedType:
+		manager.Builder.IsEvaluating = true
+		manager.Builder.Generation = e.EvalStartedType.Generation
+	case *protobuf.Event_EvalFinishedType:
+		manager.Builder.IsEvaluating = false
+		manager.Builder.Generation = e.EvalFinishedType.Generation
+	case *protobuf.Event_BuildStartedType:
+		manager.Builder.IsBuilding = true
+		manager.Builder.Generation = e.BuildStartedType.Generation
+	case *protobuf.Event_BuildFinishedType:
+		manager.Builder.IsBuilding = false
+		manager.Builder.Generation = e.BuildFinishedType.Generation
+	case *protobuf.Event_DeploymentStartedType:
+		manager.Deployer.IsDeploying = true
+		manager.Deployer.Deployment = e.DeploymentStartedType.Deployment
+	case *protobuf.Event_DeploymentFinishedType:
+		manager.Deployer.IsDeploying = false
+		manager.Deployer.Deployment = e.DeploymentFinishedType.Deployment
+	case *protobuf.Event_Fetched_:
+		manager.Fetcher.IsFetching = false
+		manager.Fetcher.GitRepositoryStatus = e.Fetched.GetGitRepositoryStatus()
+	case *protobuf.Event_Suspend_:
+		manager.IsSuspended = true
+		manager.Builder.IsSuspended = true
+		manager.Deployer.IsSuspended = true
+	case *protobuf.Event_Resume_:
+		manager.IsSuspended = false
+		manager.Builder.IsSuspended = false
+		manager.Deployer.IsSuspended = false
+	case *protobuf.Event_RebootRequired_:
+		manager.NeedToReboot = true
+	case *protobuf.Event_Log_:
+		if logLine := e.Log.GetLine(); logLine != nil {
+			msg := logLine.GetMsg()
+			objectType := e.Log.GetObjectType()
+			// Append log line to the appropriate slice, keeping only last 10
+			switch objectType {
+			case "evaluation", "build":
+				manager.Builder.LogLines = append(manager.Builder.LogLines, msg)
+				if len(manager.Builder.LogLines) > 10 {
+					manager.Builder.LogLines = manager.Builder.LogLines[len(manager.Builder.LogLines)-10:]
+				}
+			case "deployment":
+				manager.Deployer.LogLines = append(manager.Deployer.LogLines, msg)
+				if len(manager.Deployer.LogLines) > 10 {
+					manager.Deployer.LogLines = manager.Deployer.LogLines[len(manager.Deployer.LogLines)-10:]
+				}
+			}
+		}
+	}
+}

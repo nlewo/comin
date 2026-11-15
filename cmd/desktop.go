@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"fyne.io/systray"
@@ -9,9 +11,9 @@ import (
 	"github.com/gen2brain/beeep"
 	"github.com/nlewo/comin/cmd/icons"
 	"github.com/nlewo/comin/internal/builder"
-	"github.com/nlewo/comin/internal/client"
 	"github.com/nlewo/comin/internal/manager"
 	"github.com/nlewo/comin/internal/store"
+	"github.com/nlewo/comin/pkg/client"
 	"github.com/nlewo/comin/pkg/protobuf"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -28,13 +30,13 @@ var desktopCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		unixSocketPath, _ := cmd.Flags().GetString("unix-socket-path")
-		title, _ := cmd.Flags().GetString("title")
+		title, _ = cmd.Flags().GetString("title")
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
 		err := beeep.Notify(title, "Agent desktop notifications started.", []byte{})
 		if err != nil {
-			panic(err)
+			logrus.Warnf("failed to send the startup notification: %s", err)
 		}
 
 		test, _ := cmd.Flags().GetBool("test")
@@ -44,17 +46,24 @@ var desktopCmd = &cobra.Command{
 			opts := client.ClientOpts{
 				UnixSocketPath: unixSocketPath,
 			}
-			client, err := client.New(opts)
+			c, err := client.New(opts)
 			if err != nil {
 				logrus.Fatal(err)
 			}
-			tray, _ := (cmd.Flags().GetBool("tray"))
+			tray, _ := cmd.Flags().GetBool("tray")
 			if tray {
 				logrus.Println("Loading tray.")
-				systray.Run(func() { onTrayReady(client) }, onTrayExit)
+				systray.Run(func() { onTrayReady(c) }, onTrayExit)
 			} else {
-				err = client.Events(desktopEventHandler)
-				logrus.Fatalf("failed to consume to the event stream: %s", err)
+				ch := c.Stream(context.Background())
+				for streamer := range ch {
+					if streamer.FailureMsg != "" {
+						log.Fatalf("failed to consume to the event stream: %s", streamer.FailureMsg)
+					}
+					if err := desktopEventHandler(streamer.Event); err != nil {
+						log.Fatalf("handler error: %s", err)
+					}
+				}
 			}
 		}
 	},
@@ -62,23 +71,31 @@ var desktopCmd = &cobra.Command{
 
 func scenario() {
 	g := protobuf.Generation{
-		BuildReason:        builder.BuildReasonNeedBuild,
-		SelectedRemoteName: "origin",
-		SelectedBranchName: "main",
+		BuildReason: builder.BuildReasonNeedBuild,
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedRemoteName: "origin",
+					SelectedBranchName: "main",
+				},
+			},
+		},
 	}
 	e := protobuf.Event{Type: &protobuf.Event_BuildStartedType{BuildStartedType: &protobuf.Event_BuildStarted{Generation: &g}}}
 	desktopEventHandler(&e) // nolint: errcheck
 	time.Sleep(time.Second)
 
 	d := protobuf.Deployment{
-		Status: store.StatusToString(store.Init),
+		Status:    store.StatusToString(store.Init),
+		Generation: &g,
 	}
 	e = protobuf.Event{Type: &protobuf.Event_DeploymentStartedType{DeploymentStartedType: &protobuf.Event_DeploymentStarted{Deployment: &d}}}
 	desktopEventHandler(&e) // nolint: errcheck
 	time.Sleep(time.Second)
 
 	d = protobuf.Deployment{
-		Status: store.StatusToString(store.Done),
+		Status:    store.StatusToString(store.Done),
+		Generation: &g,
 	}
 	e = protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: &protobuf.Event_DeploymentFinished{Deployment: &d}}}
 	desktopEventHandler(&e) // nolint: errcheck
@@ -113,7 +130,8 @@ func generateEventMessage(event *protobuf.Event) string {
 	case *protobuf.Event_BuildStartedType:
 		g := event.Type.(*protobuf.Event_BuildStartedType).BuildStartedType.Generation
 		if g.BuildReason == builder.BuildReasonNeedBuild {
-			message = fmt.Sprintf("A new commit from %s/%s is building.", g.SelectedRemoteName, g.SelectedBranchName)
+			git := getGitFromGeneration(g)
+			message = fmt.Sprintf("A new commit from %s/%s is building.", git.SelectedRemoteName, git.SelectedBranchName)
 		}
 	case *protobuf.Event_BuildFinishedType:
 		dpl := event.Type.(*protobuf.Event_BuildFinishedType).BuildFinishedType.Generation
@@ -166,7 +184,16 @@ func onTrayReady(client client.Client) {
 	systray.SetTitle("comin")
 	systray.SetTooltip("comin")
 	go refreshAvailableConfirmationsLoop(client)
-	go client.Events(trayEventHandler(client)) // nolint: errcheck
+	go func() {
+		ch := client.Stream(context.Background())
+		for streamer := range ch {
+			if streamer.Event != nil {
+				if err := trayEventHandler(client)(streamer.Event); err != nil {
+					logrus.Errorf("tray event handler error: %s", err)
+				}
+			}
+		}
+	}() // nolint: errcheck
 }
 
 func onTrayExit() {}

@@ -2,6 +2,7 @@ package deployer
 
 import (
 	"context"
+	"io"
 	"testing"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 func TestDeployerBasic(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -24,12 +25,20 @@ func TestDeployerBasic(t *testing.T) {
 
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
-	d := New(s, deployFunc, nil, "")
+	d := New(s, deployFunc, nil, "", bk)
 	d.Run(t.Context())
 	assert.False(t, d.IsDeploying())
 
-	g := &protobuf.Generation{SelectedCommitId: "commit-1"}
-	d.Submit(g, "test", false)
+	g := &protobuf.Generation{
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedCommitId: "commit-1",
+				},
+			},
+		},
+	}
+	d.Submit(g, "test", false, "")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, d.IsDeploying())
 	}, 5*time.Second, 100*time.Millisecond)
@@ -43,13 +52,13 @@ func TestDeployerBasic(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		dpl := <-d.DeploymentDoneCh
 		assert.Equal(c, "profile-path", dpl.ProfilePath)
-		assert.Equal(c, "commit-1", dpl.Generation.SelectedCommitId)
+		assert.Equal(c, "commit-1", dpl.Generation.Source.GetGit().SelectedCommitId)
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func TestDeployerSubmit(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -60,18 +69,42 @@ func TestDeployerSubmit(t *testing.T) {
 
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
-	d := New(s, deployFunc, nil, "")
+	d := New(s, deployFunc, nil, "", bk)
 	d.Run(t.Context())
 	assert.False(t, d.IsDeploying())
 
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"}, "test", false)
+	d.Submit(&protobuf.Generation{
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedCommitId: "commit-1",
+				},
+			},
+		},
+	}, "test", false, "")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(c, d.IsDeploying())
 		assert.Nil(c, d.GenerationToDeploy)
 	}, 5*time.Second, 100*time.Millisecond)
 
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-2"}, "test", false)
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-3"}, "test", false)
+	d.Submit(&protobuf.Generation{
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedCommitId: "commit-2",
+				},
+			},
+		},
+	}, "test", false, "")
+	d.Submit(&protobuf.Generation{
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedCommitId: "commit-3",
+				},
+			},
+		},
+	}, "test", false, "")
 	assert.NotNil(t, d.GenerationToDeploy)
 
 	// To simulate the end of 2 deployments (commit-1 and commit-3)
@@ -86,13 +119,13 @@ func TestDeployerSubmit(t *testing.T) {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		dpl := <-d.DeploymentDoneCh
 		assert.Equal(c, "profile-path", dpl.ProfilePath)
-		assert.Equal(c, "commit-1", dpl.Generation.SelectedCommitId)
+		assert.Equal(c, "commit-1", dpl.Generation.Source.GetGit().SelectedCommitId)
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
 func TestDeployerSuspend(t *testing.T) {
 	deployDone := make(chan struct{})
-	var deployFunc = func(context.Context, string, string, []string) (bool, string, error) {
+	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
 		<-deployDone
 		return false, "profile-path", nil
 	}
@@ -103,7 +136,7 @@ func TestDeployerSuspend(t *testing.T) {
 
 	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
 	assert.Nil(t, err)
-	d := New(s, deployFunc, nil, "")
+	d := New(s, deployFunc, nil, "", bk)
 	d.Run(t.Context())
 	assert.False(t, d.IsSuspended())
 	d.Suspend("suspended for testing")
@@ -111,7 +144,15 @@ func TestDeployerSuspend(t *testing.T) {
 	assert.False(t, d.IsDeploying())
 	assert.False(t, d.RunnerIsSuspended())
 
-	d.Submit(&protobuf.Generation{SelectedCommitId: "commit-1"}, "test", false)
+	d.Submit(&protobuf.Generation{
+		Source: &protobuf.Source{
+			Source: &protobuf.Source_Git{
+				Git: &protobuf.Git{
+					SelectedCommitId: "commit-1",
+				},
+			},
+		},
+	}, "test", false, "")
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.True(t, d.RunnerIsSuspended())
 	}, 3*time.Second, 100*time.Millisecond)

@@ -6,7 +6,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/nlewo/comin/internal/client"
+	"github.com/nlewo/comin/pkg/client"
 	"github.com/nlewo/comin/internal/deployer"
 	pb "github.com/nlewo/comin/pkg/protobuf"
 	store "github.com/nlewo/comin/internal/store"
@@ -27,17 +27,20 @@ func longStatus(status *pb.State) {
 		fmt.Printf("  Is suspended: yes\n")
 	}
 	fmt.Printf("  Fetcher\n")
-	if status.Fetcher.RepositoryStatus != nil && status.Fetcher.RepositoryStatus.SelectedCommitShouldBeSigned.GetValue() {
-		if status.Fetcher.RepositoryStatus.SelectedCommitSigned.GetValue() {
-			fmt.Printf("    Commit %s signed by %s\n", status.Fetcher.RepositoryStatus.SelectedCommitId, status.Fetcher.RepositoryStatus.SelectedCommitSignedBy)
+	gitRepoStatus := status.Fetcher.GetGitRepositoryStatus()
+	if gitRepoStatus != nil && gitRepoStatus.SelectedCommitShouldBeSigned.GetValue() {
+		if gitRepoStatus.SelectedCommitSigned.GetValue() {
+			fmt.Printf("    Commit %s signed by %s\n", gitRepoStatus.SelectedCommitId, gitRepoStatus.SelectedCommitSignedBy)
 		} else {
-			fmt.Printf("    Commit %s is not signed while it should be\n", status.Fetcher.RepositoryStatus.SelectedCommitId)
+			fmt.Printf("    Commit %s is not signed while it should be\n", gitRepoStatus.SelectedCommitId)
 		}
 	}
-	for _, r := range status.Fetcher.RepositoryStatus.Remotes {
-		fmt.Printf("    Remote %s %s fetched %s\n",
-			r.Name, r.Url, humanize.Time(r.FetchedAt.AsTime()),
-		)
+	if gitRepoStatus != nil {
+		for _, r := range gitRepoStatus.Remotes {
+			fmt.Printf("    Remote %s %s fetched %s\n",
+				r.Name, r.Url, humanize.Time(r.FetchedAt.AsTime()),
+			)
+		}
 	}
 	fmt.Printf("  Builder\n")
 	if status.Builder.Generation != nil {
@@ -76,27 +79,32 @@ func onelineStatus(status *pb.State) {
 		fmt.Printf(" ⏸️ ")
 	}
 	if status.Builder.Generation != nil && status.Builder.IsEvaluating.GetValue() {
-		fmt.Printf(" eval   %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+		git := getGitFromGeneration(status.Builder.Generation)
+		fmt.Printf(" eval   %s/%s (%s)", git.SelectedRemoteName, git.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalStartedAt.AsTime()))
 	} else if status.Builder.Generation != nil && status.Builder.IsBuilding.GetValue() {
-		fmt.Printf(" build  %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+		git := getGitFromGeneration(status.Builder.Generation)
+		fmt.Printf(" build  %s/%s (%s)", git.SelectedRemoteName, git.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.BuildStartedAt.AsTime()))
 	} else if status.Builder.Generation != nil && status.Builder.Generation.EvalStatus == store.EvalFailed.String() {
-		fmt.Printf(" %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+		git := getGitFromGeneration(status.Builder.Generation)
+		fmt.Printf(" %s/%s (%s)", git.SelectedRemoteName, git.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.EvalEndedAt.AsTime()))
 	} else if status.Builder.Generation != nil && status.Builder.Generation.BuildStatus == store.BuildFailed.String() {
-		fmt.Printf(" %s/%s (%s)", status.Builder.Generation.SelectedRemoteName, status.Builder.Generation.SelectedBranchName,
+		git := getGitFromGeneration(status.Builder.Generation)
+		fmt.Printf(" %s/%s (%s)", git.SelectedRemoteName, git.SelectedBranchName,
 			humanize.Time(status.Builder.Generation.BuildEndedAt.AsTime()))
 	} else if status.Deployer.Deployment != nil {
+		git := getGitFromGeneration(status.Deployer.Deployment.Generation)
 		switch status.Deployer.Deployment.Status {
 		case store.StatusToString(store.Running):
-			fmt.Printf(" deploy %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+			fmt.Printf(" deploy %s/%s (%s)", git.SelectedRemoteName, git.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
 		case store.StatusToString(store.Failed):
-			fmt.Printf(" %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+			fmt.Printf(" %s/%s (%s)", git.SelectedRemoteName, git.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
 		case store.StatusToString(store.Done):
-			fmt.Printf(" %s/%s (%s)", status.Deployer.Deployment.Generation.SelectedRemoteName, status.Deployer.Deployment.Generation.SelectedBranchName,
+			fmt.Printf(" %s/%s (%s)", git.SelectedRemoteName, git.SelectedBranchName,
 				humanize.Time(status.Deployer.Deployment.EndedAt.AsTime()))
 		}
 	}

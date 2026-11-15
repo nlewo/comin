@@ -19,7 +19,7 @@ var listCmd = &cobra.Command{
 		} else {
 			systemAttr = "nixosConfigurations"
 		}
-		executor, _ := executor.NewNixFlakeExecutor(systemAttr)
+		executor, _ := executor.NewGitNixFlake(systemAttr, ".", false)
 		hosts, _ := executor.List(flakeUrl)
 		for _, host := range hosts {
 			fmt.Println(host)

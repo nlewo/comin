@@ -28,7 +28,7 @@ pkgs: rec {
       };
     in
     pkgs.runCommand "options-doc.md" { } ''
-      cat ${optionsDoc.optionsCommonMark} >> $out
+      awk 'NF { last = NR } { lines[NR] = $0 } END { for (i = 1; i <= last; i++) print lines[i] }' ${optionsDoc.optionsCommonMark} > $out
     '';
   optionsDocCommonMarkGenerator = pkgs.writers.writeBashBin "optionsDocCommonMarkGenerator" ''
     cp -v ${optionsDocCommonMark} ./docs/generated-module-options.md
