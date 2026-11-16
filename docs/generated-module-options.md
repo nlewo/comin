@@ -320,7 +320,7 @@ string
 
 
 
-Whether to enable Whether to run the tray with the desktop service\. This tray item allows confirming deployments and builds…
+Whether to enable running the tray with the desktop service\. This tray item allows confirming deployments and builds…
 
 
 
