@@ -14,6 +14,8 @@ func isBootEntry(d *protobuf.Deployment) bool {
 	return d.Operation == "boot" || d.Operation == "switch"
 }
 
+// retention computes a new list of deployments, but taking the retention policies into account.
+// Deployments are sorted from newest to oldest
 // bootedStorepath + switchedStorepath <= successfulCapacity <= allCapacity <= totalCapacity
 func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStorepath, switchedStorepath string, bootEntryOutpathCapacity, successfulOutpathCapacity, anyStorepathCapacity, capacity int) (result []*protobuf.Deployment, current, booted *protobuf.Deployment, deploymentsBootEntry, deploymentsSuccessful, deploymentsAny, gcs []*protobuf.Deployment) {
 	current = nil

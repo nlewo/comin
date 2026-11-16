@@ -290,6 +290,7 @@ message DeployerState {
 }
 
 message Store {
+  // deployments are order from newest to oldest
   repeated Deployment deployments = 1;
   repeated Generation generations = 2;
   

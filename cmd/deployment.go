@@ -19,8 +19,10 @@ var deploymentCmd = &cobra.Command{
 var bootOnly bool
 
 var deploymentListCmd = &cobra.Command{
-	Use:  "list",
-	Args: cobra.MinimumNArgs(0),
+	Use:   "list",
+	Short: "List deployments",
+	Long:  "List deployments, ordered from newest to oldest",
+	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		opts := client.ClientOpts{
 			UnixSocketPath: "/run/comin-grpc.sock",
@@ -80,18 +82,15 @@ func filterBootEntryDeployments(dpls []*protobuf.Deployment, store *protobuf.Sto
 	return filtered
 }
 
-func deploymentList(dpls []*protobuf.Deployment, store *protobuf.Store, newestFirst bool) {
-	endedAtCmp := func(a, b *protobuf.Deployment) int {
-		return a.EndedAt.AsTime().Compare(b.EndedAt.AsTime())
-	}
-	slices.SortFunc(dpls, endedAtCmp)
-	if newestFirst {
+func deploymentList(dpls []*protobuf.Deployment, store *protobuf.Store, reverse bool) {
+	if reverse {
 		slices.Reverse(dpls)
 	}
 
 	for _, dpl := range dpls {
 		fmt.Printf("%s\n", dpl.Uuid)
 		fmt.Printf("  status             %s\n", dpl.Status)
+		fmt.Printf("  gc                 %t\n", dpl.Gc)
 		fmt.Printf("  ended at           %s\n", dpl.EndedAt.AsTime().Format(time.DateTime))
 		fmt.Printf("  operation          %s\n", dpl.Operation)
 		if dpl.ProfilePath != "" {
@@ -130,9 +129,6 @@ var deploymentLatestCmd = &cobra.Command{
 			fmt.Println("No deployment found")
 			return
 		}
-		slices.SortFunc(dpls, func(a, b *protobuf.Deployment) int {
-			return a.EndedAt.AsTime().Compare(b.EndedAt.AsTime())
-		})
 		latest := dpls[len(dpls)-1]
 		deploymentList([]*protobuf.Deployment{latest}, status.Store, false)
 	},
