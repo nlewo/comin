@@ -35,7 +35,7 @@ This is a basic `flake.nix` example:
       myMachine = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          comin.nixosModules.comin
+          comin.nixosModules.default
           ({
             services.comin = {
               enable = true;
