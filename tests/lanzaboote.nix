@@ -218,7 +218,7 @@ let
   };
 
   imageHelper =
-    { lanzaboote, ... }:
+    { machine, ... }:
     ''
       import os
       import subprocess
@@ -227,12 +227,12 @@ let
       tmp_disk_image = tempfile.NamedTemporaryFile()
 
       subprocess.run([
-        "${lanzaboote.virtualisation.qemu.package}/bin/qemu-img",
+        "${machine.virtualisation.qemu.package}/bin/qemu-img",
         "create",
         "-f",
         "qcow2",
         "-b",
-        "${lanzaboote.system.build.image}/${lanzaboote.image.fileName}",
+        "${machine.system.build.image}/${machine.image.fileName}",
         "-F",
         "raw",
         tmp_disk_image.name,
@@ -242,8 +242,8 @@ let
       os.environ['NIX_DISK_IMAGE'] = tmp_disk_image.name
 
       # Enroll keys via systemd-boot by rebooting
-      ${lanzaboote.networking.hostName}.start(allow_reboot=True)
-      ${lanzaboote.networking.hostName}.connected = False
+      ${builtins.replaceStrings ["-"] ["_"] machine.networking.hostName}.start(allow_reboot=True)
+      ${builtins.replaceStrings ["-"] ["_"] machine.networking.hostName}.connected = False
     '';
 
 in
@@ -251,7 +251,7 @@ pkgs.testers.runNixOSTest {
   name = "lanzaboote";
 
   interactive.sshBackdoor.enable = true;
-  nodes.lanzaboote = {
+  nodes.lanzaboote-test = {
     imports = [
       lanzaboote
       lanzabooteModule
@@ -274,38 +274,37 @@ pkgs.testers.runNixOSTest {
         branches.main.operation = "boot";
         }
       ];
-      repositorySubdir = "tests";
     };
   };
 
   testScript =
     { nodes, ... }:
-    (imageHelper { inherit (nodes) lanzaboote; })
+    (imageHelper { machine = nodes.lanzaboote-test; })
     + ''
-      bootctl_status = lanzaboote.succeed("bootctl status")
+      bootctl_status = lanzaboote_test.succeed("bootctl status")
       print(bootctl_status)
       t.assertIn("sort-key: ${sortKey}", bootctl_status)
 
-      lanzaboote.succeed("mkdir /root/git-repository")
-      lanzaboote.succeed("cp -r ${gitRepository}/* /root/git-repository/")
-      lanzaboote.succeed("cp -r ${gitRepository}/.* /root/git-repository/")
-      lanzaboote.succeed("${pkgs.git}/bin/git -C /root/git-repository/ init -b main")
-      lanzaboote.succeed("${pkgs.git}/bin/git -C /root/git-repository/ config user.name 'Alice'")
-      lanzaboote.succeed("${pkgs.git}/bin/git -C /root/git-repository/ config user.email 'alice@bob.com'")
-      lanzaboote.succeed("${pkgs.git}/bin/git -C /root/git-repository/ add -A")
-      lanzaboote.succeed("${pkgs.git}/bin/git -C /root/git-repository/ commit -m init")
+      lanzaboote_test.succeed("mkdir /root/git-repository")
+      lanzaboote_test.succeed("cp -r ${gitRepository}/* /root/git-repository/")
+      lanzaboote_test.succeed("cp -r ${gitRepository}/.* /root/git-repository/")
+      lanzaboote_test.succeed("${pkgs.git}/bin/git -C /root/git-repository/ init -b main")
+      lanzaboote_test.succeed("${pkgs.git}/bin/git -C /root/git-repository/ config user.name 'Alice'")
+      lanzaboote_test.succeed("${pkgs.git}/bin/git -C /root/git-repository/ config user.email 'alice@bob.com'")
+      lanzaboote_test.succeed("${pkgs.git}/bin/git -C /root/git-repository/ add -A")
+      lanzaboote_test.succeed("${pkgs.git}/bin/git -C /root/git-repository/ commit -m init")
 
-      # status, output = lanzaboote.execute("nix --extra-experimental-features 'nix-command flakes' derivation show /root/git-repository/tests#nixosConfigurations.lanzaboote.config.system.build.toplevel")
+      # status, output = lanzaboote_test.execute("nix --extra-experimental-features 'nix-command flakes' derivation show /root/git-repository/tests#nixosConfigurations.lanzaboote_test.config.system.build.toplevel")
       # print(output)
-      lanzaboote.succeed("comin fetch")
-      lanzaboote.wait_until_succeeds("comin status --json | ${pkgs.jq}/bin/jq -e '.deployer.deployment.error_msg == \"\"'")
+      lanzaboote_test.succeed("comin fetch")
+      lanzaboote_test.wait_until_succeeds("comin status --json | ${pkgs.jq}/bin/jq -e '.deployer.deployment.error_msg == \"\"'")
 
 
       # We want systemd to recognize our PE binaries as true UKIs. systemd has
       # become more picky in the past, so make sure.
-      t.assertIn("Kernel Type: uki", lanzaboote.succeed("bootctl kernel-inspect /boot/EFI/Linux/nixos-generation-1-*.efi"))
+      t.assertIn("Kernel Type: uki", lanzaboote_test.succeed("bootctl kernel-inspect /boot/EFI/Linux/nixos-generation-1-*.efi"))
 
       # Verify comin service is present
-      lanzaboote.succeed("systemctl status comin.service")
+      lanzaboote_test.succeed("systemctl status comin.service")
     '';
 }

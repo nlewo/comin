@@ -77,6 +77,10 @@
           cominPackage = self.packages."${system}".comin;
         };
       });
+      # This is only used by NixOS tests
+      nixosConfigurations = {
+        lanzaboote-test = self.checks.x86_64-linux.lanzaboote-test.nodes.lanzaboote-test;
+      };
       nixosModules = {
         comin = nixpkgs.lib.modules.importApply ./nix/module.nix { inherit self; };
         default = self.nixosModules.comin;

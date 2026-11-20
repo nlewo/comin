@@ -23,14 +23,16 @@ type GenlistEntry struct {
 // GenlistFromDeploymentHistory converts a list of deployments to a list of GenlistEntry
 func GenlistFromDeploymentHistory(deployments []*protobuf.Deployment, path string) error {
 	entries := make([]GenlistEntry, 0, len(deployments))
-	for i, d := range deployments {
+	// The history is reversed because a genlist.json file is ordered from oldest to newest generations
+	for i := len(deployments) - 1; i >= 0; i-- {
+		d := deployments[i]
 		if d.Operation != "switch" && d.Operation != "boot" || d.Gc {
 			continue
 		}
 		genlistEntry := GenlistEntry{
 			Version:   len(deployments) - i,
 			OutPath:   d.Generation.OutPath,
-			BuildTime: d.CreatedAt.AsTime().Second(),
+			BuildTime: int(d.CreatedAt.AsTime().Unix()),
 			Label:     d.Uuid,
 		}
 		entries = append(entries, genlistEntry)
