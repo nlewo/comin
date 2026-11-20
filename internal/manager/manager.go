@@ -54,7 +54,7 @@ type Manager struct {
 	isSuspended bool
 
 	// Store the last fetched repository state to detect updates
-	lastFetchedCommitId string
+	lastFetchedCommitId        string
 	lastFetchedBranchIsTesting *wrapperspb.BoolValue
 
 	broker       *broker.Broker
@@ -126,15 +126,10 @@ func (m *Manager) DeploymentLatestSubmit(operation string) error {
 	if latest == nil {
 		return fmt.Errorf("manager: no previous deployment")
 	}
-	// If no operation is provided, use default based on branch type
 	if operation == "" {
-		if latest.Generation.Source != nil && latest.Generation.Source.GetGit() != nil && latest.Generation.Source.GetGit().SelectedBranchIsTesting != nil && latest.Generation.Source.GetGit().SelectedBranchIsTesting.Value {
-			operation = "test"
-		} else {
-			operation = "switch"
-		}
+		operation = latest.OperationSubmitted
 	}
-	reason := fmt.Sprintf("The latest deployment %s has been resubmitted", latest.Uuid)
+	reason := fmt.Sprintf("The latest deployment %s has been resubmitted with operation %s", latest.Uuid, operation)
 	m.deployer.Submit(latest.Generation, operation, true, reason)
 	return nil
 }
@@ -178,7 +173,7 @@ func (m *Manager) FetchAndBuild(ctx context.Context) {
 					// Check if the repository has been updated by comparing with last fetched state
 					updated := m.lastFetchedCommitId != rs.SelectedCommitId ||
 						(m.lastFetchedBranchIsTesting != nil && rs.SelectedBranchIsTesting != nil &&
-						m.lastFetchedBranchIsTesting.GetValue() != rs.SelectedBranchIsTesting.GetValue())
+							m.lastFetchedBranchIsTesting.GetValue() != rs.SelectedBranchIsTesting.GetValue())
 					if !updated {
 						continue
 					}
