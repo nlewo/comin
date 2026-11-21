@@ -53,7 +53,7 @@ var desktopCmd = &cobra.Command{
 			tray, _ := cmd.Flags().GetBool("tray")
 			if tray {
 				logrus.Println("Loading tray.")
-				systray.Run(func() { onTrayReady(c) }, onTrayExit)
+				systray.Run(func() { onTrayReady(c, title) }, onTrayExit)
 			} else {
 				ch := c.Stream(context.Background())
 				for streamer := range ch {
@@ -86,7 +86,7 @@ func scenario() {
 	time.Sleep(time.Second)
 
 	d := protobuf.Deployment{
-		Status:    store.StatusToString(store.Init),
+		Status:     store.StatusToString(store.Init),
 		Generation: &g,
 	}
 	e = protobuf.Event{Type: &protobuf.Event_DeploymentStartedType{DeploymentStartedType: &protobuf.Event_DeploymentStarted{Deployment: &d}}}
@@ -94,7 +94,7 @@ func scenario() {
 	time.Sleep(time.Second)
 
 	d = protobuf.Deployment{
-		Status:    store.StatusToString(store.Done),
+		Status:     store.StatusToString(store.Done),
 		Generation: &g,
 	}
 	e = protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: &protobuf.Event_DeploymentFinished{Deployment: &d}}}
@@ -179,11 +179,11 @@ func displayNotification(message string) {
 	}
 }
 
-func onTrayReady(client client.Client) {
+func onTrayReady(client client.Client, title string) {
 	systray.SetIcon(icons.GetIcon(client))
-	systray.SetTitle("comin")
-	systray.SetTooltip("comin")
-	go refreshAvailableConfirmationsLoop(client)
+	systray.SetTitle(title)
+	systray.SetTooltip(title)
+	go refreshAvailableConfirmationsLoop(client, title)
 	go func() {
 		ch := client.Stream(context.Background())
 		for streamer := range ch {
@@ -215,8 +215,8 @@ func trayEventHandler(client client.Client) func(*protobuf.Event) error {
 	}
 }
 
-func refreshAvailableConfirmationsLoop(client client.Client) {
-	buildItem, deployItem := initializeTrayMenu(client)
+func refreshAvailableConfirmationsLoop(client client.Client, title string) {
+	buildItem, deployItem := initializeTrayMenu(client, title)
 	// Reload statuses when the tray is opened.
 	for range systray.TrayOpenedCh {
 		status, err := client.GetManagerState()
@@ -255,9 +255,9 @@ func generateTrayMessage(c *protobuf.Confirmer, for_ string) (string, bool) {
 }
 
 // Initialize the items in the tray menu.
-func initializeTrayMenu(client client.Client) (*systray.MenuItem, *systray.MenuItem) {
+func initializeTrayMenu(client client.Client, title string) (*systray.MenuItem, *systray.MenuItem) {
 	// Header
-	addMenuItem("comin", "", func() {}).Disable()
+	addMenuItem(title, "", func() {}).Disable()
 	systray.AddSeparator()
 
 	// Status items
