@@ -345,6 +345,11 @@ func deployDarwin(ctx context.Context, outPath, operation string, profilePaths [
 	if err = switchToConfigurationDarwin(operation, outPath, false, stdout, stderr); err != nil {
 		return
 	}
+	if operation == "switch" || operation == "boot" {
+		if err = profile.SetDarwinSystemProfile(outPath); err != nil {
+			return
+		}
+	}
 
 	afterCominUnitFileHash := cominUnitFileHashDarwin()
 
