@@ -225,19 +225,21 @@ func cominUnitFileHashLinux() string {
 	return hash
 }
 
+// The nix-darwin module records the comin package and configuration in this file, and restarts comin itself when an activation is not run by comin.
+const (
+	cominInputsDarwin  = "/var/lib/comin/inputs"
+	cominActivationEnv = "COMIN_ACTIVATION=1"
+)
+
 func cominUnitFileHashDarwin() string {
-	logrus.Infof("nix: generating the comin service plist file sha256: 'launchctl print system/com.github.nlewo.comin'")
-	cmd := exec.Command("/bin/launchctl", "print", "system/com.github.nlewo.comin")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		logrus.Infof("nix: command 'launchctl print system/com.github.nlewo.comin' fails with '%s'", err)
+	logrus.Infof("nix: generating the comin service inputs sha256: '%s'", cominInputsDarwin)
+	content, err := os.ReadFile(cominInputsDarwin)
+	if err != nil {
+		logrus.Infof("nix: reading '%s' fails with '%s'", cominInputsDarwin, err)
 		return ""
 	}
-	sum := sha256.Sum256(stdout.Bytes())
-	hash := fmt.Sprintf("%x", sum)
-	logrus.Infof("nix: the comin service plist sha256 is '%s'", hash)
+	hash := fmt.Sprintf("%x", sha256.Sum256(content))
+	logrus.Infof("nix: the comin service inputs sha256 is '%s'", hash)
 	return hash
 }
 
@@ -276,6 +278,7 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool, 
 
 	logrus.Infof("nix: activating user environment: '%s'", activateUserExe)
 	userCmd := exec.Command(activateUserExe)
+	userCmd.Env = append(os.Environ(), cominActivationEnv)
 	userCmd.Stdout = stdout
 	userCmd.Stderr = stderr
 	if err := userCmd.Run(); err != nil {
@@ -284,6 +287,7 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool, 
 
 	logrus.Infof("nix: activating system environment: '%s'", activateExe)
 	cmd := exec.Command(activateExe)
+	cmd.Env = append(os.Environ(), cominActivationEnv)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {

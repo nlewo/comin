@@ -29,16 +29,28 @@ in
 
     environment.systemPackages = [ package ];
     services.comin.package = lib.mkDefault pkgs.comin or self.packages.${system}.comin or null;
+
+    # The plist only names /etc paths, so that nix-darwin does not reload comin during the activations it runs.
+    environment.etc = {
+      "comin/comin".source = lib.getExe package;
+      "comin/config.yaml".source = cominConfigYaml;
+      "comin/path".source = pkgs.buildEnv {
+        name = "comin-path";
+        paths = [
+          config.nix.package
+          pkgs.git
+          pkgs.openssh
+        ];
+      };
+    };
     launchd.daemons.comin = {
       command = lib.concatStringsSep " " (
-        [
-          (lib.getExe package)
-        ]
+        [ "/etc/comin/comin" ]
         ++ (lib.optionals cfg.services.comin.debug [ "--debug" ])
         ++ [
           "run"
           "--config"
-          "${cominConfigYaml}"
+          "/etc/comin/config.yaml"
         ]
       );
       serviceConfig = {
@@ -47,13 +59,7 @@ in
         RunAtLoad = true;
         StandardErrorPath = "/var/log/comin.log";
         StandardOutPath = "/var/log/comin.log";
-        EnvironmentVariables = {
-          PATH = lib.makeBinPath [
-            config.nix.package
-            pkgs.git
-            pkgs.openssh
-          ];
-        };
+        EnvironmentVariables.PATH = "/etc/comin/path/bin";
       };
     };
 
@@ -75,6 +81,18 @@ in
         if ! /bin/launchctl list | grep -q "com.github.nlewo.comin"; then
           echo "Comin service not running, starting it..."
           /bin/launchctl start com.github.nlewo.comin || true
+        fi
+      fi
+    '';
+
+    # comin restarts itself after its own deployments once they are recorded
+    system.activationScripts.postActivation.text = lib.mkAfter ''
+      cominInputs="${package} ${cominConfigYaml}"
+      if [ "$(cat /var/lib/comin/inputs 2>/dev/null)" != "$cominInputs" ]; then
+        mkdir -p /var/lib/comin
+        echo "$cominInputs" > /var/lib/comin/inputs
+        if [ -z "''${COMIN_ACTIVATION:-}" ]; then
+          /bin/launchctl kickstart -k system/com.github.nlewo.comin || true
         fi
       fi
     '';
