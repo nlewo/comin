@@ -27,6 +27,7 @@ var desktopCmd = &cobra.Command{
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
+		setAppName(title)
 		err := beeep.Notify(title, "Agent desktop notifications started.", []byte{})
 		if err != nil {
 			logrus.Warnf("failed to send the startup notification: %s", err)
@@ -54,6 +55,12 @@ var desktopCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+// setAppName sets the application name shown by the desktop environment
+// for notifications. beeep uses "DefaultAppName" unless it is changed.
+func setAppName(name string) {
+	beeep.AppName = name
 }
 
 func scenario() {
