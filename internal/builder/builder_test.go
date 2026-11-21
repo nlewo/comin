@@ -186,24 +186,25 @@ func TestBuilderPreemption(t *testing.T) {
 	eMock := NewExecutorMock(false)
 	b := New(s, eMock, bk, "", "", "", "", false, 5*time.Second, 5*time.Second, 0, 30*time.Second, "")
 	generation1 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
-	_ = b.Eval(t.Context(), &generation1)
+	assert.Nil(t, b.Eval(t.Context(), &generation1))
 	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g, _ := b.store.GenerationGet(b.GenerationUuid)
 		assert.Equal(c, "commit-1", g.Source.GetGit().SelectedCommitId)
 	}, 2*time.Second, 100*time.Millisecond)
 
-	// Wait for the first evaluation to finish to avoid GC removing generation2
-	eMock.evalDone <- struct{}{}
-	<-b.EvaluationDone
-
+	// Preempt the running evaluation with a newer generation.
 	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
-	_ = b.Eval(t.Context(), &generation2)
+	assert.Nil(t, b.Eval(t.Context(), &generation2))
 	assert.True(t, b.isEvaluating.Load())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		g, _ := b.store.GenerationGet(b.GenerationUuid)
+		g, err := b.store.GenerationGet(b.GenerationUuid)
+		assert.Nil(c, err)
 		assert.Equal(c, "commit-2", g.Source.GetGit().SelectedCommitId)
 	}, 2*time.Second, 100*time.Millisecond)
+	g1, err := b.store.GenerationGet(generation1.Uuid)
+	assert.Nil(t, err)
+	assert.Equal(t, store.EvalCanceled.String(), g1.EvalStatus)
 }
 
 func TestBuilderStop(t *testing.T) {
@@ -301,7 +302,9 @@ func TestBuilderPreemptedBuildIsCanceledNotFailed(t *testing.T) {
 
 	// A newer commit lands while commit-1 is still building.
 	generation2 := s.NewGeneration("", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
-	_ = b.Eval(ctx, &generation2)
+	assert.Nil(t, b.Eval(ctx, &generation2))
+	assert.True(t, b.isEvaluating.Load())
+	assert.Equal(t, generation2.Uuid, b.GenerationUuid)
 
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		g, err := b.store.GenerationGet(gUUID)

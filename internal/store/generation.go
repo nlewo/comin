@@ -112,7 +112,7 @@ func StringToBuildStatus(statusStr string) BuildStatus {
 	}
 }
 
-func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *protobuf.GitRepositoryStatus, buildAttemptsLimit int) (g protobuf.Generation) {
+func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *protobuf.GitRepositoryStatus, buildAttemptsLimit int) protobuf.Generation {
 	// Find the selected remote URL
 	selectedRemoteUrl := ""
 	for _, remote := range rs.Remotes {
@@ -122,8 +122,8 @@ func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *pr
 		}
 	}
 
-	g = protobuf.Generation{
-		Uuid:   uuid.New().String(),
+	g := &protobuf.Generation{
+		Uuid: uuid.New().String(),
 		Source: &protobuf.Source{
 			Source: &protobuf.Source_Git{
 				Git: &protobuf.Git{
@@ -142,13 +142,17 @@ func (s *Store) NewGeneration(hostname, repositoryDir, systemAttr string, rs *pr
 				},
 			},
 		},
-		EvalStatus:   EvalInit.String(),
-		BuildStatus: BuildInit.String(),
-		AttemptNumber: 0,
+		EvalStatus:         EvalInit.String(),
+		BuildStatus:        BuildInit.String(),
+		AttemptNumber:      0,
 		BuildAttemptsLimit: int32(buildAttemptsLimit),
 	}
-	s.persisted.Generations = append(s.persisted.Generations, &g)
-	return
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.persisted.Generations = append(s.persisted.Generations, g)
+	s.lastCreated = g
+	return *(proto.CloneOf(g))
 }
 
 func GenerationShow(g *protobuf.Generation) {
@@ -200,7 +204,7 @@ func GenerationShow(g *protobuf.Generation) {
 func (s *Store) generationsGC() {
 	alive := make([]*protobuf.Generation, 0)
 	for _, g := range s.persisted.Generations {
-		if g == s.lastEvalStarted || g == s.lastEvalFinished || g == s.lastBuildStarted || g == s.lastBuildFinished {
+		if g == s.lastCreated || g == s.lastEvalStarted || g == s.lastEvalFinished || g == s.lastBuildStarted || g == s.lastBuildFinished {
 			alive = append(alive, g)
 		}
 	}

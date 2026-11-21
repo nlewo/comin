@@ -304,3 +304,62 @@ func TestGenerationBuildErrorIsAFailure(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, BuildFailed.String(), got.BuildStatus)
 }
+
+func TestNewGenerationSurvivesPreemptedEvalGC(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+	s, err := New(bk, tmp+"/state.json", tmp+"/gcroots", 2, 2, 5)
+	assert.Nil(t, err)
+
+	running := s.NewGeneration("host", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
+	assert.Nil(t, s.GenerationEvalStarted(running.Uuid))
+
+	next := s.NewGeneration("host", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
+	// The preempted evaluation finishes and triggers generationsGC before
+	// GenerationEvalStarted is called for next.
+	assert.Nil(t, s.GenerationEvalFinished(running.Uuid, "", "", "", context.Canceled))
+
+	assert.Nil(t, s.GenerationEvalStarted(next.Uuid))
+}
+
+func TestNewGenerationSurvivesPreemptedBuildGC(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+	s, err := New(bk, tmp+"/state.json", tmp+"/gcroots", 2, 2, 5)
+	assert.Nil(t, err)
+
+	running := s.NewGeneration("host", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
+	assert.Nil(t, s.GenerationEvalStarted(running.Uuid))
+	assert.Nil(t, s.GenerationEvalFinished(running.Uuid, "drv", "out", "", nil))
+	assert.Nil(t, s.GenerationBuildStart(running.Uuid, "need to be built"))
+
+	next := s.NewGeneration("host", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
+	// The preempted build finishes and triggers generationsGC before
+	// GenerationEvalStarted is called for next.
+	assert.Nil(t, s.GenerationBuildFinished(running.Uuid, context.Canceled))
+
+	assert.Nil(t, s.GenerationEvalStarted(next.Uuid))
+}
+
+func TestSupersededNewGenerationIsGarbageCollected(t *testing.T) {
+	tmp := t.TempDir()
+	bk := broker.New()
+	bk.Start()
+	s, err := New(bk, tmp+"/state.json", tmp+"/gcroots", 2, 2, 5)
+	assert.Nil(t, err)
+
+	running := s.NewGeneration("host", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-1"}, 0)
+	assert.Nil(t, s.GenerationEvalStarted(running.Uuid))
+
+	superseded := s.NewGeneration("host", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-2"}, 0)
+	latest := s.NewGeneration("host", "", "", &protobuf.GitRepositoryStatus{SelectedCommitId: "commit-3"}, 0)
+
+	assert.Nil(t, s.GenerationEvalFinished(running.Uuid, "", "", "", context.Canceled))
+
+	_, err = s.GenerationGet(superseded.Uuid)
+	assert.Error(t, err)
+
+	assert.Nil(t, s.GenerationEvalStarted(latest.Uuid))
+}
