@@ -316,6 +316,35 @@ string
 
 
 
+## services\.comin\.desktop\.tray
+
+
+
+Whether to enable running the tray with the desktop service\. This tray item allows confirming deployments and builds…
+
+
+
+*Type:*
+boolean
+
+
+
+*Default:*
+
+```nix
+false
+```
+
+
+
+*Example:*
+
+```nix
+true
+```
+
+
+
 ## services\.comin\.evalTimeout
 
 
