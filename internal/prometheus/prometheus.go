@@ -93,8 +93,22 @@ func New() Prometheus {
 }
 
 func Subscribe(broker *brokerPkg.Broker, metrics *Prometheus) {
+	filterEvents := func(event *protobuf.Event) bool {
+		switch {
+		case event.GetFetched() != nil,
+			event.GetEvalFinishedType() != nil,
+			event.GetBuildFinishedType() != nil,
+			event.GetDeploymentFinishedType() != nil,
+			event.GetSuspend() != nil,
+			event.GetResume() != nil,
+			event.GetRebootRequired() != nil:
+			return true
+		}
+		return false
+	}
+
 	go (func() {
-		c := broker.Subscribe("prometheus")
+		c := broker.SubscribeWithFilter("prometheus", filterEvents)
 
 		for {
 			m := <-c
