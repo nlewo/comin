@@ -274,12 +274,15 @@ func switchToConfigurationDarwin(operation string, outPath string, dryRun bool, 
 		return nil
 	}
 
-	logrus.Infof("nix: activating user environment: '%s'", activateUserExe)
-	userCmd := exec.Command(activateUserExe)
-	userCmd.Stdout = stdout
-	userCmd.Stderr = stderr
-	if err := userCmd.Run(); err != nil {
-		return fmt.Errorf("user activation command %s fails with %s", activateUserExe, err)
+	// nix-darwin no longer builds activate-user since nix-darwin/nix-darwin#1825.
+	if isStorePathExist(activateUserExe) {
+		logrus.Infof("nix: activating user environment: '%s'", activateUserExe)
+		userCmd := exec.Command(activateUserExe)
+		userCmd.Stdout = stdout
+		userCmd.Stderr = stderr
+		if err := userCmd.Run(); err != nil {
+			return fmt.Errorf("user activation command %s fails with %s", activateUserExe, err)
+		}
 	}
 
 	logrus.Infof("nix: activating system environment: '%s'", activateExe)
