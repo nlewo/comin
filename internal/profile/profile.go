@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path"
 	"slices"
-	"strings"
 
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/sirupsen/logrus"
@@ -16,6 +15,8 @@ const (
 	systemProfiles  = "/nix/var/nix/profiles/system-profiles"
 	profileName     = "comin"
 	cominProfileDir = systemProfiles + "/" + profileName
+
+	darwinSystemProfile = "/nix/var/nix/profiles/system"
 )
 
 func RemoveProfiles(bootEntryOutPaths []string) {
@@ -115,15 +116,13 @@ func SetSystemProfile(operation string, outPath string, dryRun bool) (profilePat
 
 // SetDarwinSystemProfile points the nix-darwin system profile, which is activated at boot, at outPath.
 func SetDarwinSystemProfile(outPath string) error {
-	for _, args := range [][]string{{"--set", outPath}, {"--delete-generations", "old"}} {
-		cmdStr := fmt.Sprintf("nix-env --profile /nix/var/nix/profiles/system %s", strings.Join(args, " "))
-		logrus.Infof("nix: running '%s'", cmdStr)
-		cmd := exec.Command("nix-env", append([]string{"--profile", "/nix/var/nix/profiles/system"}, args...)...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("nix: command '%s' fails with %s", cmdStr, err)
-		}
+	cmdStr := fmt.Sprintf("nix-env --profile %s --set %s", darwinSystemProfile, outPath)
+	logrus.Infof("nix: running '%s'", cmdStr)
+	cmd := exec.Command("nix-env", "--profile", darwinSystemProfile, "--set", outPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("nix: command '%s' fails with %s", cmdStr, err)
 	}
 	return nil
 }
