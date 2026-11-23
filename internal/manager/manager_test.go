@@ -304,7 +304,7 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	d := mkDeployerMock(t)
 
 	// Test with Darwin configuration
-	e, _ := executor.NewGitNixFlakeDarwin("", false)
+	e, _ := executor.NewGitNixFlakeDarwin("", false, t.TempDir())
 	bc := NewConfirmer(bk, Without, 0, "")
 	bc.Start()
 	dc := NewConfirmer(bk, Without, 0, "")

@@ -2,6 +2,7 @@ package deployer
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 	"time"
@@ -287,4 +288,66 @@ func TestIsAlreadyDeployedUnchangedSystem(t *testing.T) {
 		assert.Equal(c, "gen-c", d.Deployment().Generation.Uuid)
 		assert.Equal(c, "path-A", d.Deployment().Generation.OutPath)
 	}, 5*time.Second, 100*time.Millisecond)
+}
+
+type deployResumerMock struct {
+	outPath string
+	resume  chan error
+}
+
+func (r deployResumerMock) InterruptedDeploy() (string, bool) {
+	return r.outPath, true
+}
+
+func (r deployResumerMock) ResumeDeploy(stdout, stderr io.Writer) (string, error) {
+	return "profile-path", <-r.resume
+}
+
+func TestDeployerResumesInterruptedDeployment(t *testing.T) {
+	tests := []struct {
+		name           string
+		resumeErr      error
+		expectedStatus string
+	}{
+		{
+			name:           "the interrupted deployment succeeds",
+			expectedStatus: store.StatusToString(store.Done),
+		},
+		{
+			name:           "the interrupted deployment fails",
+			resumeErr:      errors.New("the activation failed"),
+			expectedStatus: store.StatusToString(store.Failed),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
+				return false, "", nil
+			}
+			tmp := t.TempDir()
+			bk := broker.New()
+			bk.Start()
+			s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+			assert.Nil(t, err)
+			interrupted := s.NewDeployment(&protobuf.Generation{Uuid: "generation", OutPath: "out-path"}, "switch", "", "", "")
+			assert.Nil(t, s.DeploymentStarted(interrupted.Uuid, "", ""))
+
+			resumer := deployResumerMock{outPath: "out-path", resume: make(chan error)}
+			d := New(s, deployFunc, nil, "", bk)
+			d.DeployResumer = resumer
+			d.Run(t.Context())
+			assert.EventuallyWithT(t, func(c *assert.CollectT) {
+				assert.True(c, d.IsDeploying())
+			}, 5*time.Second, 100*time.Millisecond)
+
+			resumer.resume <- tt.resumeErr
+			dpl := <-d.DeploymentDoneCh
+			assert.Equal(t, interrupted.Uuid, dpl.Uuid)
+			assert.Equal(t, tt.expectedStatus, dpl.Status)
+			assert.Equal(t, "profile-path", dpl.ProfilePath)
+			assert.NotNil(t, dpl.EndedAt)
+			assert.False(t, d.IsDeploying())
+		})
+	}
 }

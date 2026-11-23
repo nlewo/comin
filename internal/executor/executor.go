@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"runtime"
 
 	"github.com/nlewo/comin/pkg/protobuf"
@@ -13,11 +14,11 @@ import (
 type EvalFunc func(ctx context.Context, source *protobuf.Source, stdout, stderr io.WriteCloser) (drvPath string, outPath string, machineId string, err error)
 type BuildFunc func(ctx context.Context, drvPath string, stdout, stdin io.WriteCloser) error
 
-func New(repositoryType, repositoryPath string, submodules bool) (e Executor, err error) {
+func New(repositoryType, repositoryPath string, submodules bool, stateDir string) (e Executor, err error) {
 	switch repositoryType {
 	case "flake":
 		if runtime.GOOS == "darwin" {
-			return NewGitNixFlakeDarwin(repositoryPath, submodules)
+			return NewGitNixFlakeDarwin(repositoryPath, submodules, stateDir)
 		} else {
 			return NewGitNixFlakeNixOS(repositoryPath, submodules)
 		}
@@ -49,10 +50,14 @@ func NewGitNixFlakeNixOS(repositoryPath string, submodules bool) (e Executor, er
 	e, err = NewGitNixFlake("nixosConfigurations", repositoryPath, submodules)
 	return
 }
-func NewGitNixFlakeDarwin(repositoryPath string, submodules bool) (e Executor, err error) {
+func NewGitNixFlakeDarwin(repositoryPath string, submodules bool, stateDir string) (e Executor, err error) {
 	logrus.Info("executor: creating a nix-darwin flake executor")
-	e, err = NewGitNixFlake("darwinConfigurations", repositoryPath, submodules)
-	return
+	n, err := NewGitNixFlake("darwinConfigurations", repositoryPath, submodules)
+	if err != nil {
+		return nil, err
+	}
+	n.darwinDeployDir = filepath.Join(stateDir, "darwin-deploy")
+	return n, nil
 }
 
 func NewGitNixNixOS(repositoryPath string, submodules bool) (e Executor, err error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -27,7 +28,15 @@ const (
 
 type DeployFunc func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error)
 
+// DeployResumer waits for the end of a deployment that a previous comin process started.
+type DeployResumer interface {
+	InterruptedDeploy() (outPath string, found bool)
+	ResumeDeploy(stdout, stderr io.Writer) (profilePath string, err error)
+}
+
 type Deployer struct {
+	// DeployResumer is nil when deployments never outlive comin
+	DeployResumer    DeployResumer
 	GenerationCh     chan *protobuf.Generation
 	deployerFunc     DeployFunc
 	DeploymentDoneCh chan *protobuf.Deployment
@@ -202,8 +211,58 @@ func (d *Deployer) Submit(generation *protobuf.Generation, operation string, for
 	}
 }
 
+func (d *Deployer) finishDeployment(deployment *protobuf.Deployment, deploymentErr error, cominNeedRestart bool, profilePath, booted, current string) {
+	deployment.EndedAt = timestamppb.New(time.Now().UTC())
+	if err := d.store.DeploymentFinished(deployment.Uuid, deploymentErr, cominNeedRestart, profilePath, booted, current); err != nil {
+		logrus.Errorf("deployer: could not update the deployment %s in the store", deployment.Uuid)
+		return
+	}
+	cmd := d.postDeploymentCommand
+	if cmd != "" {
+		// TODO: we should also log these outputs
+		_, err := utils.RunPostCommand(cmd, "deploy", deployment.Generation, deployment.Status, deployment.ErrorMsg)
+		if err != nil {
+			logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", deployment.Generation.Uuid, cmd, err)
+		}
+	}
+
+	d.isDeploying.Store(false)
+	d.deployment.Store(deployment)
+	d.DeploymentDoneCh <- d.Deployment()
+}
+
+func (d *Deployer) resumeInterruptedDeployment() {
+	if d.DeployResumer == nil {
+		return
+	}
+	outPath, found := d.DeployResumer.InterruptedDeploy()
+	if !found {
+		return
+	}
+	deployments := d.store.DeploymentList()
+	i := slices.IndexFunc(deployments, func(deployment *protobuf.Deployment) bool {
+		return deployment.EndedAt == nil && deployment.Generation.OutPath == outPath
+	})
+	if i == -1 {
+		logrus.Infof("deployer: waiting for the end of the interrupted deployment of %s, which is not in the store", outPath)
+		_, _ = d.DeployResumer.ResumeDeploy(io.Discard, io.Discard)
+		return
+	}
+	deployment := deployments[i]
+	logrus.Infof("deployer: waiting for the end of the interrupted deployment %s", deployment.Uuid)
+	d.deployment.Store(deployment)
+	d.isDeploying.Store(true)
+	stdout, stderr := d.broker.GetLogger("deployment", deployment.Generation.Uuid)
+	profilePath, err := d.DeployResumer.ResumeDeploy(stdout, stderr)
+	_ = stdout.Close()
+	_ = stderr.Close()
+	booted, current := utils.GetBootedAndCurrentStorepaths()
+	d.finishDeployment(deployment, err, false, profilePath, booted, current)
+}
+
 func (d *Deployer) Run(ctx context.Context) {
 	go func() {
+		d.resumeInterruptedDeployment()
 		for {
 			var cominNeedRestart bool
 			var profilePath string
@@ -248,24 +307,7 @@ func (d *Deployer) Run(ctx context.Context) {
 				_ = stdout.Close()
 				_ = stderr.Close()
 			}
-			deployment := d.Deployment()
-			deployment.EndedAt = timestamppb.New(time.Now().UTC())
-			if err := d.store.DeploymentFinished(dpl.Uuid, err, cominNeedRestart, profilePath, booted, current); err != nil {
-				logrus.Errorf("deployer: could not update the deployment %s in the store", dpl.Uuid)
-				continue
-			}
-			cmd := d.postDeploymentCommand
-			if cmd != "" {
-				// TODO: we should also log these outputs
-				_, err = utils.RunPostCommand(cmd, "deploy", deployment.Generation, deployment.Status, deployment.ErrorMsg)
-				if err != nil {
-					logrus.Errorf("deployer: deploying generation %s, post deployment command [%s] failed %v", g.Uuid, cmd, err)
-				}
-			}
-
-			d.isDeploying.Store(false)
-			d.deployment.Store(deployment)
-			d.DeploymentDoneCh <- d.Deployment()
+			d.finishDeployment(d.Deployment(), err, cominNeedRestart, profilePath, booted, current)
 		}
 	}()
 }
