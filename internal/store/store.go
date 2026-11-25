@@ -24,6 +24,11 @@ type Store struct {
 	successfulCapacity int
 	anyCapacity        int
 
+	// lastCreated is the most recently created generation, kept by
+	// generationsGC until a newer one is created so that a preempted
+	// evaluation or build finishing does not collect it before
+	// GenerationEvalStarted runs.
+	lastCreated       *protobuf.Generation
 	lastEvalStarted   *protobuf.Generation
 	lastEvalFinished  *protobuf.Generation
 	lastBuildStarted  *protobuf.Generation
