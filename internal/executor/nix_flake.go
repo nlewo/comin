@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/nlewo/comin/internal/utils"
 	"github.com/nlewo/comin/pkg/protobuf"
@@ -16,6 +17,8 @@ type GitNixFlake struct {
 	systemAttr     string
 	repositoryPath string
 	submodules     bool
+	// Where a nix-darwin deployment records its output and its result
+	darwinDeployDir string
 }
 
 func NewGitNixFlake(systemAttr, repositoryPath string, submodules bool) (*GitNixFlake, error) {
@@ -78,7 +81,28 @@ func (n *GitNixFlake) Build(ctx context.Context, drvPath string, stdout, stdin i
 }
 
 func (n *GitNixFlake) Deploy(ctx context.Context, outPath, operation string, profilePaths []string, stdout, stderr io.WriteCloser) (needToRestartComin bool, profilePath string, err error) {
-	return deploy(ctx, outPath, operation, n.systemAttr, profilePaths, stdout, stderr)
+	if n.darwinDeployDir == "" {
+		return deploy(ctx, outPath, operation, n.systemAttr, profilePaths, stdout, stderr)
+	}
+	if err = startDarwinDeploy(n.darwinDeployDir, outPath, operation, profilePaths); err != nil {
+		return
+	}
+	return waitDarwinDeploy(n.darwinDeployDir, stdout, stderr)
+}
+
+// InterruptedDeploy returns the out path of a deployment a previous comin process didn't see the end of.
+func (n *GitNixFlake) InterruptedDeploy() (outPath string, found bool) {
+	if n.darwinDeployDir == "" {
+		return
+	}
+	content, err := os.ReadFile(filepath.Join(n.darwinDeployDir, "out-path"))
+	return string(content), err == nil
+}
+
+// ResumeDeploy waits for the end of the interrupted deployment.
+func (n *GitNixFlake) ResumeDeploy(stdout, stderr io.Writer) (profilePath string, err error) {
+	_, profilePath, err = waitDarwinDeploy(n.darwinDeployDir, stdout, stderr)
+	return
 }
 
 type Path struct {
