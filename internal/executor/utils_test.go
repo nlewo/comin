@@ -3,7 +3,9 @@ package executor
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -229,6 +231,43 @@ func TestSwitchToConfiguration(t *testing.T) {
 
 			// May error due to missing files in test environment, but shouldn't panic
 			t.Logf("switchToConfiguration with %s returned error: %v", tt.systemAttr, err)
+		})
+	}
+}
+
+func TestSwitchToConfigurationDarwinActivation(t *testing.T) {
+	tests := []struct {
+		name     string
+		scripts  []string
+		expected string
+	}{
+		{
+			name:     "without activate-user",
+			scripts:  []string{"activate"},
+			expected: "activate\n",
+		},
+		{
+			name:     "with activate-user",
+			scripts:  []string{"activate-user", "activate"},
+			expected: "activate-user\nactivate\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			outPath := t.TempDir()
+			ran := filepath.Join(t.TempDir(), "ran")
+			for _, script := range tt.scripts {
+				content := fmt.Sprintf("#!/bin/sh\necho %s >> %s\n", script, ran)
+				assert.NoError(t, os.WriteFile(filepath.Join(outPath, script), []byte(content), 0755))
+			}
+
+			err := switchToConfigurationDarwin("switch", outPath, false, os.Stdout, os.Stderr)
+			assert.NoError(t, err)
+
+			content, err := os.ReadFile(ran)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, string(content))
 		})
 	}
 }
