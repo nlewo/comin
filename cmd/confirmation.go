@@ -16,11 +16,32 @@ var confirmationCmd = &cobra.Command{
 	Use: "confirmation",
 }
 
+var confirmationFor string
+
+// acceptTarget picks the generation to confirm and the confirmer(s) to
+// confirm it for. Without forWhat, a generation waiting for building is
+// accepted for deploying too.
+func acceptTarget(buildUuid, deployUuid, forWhat string) (uuid, scope string) {
+	switch forWhat {
+	case "build":
+		return buildUuid, "build"
+	case "deploy":
+		return deployUuid, "deploy"
+	}
+	if buildUuid != "" {
+		return buildUuid, "all"
+	}
+	return deployUuid, "deploy"
+}
+
 var confirmationAcceptCmd = &cobra.Command{
 	Use:   "accept",
 	Short: "Accept a generation for building and/or a deploying",
 	Args:  cobra.MinimumNArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
+		if confirmationFor != "" && confirmationFor != "build" && confirmationFor != "deploy" {
+			logrus.Fatalf("--for must be build or deploy, not %q", confirmationFor)
+		}
 		opts := client.ClientOpts{
 			UnixSocketPath: "/run/comin-grpc.sock",
 		}
@@ -32,16 +53,16 @@ var confirmationAcceptCmd = &cobra.Command{
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		build_uuid := state.BuildConfirmer.Submitted
-		deploy_uuid := state.DeployConfirmer.Submitted
-		if build_uuid != "" {
-			fmt.Printf("Generation %s accepted for building and deploying\n", build_uuid)
-			c.Confirm(build_uuid, "all") // nolint
-		} else if deploy_uuid != "" {
-			fmt.Printf("Generation %s accepted for deploying\n", deploy_uuid)
-			c.Confirm(deploy_uuid, "deploy") // nolint
-		} else {
+		uuid, scope := acceptTarget(state.BuildConfirmer.Submitted, state.DeployConfirmer.Submitted, confirmationFor)
+		switch {
+		case uuid == "":
 			fmt.Printf("No confirmation is required\n")
+		case scope == "all":
+			fmt.Printf("Generation %s accepted for building and deploying\n", uuid)
+			c.Confirm(uuid, scope) // nolint
+		default:
+			fmt.Printf("Generation %s accepted for %sing\n", uuid, scope)
+			c.Confirm(uuid, scope) // nolint
 		}
 	},
 }
@@ -89,4 +110,7 @@ func init() {
 	rootCmd.AddCommand(confirmationCmd)
 	confirmationCmd.AddCommand(confirmationShowCmd)
 	confirmationCmd.AddCommand(confirmationAcceptCmd)
+	confirmationAcceptCmd.Flags().StringVar(&confirmationFor, "for", "",
+		"accept only the generation waiting for building or for deploying (build or deploy); "+
+			"without it, a generation waiting for building is accepted for both")
 }
