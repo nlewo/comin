@@ -19,6 +19,13 @@ supported.
 The file path containing this access token for a remote is provided
 with the attribute `comin.remotes.*.auth.access_token_path`.
 
+Comin reads this file before every fetch, so tokens can be rotated without
+restarting Comin. A missing, unreadable, or empty file causes the fetch to fail
+rather than reusing a cached token. Surrounding whitespace is ignored.
+
+This also supports externally renewed GitHub App installation tokens. Token
+generation and renewal must be handled separately from Comin.
+
 #### Example
 
 ```nix
