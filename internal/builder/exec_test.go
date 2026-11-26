@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os/exec"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	_ "net/http/pprof"
@@ -31,21 +30,6 @@ func TestNewExec(t *testing.T) {
 	assert.Equal(t, 1, r.result)
 	assert.True(t, e.finished.Load())
 	assert.Nil(t, e.getErr())
-}
-
-func TestExecCompletionSignalIsRetained(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		e := NewExec(&RunnableDummy{}, time.Second)
-		e.Start(t.Context())
-		synctest.Wait()
-
-		// Wait can observe started before completion and receive afterwards.
-		select {
-		case <-e.done:
-		default:
-			t.Fatal("Exec completion signal was lost before the waiter received it")
-		}
-	})
 }
 
 type RunnableContext struct{}

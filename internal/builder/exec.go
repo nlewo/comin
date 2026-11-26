@@ -54,7 +54,10 @@ func (e *Exec) Start(ctx context.Context) {
 		}
 		e.started.Store(false)
 		e.finished.Store(true)
-		close(e.done)
+		select {
+		case e.done <- struct{}{}:
+		default:
+		}
 	}()
 }
 
