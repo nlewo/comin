@@ -2,7 +2,6 @@ package store
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 
@@ -19,10 +18,12 @@ type Store struct {
 	persisted          *protobuf.Store
 	mu                 sync.Mutex
 	filename           string
+	gcRoot             string
 	generationGcRoot   string
 	bootEntryCapacity  int
 	successfulCapacity int
 	anyCapacity        int
+	capacity           int
 
 	lastEvalStarted   *protobuf.Generation
 	lastEvalFinished  *protobuf.Generation
@@ -32,15 +33,23 @@ type Store struct {
 	broker *broker.Broker
 }
 
-func New(broker *broker.Broker, filename, gcRootsDir string, bootEntryCapacity, successfulCapacity, anyCapacity int) (*Store, error) {
+func New(broker *broker.Broker, filename, gcRootsDir string, bootEntryCapacity, successfulCapacity, anyCapacity, capacity int) (*Store, error) {
 	if bootEntryCapacity < 1 {
-		return nil, fmt.Errorf("store: bootEntryCapacity cannot be < 1")
+		logrus.Warnf("store: bootEntryCapacity cannot be < 1, it has then been set to 1")
+		bootEntryCapacity = 1
 	}
 	if successfulCapacity < 1 {
-		return nil, fmt.Errorf("store: successfulCapacity cannot be < 1")
+		logrus.Warnf("store: successfulCapacity cannot be < 1, it has then been set to 1")
+		successfulCapacity = 1
 	}
-	if anyCapacity < 1 {
-		return nil, fmt.Errorf("store: anyCapacity cannot be < 1")
+	if anyCapacity < 3 {
+		logrus.Warnf("store: anyCapacity cannot be < 3, it has then been set to 3")
+		anyCapacity = 3
+	}
+	if capacity < bootEntryCapacity+anyCapacity {
+		logrus.Warnf("store: capacity cannot be < bootEntryCapacity+anyCapacity, it has then been set to %d", bootEntryCapacity+anyCapacity)
+		capacity = bootEntryCapacity + anyCapacity
+
 	}
 
 	data := &protobuf.Store{
@@ -50,20 +59,23 @@ func New(broker *broker.Broker, filename, gcRootsDir string, bootEntryCapacity, 
 		DeploymentBootEntryCapacity:  int32(bootEntryCapacity),
 		DeploymentSuccessfulCapacity: int32(successfulCapacity),
 		DeploymentAnyCapacity:        int32(anyCapacity),
+		DeploymentCapacity:           int32(capacity),
 	}
 	st := Store{
 		filename:           filename,
+		gcRoot:             gcRootsDir,
 		generationGcRoot:   gcRootsDir + "/last-built-generation",
 		bootEntryCapacity:  bootEntryCapacity,
 		successfulCapacity: successfulCapacity,
 		anyCapacity:        anyCapacity,
+		capacity:           capacity,
 		persisted:          data,
 		broker:             broker,
 	}
 	if err := os.MkdirAll(gcRootsDir, 0755); err != nil {
 		return nil, err
 	}
-	logrus.Infof("store: init with generationGcRoot=%s deploymentBootEntryCapacity=%d deploymentSuccessfulCapacity=%d deploymentAnyCapacity=%d", st.generationGcRoot, bootEntryCapacity, successfulCapacity, anyCapacity)
+	logrus.Infof("store: init with generationGcRoot=%s deploymentBootEntryCapacity=%d deploymentSuccessfulCapacity=%d deploymentAnyCapacity=%d deploymentCapacity=%d", st.generationGcRoot, bootEntryCapacity, successfulCapacity, anyCapacity, capacity)
 
 	return &st, nil
 }
@@ -116,6 +128,7 @@ func (s *Store) Load() (err error) {
 	data.DeploymentAnyCapacity = s.persisted.DeploymentAnyCapacity
 	data.DeploymentBootEntryCapacity = s.persisted.DeploymentBootEntryCapacity
 	data.DeploymentSuccessfulCapacity = s.persisted.DeploymentSuccessfulCapacity
+	data.DeploymentCapacity = s.persisted.DeploymentCapacity
 	s.persisted = &data
 
 	logrus.Infof("store: loaded %d deployments from %s", len(s.persisted.Deployments), s.filename)
@@ -259,5 +272,8 @@ func (s *Store) compareAndLogCapacities(old, new *protobuf.Store) {
 	}
 	if old.DeploymentAnyCapacity != new.DeploymentAnyCapacity {
 		logrus.Infof("store: deploymentAnyCapacity changed from %d to %d", old.DeploymentAnyCapacity, new.DeploymentAnyCapacity)
+	}
+	if old.DeploymentCapacity != new.DeploymentCapacity {
+		logrus.Infof("store: deploymentCapacity changed from %d to %d", old.DeploymentCapacity, new.DeploymentCapacity)
 	}
 }

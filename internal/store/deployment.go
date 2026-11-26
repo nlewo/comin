@@ -73,7 +73,7 @@ func logDiff(name string, old, new []string) {
 
 // updateDataDeployments is not thread safe
 func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, new *protobuf.Deployment) {
-	dpls, current, booted, bootEntries, successful, any := retention(s.persisted.Deployments, new, bootedStorepath, currentStorepath, int(s.persisted.DeploymentBootEntryCapacity), int(s.persisted.DeploymentSuccessfulCapacity), int(s.persisted.DeploymentAnyCapacity))
+	dpls, current, booted, bootEntries, successful, any, gcs := retention(s.persisted.Deployments, new, bootedStorepath, currentStorepath, int(s.persisted.DeploymentBootEntryCapacity), int(s.persisted.DeploymentSuccessfulCapacity), int(s.persisted.DeploymentAnyCapacity), int(s.persisted.DeploymentCapacity))
 
 	s.persisted.Deployments = dpls
 	if current.Uuid != s.persisted.DeploymentSwitched {
@@ -106,6 +106,21 @@ func (s *Store) updateDataDeployments(bootedStorepath, currentStorepath string, 
 	}
 	logDiff("any deployments", s.persisted.DeploymentsAny, anyUuids)
 	s.persisted.DeploymentsAny = anyUuids
+
+	gcsUuids := make([]string, len(gcs))
+	for i, d := range gcs {
+		gcsUuids[i] = d.Uuid
+		d.Gc = true
+		// Remove symlink for deployment marked for GC
+		symlinkPath := path.Join(s.gcRoot, "deployment-"+d.Uuid)
+		if err := os.Remove(symlinkPath); err != nil && !os.IsNotExist(err) {
+			logrus.Warnf("store: failed to remove gcroot %s: %v", symlinkPath, err)
+		} else if err == nil {
+			logrus.Infof("store: removed gcroot %s for deployment %s", symlinkPath, d.Uuid)
+		}
+	}
+	logDiff("gc deployments", s.persisted.DeploymentsGc, gcsUuids)
+	s.persisted.DeploymentsGc = gcsUuids
 
 	s.Commit()
 }
@@ -146,6 +161,13 @@ func (s *Store) NewDeployment(g *protobuf.Generation, operationSubmitted, reason
 		NewInhibitors:      newInhibitors,
 	}
 	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
+
+	symlinkPath := path.Join(s.gcRoot, "deployment-"+d.Uuid)
+	if err := os.Symlink(g.OutPath, symlinkPath); err != nil {
+		logrus.Warnf("store: failed to create symlink from %s to %s: %v", symlinkPath, g.OutPath, err)
+		logrus.Warn("store:   be careful since this means Nix storepaths used by the bootloader could be garbage collected, leading to a non bootable machine")
+	}
+
 	s.Commit()
 	return d
 
@@ -235,146 +257,6 @@ func (s *Store) DeploymentFinished(uuid string, deploymentErr error, cominNeedRe
 	s.broker.Publish(&protobuf.Event{Type: &protobuf.Event_DeploymentFinishedType{DeploymentFinishedType: e}, CreatedAt: timestamppb.New(time.Now().UTC())})
 	s.updateDataDeployments(bootedStorepath, currentStorepath, d)
 	return nil
-}
-
-func isBootEntry(d *protobuf.Deployment) bool {
-	return d.Operation == "boot" || d.Operation == "switch"
-}
-
-func retention(dpls []*protobuf.Deployment, new *protobuf.Deployment, bootedStorepath, switchedStorepath string, bootEntryCapacity, successfulCapacity, allCapacity int) ([]*protobuf.Deployment, *protobuf.Deployment, *protobuf.Deployment, []*protobuf.Deployment, []*protobuf.Deployment, []*protobuf.Deployment) {
-	var current, booted *protobuf.Deployment
-	deploymentsBootEntry := make([]*protobuf.Deployment, 0)
-	deploymentsSuccessful := make([]*protobuf.Deployment, 0)
-	deploymentsAny := make([]*protobuf.Deployment, 0)
-	result := make([]*protobuf.Deployment, 0)
-
-	if new != nil {
-		dpls = append(dpls, new)
-	}
-
-	// Sort deployments from newer to older
-	endedAtCmp := func(a, b *protobuf.Deployment) int {
-		return -a.CreatedAt.AsTime().Compare(b.CreatedAt.AsTime())
-	}
-	slices.SortFunc(dpls, endedAtCmp)
-
-	// 1. Always keep the current booted system
-	for _, d := range dpls {
-		if isBootEntry(d) && d.Status == "done" && d.Generation.OutPath == bootedStorepath {
-			booted = d
-			if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-				result = append(result, d)
-			}
-			break
-		}
-	}
-
-	// If no deployment has been found for the boot storepath, we create a dummy one. This could happen when the store.jon file has been deleted or at first comin run.
-	if booted == nil {
-		d := &protobuf.Deployment{
-			Uuid: uuid.New().String(),
-			Generation: &protobuf.Generation{
-				OutPath: bootedStorepath,
-			},
-			Operation: types.OperationBoot,
-			Reason:    fmt.Sprintf("Empty deployment because the booted storepath %s has not be found in the deployment list", bootedStorepath),
-			Status:    StatusToString(Done),
-		}
-		logrus.Infof("store: dummy deployment %s created for the currently booted storepath %s", d.Uuid, d.Generation.OutPath)
-		booted = d
-		dpls = append(dpls, d)
-		result = append(result, d)
-		slices.SortFunc(dpls, endedAtCmp)
-	}
-
-	// 2. Always keep the current switched system
-	for _, d := range dpls {
-		if d.Status == "done" && d.Generation.OutPath == switchedStorepath {
-			current = d
-			if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-				result = append(result, d)
-			}
-			break
-		}
-	}
-
-	// If no deployment has been found for the switched storepath, we create a dummy one. This could happen when the store.jon file has been deleted or at first comin run.
-	if current == nil {
-		d := &protobuf.Deployment{
-			Uuid: uuid.New().String(),
-			Generation: &protobuf.Generation{
-				OutPath: switchedStorepath,
-			},
-			// We don't know if the currently switched storepath is comin from a test operation or switch operation.
-			// So, we consider it comes from a switch opeartion in order to preserve it in the bootloader.
-			Operation: types.OperationSwitch,
-			Reason:    fmt.Sprintf("Empty deployment because the switched storepath %s has not be found in the deployment list", switchedStorepath),
-			Status:    StatusToString(Done),
-		}
-		logrus.Infof("store: dummy deployment %s created for the currently switched storepath %s", d.Uuid, d.Generation.OutPath)
-		current = d
-		result = append(result, d)
-		dpls = append(dpls, d)
-		slices.SortFunc(dpls, endedAtCmp)
-	}
-
-	// 3. Boot entries with storepath deduplication
-	storepaths := make(map[string]struct{})
-	for _, d := range dpls {
-		if len(storepaths) >= bootEntryCapacity {
-			break
-		}
-		if !isBootEntry(d) || d.Status != "done" {
-			continue
-		}
-		if _, exists := storepaths[d.Generation.OutPath]; exists {
-			continue
-		}
-		storepaths[d.Generation.OutPath] = struct{}{}
-		if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-			result = append(result, d)
-		}
-		if !slices.ContainsFunc(deploymentsBootEntry, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-			deploymentsBootEntry = append(deploymentsBootEntry, d)
-		}
-	}
-
-	// 4. Successful deployments (any operation)
-	counter := 0
-	for _, d := range dpls {
-		if d.Status != "done" {
-			continue
-		}
-		if counter >= successfulCapacity {
-			break
-		}
-		counter++
-		if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-			result = append(result, d)
-		}
-		if !slices.ContainsFunc(deploymentsSuccessful, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-			deploymentsSuccessful = append(deploymentsSuccessful, d)
-		}
-	}
-
-	// 5. All deployments (any status)
-	counter = 0
-	for _, d := range dpls {
-		if counter >= allCapacity {
-			break
-		}
-		counter++
-		if !slices.ContainsFunc(result, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-			result = append(result, d)
-		}
-		if !slices.ContainsFunc(deploymentsAny, func(e *protobuf.Deployment) bool { return e.Uuid == d.Uuid }) {
-			deploymentsAny = append(deploymentsAny, d)
-		}
-	}
-
-	slices.SortFunc(result, endedAtCmp)
-
-	return result, current, booted, deploymentsBootEntry, deploymentsSuccessful, deploymentsAny
 }
 
 type inhibitorChange struct {

@@ -31,7 +31,7 @@ var mkDeployerMock = func(t *testing.T) *deployer.Deployer {
 	bk := broker.New()
 	bk.Start()
 
-	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	s, err := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1, 1)
 	assert.Nil(t, err)
 	return deployer.New(s, deployFunc, nil, "", bk)
 }
@@ -89,7 +89,7 @@ func TestBuild(t *testing.T) {
 	bk.Start()
 	f := fetcher.NewGitFetcher(r, bk)
 	f.Start(t.Context())
-	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1, 1)
 	eMock := NewExecutorMock("")
 	b := builder.New(s, eMock, bk, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second, 0, 30*time.Second, "")
 	var deployFunc = func(context.Context, string, string, []string, io.WriteCloser, io.WriteCloser) (bool, string, error) {
@@ -201,7 +201,7 @@ func TestDeploy(t *testing.T) {
 	f := fetcher.NewGitFetcher(r, bk)
 	f.Start(t.Context())
 
-	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1, 1)
 	eMock := NewExecutorMock("")
 	eMock.evalOk <- true
 	eMock.buildOk <- true
@@ -236,7 +236,7 @@ func TestIncorrectMachineId(t *testing.T) {
 	f := fetcher.NewGitFetcher(r, bk)
 	f.Start(t.Context())
 
-	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1, 1)
 	eMock := NewExecutorMock("invalid-machine-id")
 	b := builder.New(s, eMock, bk, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second, 0, 30*time.Second, "")
 	d := mkDeployerMock(t)
@@ -267,7 +267,7 @@ func TestCorrectMachineId(t *testing.T) {
 	f := fetcher.NewGitFetcher(r, bk)
 	f.Start(t.Context())
 
-	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1, 1)
 	eMock := NewExecutorMock("the-test-machine-id")
 	eMock.evalOk <- true
 	b := builder.New(s, eMock, bk, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second, 0, 30*time.Second, "")
@@ -299,7 +299,7 @@ func TestManagerWithDarwinConfiguration(t *testing.T) {
 	bk.Start()
 	f := fetcher.NewGitFetcher(r, bk)
 
-	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1)
+	s, _ := store.New(bk, tmp+"/state.json", tmp+"/gcroots", 1, 1, 1, 1)
 	b := builder.New(s, eMock, bk, "repoPath", "", "", "my-machine", false, 2*time.Second, 2*time.Second, 0, 30*time.Second, "")
 	d := mkDeployerMock(t)
 
