@@ -447,6 +447,7 @@ in
             default = "comin";
             description = "The notification title.";
           };
+          tray = mkEnableOption "running the tray with the desktop service. This tray item allows confirming deployments and builds.";
         };
         retention = mkOption {
           description = "The deployments and profiles retention policyes.";

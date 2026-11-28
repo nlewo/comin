@@ -67,7 +67,7 @@ var confirmationShowCmd = &cobra.Command{
 }
 
 func confirmerShow(c *protobuf.Confirmer, for_ string) {
-	empty := false
+	empty := true
 	if c.Confirmed != "" {
 		empty = false
 		fmt.Printf("Confirmation submitted for %s: %s\n", for_, c.Confirmed)
