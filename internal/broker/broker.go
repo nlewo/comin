@@ -3,6 +3,7 @@ package broker
 import (
 	"bufio"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -111,6 +112,21 @@ func (b *Broker) Publish(msg *protobuf.Event) {
 	b.publishCh <- msg
 }
 
+// lastProgressSegment returns the last non empty carriage return
+// separated segment of a line. Tools such as git redraw a progress
+// line with "\r", so a single scanned line can hold hundreds of
+// intermediate states. Only the final state is worth keeping in the
+// comin logs.
+func lastProgressSegment(line string) string {
+	segments := strings.Split(line, "\r")
+	for i := len(segments) - 1; i >= 0; i-- {
+		if segments[i] != "" {
+			return segments[i]
+		}
+	}
+	return ""
+}
+
 // GetLogger return a stdout et stderr writers. They have to be closed by the caller.
 func (b *Broker) GetLogger(obj, objUuid string) (stdout, stderr io.WriteCloser) {
 	stdoutR, stdoutW := io.Pipe()
@@ -139,7 +155,7 @@ func (b *Broker) GetLogger(obj, objUuid string) (stdout, stderr io.WriteCloser) 
 		scanner := bufio.NewScanner(stdoutR)
 		for scanner.Scan() {
 			line := scanner.Text()
-			logrus.Infof("logs: %s", line)
+			logrus.Infof("logs: %s", lastProgressSegment(line))
 			b.Publish(
 				&protobuf.Event{
 					Type: &protobuf.Event_Log_{
@@ -167,7 +183,7 @@ func (b *Broker) GetLogger(obj, objUuid string) (stdout, stderr io.WriteCloser) 
 		scanner := bufio.NewScanner(stderrR)
 		for scanner.Scan() {
 			line := scanner.Text()
-			logrus.Infof("logs: %s", line)
+			logrus.Infof("logs: %s", lastProgressSegment(line))
 			b.Publish(
 				&protobuf.Event{
 					Type: &protobuf.Event_Log_{
