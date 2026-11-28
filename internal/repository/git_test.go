@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ssh"
 )
@@ -50,6 +52,8 @@ func commitFileAndSign(remoteRepository *git.Repository, dir, branch, content st
 			When:  time.Unix(0, 0),
 		},
 		SignKey: signKey,
+		// Tests commit the same content again; go-git >= v5.13 refuses that by default.
+		AllowEmptyCommits: true,
 	})
 	if err != nil {
 		return
@@ -273,6 +277,53 @@ func TestHeadSignedBySSH(t *testing.T) {
 
 	_, err = parseSSHAllowedSigners("")
 	assert.ErrorContains(t, err, "no SSH allowed signers found")
+}
+
+// Jujutsu writes a change-id header into every commit. The signature covers
+// it, so the payload is built by hand instead of with go-git's encoder.
+func TestHeadSignedBySSHWithExtraHeader(t *testing.T) {
+	repository, err := git.Init(memory.NewStorage(), nil)
+	assert.Nil(t, err)
+	signer := testSSHSigner(t)
+
+	payload := "tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904\n" +
+		"author SSH Test <ssh@example.com> 0 +0000\n" +
+		"committer SSH Test <ssh@example.com> 0 +0000\n" +
+		"change-id kkmpptxzrspxrzommnulwmwkkqwworpl\n" +
+		"\n" +
+		"file-1\n"
+	signedData, err := sshSignedData("git", "", "sha512", []byte(payload))
+	assert.Nil(t, err)
+	signature, err := signer.Sign(rand.Reader, signedData)
+	assert.Nil(t, err)
+	armored := strings.TrimSuffix(string(pem.EncodeToMemory(&pem.Block{
+		Type: "SSH SIGNATURE",
+		Bytes: append([]byte("SSHSIG"), ssh.Marshal(sshSignatureWire{
+			Version:       1,
+			PublicKey:     signer.PublicKey().Marshal(),
+			Namespace:     "git",
+			HashAlgorithm: "sha512",
+			Signature:     ssh.Marshal(signature),
+		})...),
+	})), "\n")
+
+	headers, message, _ := strings.Cut(payload, "\n\n")
+	raw := headers + "\ngpgsig " + strings.ReplaceAll(armored, "\n", "\n ") + "\n\n" + message
+	obj := repository.Storer.NewEncodedObject()
+	obj.SetType(plumbing.CommitObject)
+	w, err := obj.Writer()
+	assert.Nil(t, err)
+	_, err = w.Write([]byte(raw))
+	assert.Nil(t, err)
+	assert.Nil(t, w.Close())
+	hash, err := repository.Storer.SetEncodedObject(obj)
+	assert.Nil(t, err)
+
+	signers, err := parseSSHAllowedSigners("ssh@example.com " + string(ssh.MarshalAuthorizedKey(signer.PublicKey())))
+	assert.Nil(t, err)
+	signedBy, err := commitSignedBySSH(repository, hash.String(), signers)
+	assert.Nil(t, err)
+	assert.Equal(t, "ssh@example.com", signedBy)
 }
 
 func TestSSHSignatureRejectsSHA1Algorithms(t *testing.T) {
