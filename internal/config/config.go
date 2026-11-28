@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/nlewo/comin/internal/types"
 	"github.com/sirupsen/logrus"
@@ -24,13 +23,6 @@ func Read(path string) (config types.Configuration, err error) {
 		return config, err
 	}
 	for i, remote := range config.Remotes {
-		if remote.Auth.AccessTokenPath != "" {
-			content, err := os.ReadFile(remote.Auth.AccessTokenPath)
-			if err != nil {
-				return config, err
-			}
-			config.Remotes[i].Auth.AccessToken = strings.TrimSpace(string(content))
-		}
 		// On GitLab and GitHub, any non blank username is working
 		if remote.Auth.Username == "" {
 			config.Remotes[i].Auth.Username = "comin"

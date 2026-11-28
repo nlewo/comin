@@ -86,6 +86,17 @@ func getHeadFromRemoteAndBranch(r repository, remoteName, branchName string, isT
 
 // fetch fetches the config.Remote
 func fetch(r repository, remote types.Remote) (err error) {
+	// Installation tokens rotate without restarting Comin or interrupting builds.
+	if remote.Auth.AccessTokenPath != "" {
+		content, err := os.ReadFile(remote.Auth.AccessTokenPath)
+		if err != nil {
+			return fmt.Errorf("reading access token: %w", err)
+		}
+		remote.Auth.AccessToken = strings.TrimSpace(string(content))
+		if remote.Auth.AccessToken == "" {
+			return fmt.Errorf("access token file is empty")
+		}
+	}
 	logrus.Debugf("Fetching remote '%s'", remote.Name)
 	fetchOptions := git.FetchOptions{
 		RemoteName: remote.Name,
