@@ -1,12 +1,14 @@
 package repository
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/pem"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,7 +16,9 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -162,11 +166,22 @@ func signCommitWithSSH(t *testing.T, repository *git.Repository, commit *object.
 	payload, err := io.ReadAll(reader)
 	assert.Nil(t, err)
 
+	commit.PGPSignature = signPayloadWithSSH(t, payload, signer)
+
+	obj := repository.Storer.NewEncodedObject()
+	assert.Nil(t, commit.Encode(obj))
+	hash, err := repository.Storer.SetEncodedObject(obj)
+	assert.Nil(t, err)
+	return hash
+}
+
+func signPayloadWithSSH(t *testing.T, payload []byte, signer ssh.Signer) string {
+	t.Helper()
 	signedData, err := sshSignedData("git", "", "sha512", payload)
 	assert.Nil(t, err)
 	signature, err := signer.Sign(rand.Reader, signedData)
 	assert.Nil(t, err)
-	commit.PGPSignature = string(pem.EncodeToMemory(&pem.Block{
+	return string(pem.EncodeToMemory(&pem.Block{
 		Type: "SSH SIGNATURE",
 		Bytes: append([]byte("SSHSIG"), ssh.Marshal(sshSignatureWire{
 			Version:       1,
@@ -178,11 +193,6 @@ func signCommitWithSSH(t *testing.T, repository *git.Repository, commit *object.
 		})...),
 	}))
 
-	obj := repository.Storer.NewEncodedObject()
-	assert.Nil(t, commit.Encode(obj))
-	hash, err := repository.Storer.SetEncodedObject(obj)
-	assert.Nil(t, err)
-	return hash
 }
 
 func testSSHCertificatePublicKey(t *testing.T) string {
@@ -273,6 +283,104 @@ func TestHeadSignedBySSH(t *testing.T) {
 
 	_, err = parseSSHAllowedSigners("")
 	assert.ErrorContains(t, err, "no SSH allowed signers found")
+}
+
+func TestSignedSSHCommitsPreserveHeaders(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"change-id", "extra-headers"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			repo, err := git.Init(memory.NewStorage(), nil)
+			require.NoError(t, err)
+			content, signers := rawSignedSSHCommit(t, name)
+
+			commitID := storeRawCommit(t, repo, content)
+			signedBy, err := commitSignedBySSH(repo, commitID, signers)
+			require.NoError(t, err)
+			assert.Equal(t, "ssh@example.com", signedBy)
+		})
+	}
+}
+
+func TestSignedSSHCommitsRejectTampering(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		kind   string
+		before string
+		after  string
+	}{
+		{"changed change-id", "change-id", "change-id z", "change-id y"},
+		{"removed change-id", "change-id", "change-id zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\n", ""},
+		{"changed extension header", "extra-headers", "x-after preserved", "x-after changed"},
+		{"changed continuation", "extra-headers", " second line", " changed line"},
+		{"changed merge tag", "extra-headers", " embedded tag message", " changed tag message"},
+		{"changed message", "extra-headers", "gpgsig this is message text", "gpgsig changed message text"},
+		{"changed trailing newline", "extra-headers", " and so is this\n\n", " and so is this\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo, err := git.Init(memory.NewStorage(), nil)
+			require.NoError(t, err)
+			content, signers := rawSignedSSHCommit(t, tt.kind)
+			tampered := bytes.Replace(content, []byte(tt.before), []byte(tt.after), 1)
+			require.NotEqual(t, content, tampered)
+
+			commitID := storeRawCommit(t, repo, tampered)
+			signedBy, err := commitSignedBySSH(repo, commitID, signers)
+			assert.Error(t, err)
+			assert.Empty(t, signedBy)
+		})
+	}
+}
+
+// Construct and sign the raw bytes directly so go-git's encoder cannot discard
+// the extension headers before the test reaches the verifier.
+func rawSignedSSHCommit(t *testing.T, kind string) ([]byte, []sshAllowedSigner) {
+	t.Helper()
+	const headers = "tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904\n" +
+		"author SSH Test <ssh@example.com> 1700000000 +0000\n" +
+		"committer SSH Test <ssh@example.com> 1700000000 +0000\n"
+	var extensions, message string
+	switch kind {
+	case "change-id":
+		extensions = "change-id zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\n"
+		message = "Commit created by Jujutsu\n"
+	case "extra-headers":
+		extensions = "x-custom first line\n second line\n" +
+			"mergetag object 0000000000000000000000000000000000000000\n" +
+			" type commit\n tag example\n \n embedded tag message\n" +
+			"x-after preserved\n"
+		message = "Message with a signature-looking header:\n" +
+			"gpgsig this is message text\n and so is this\n\n"
+	default:
+		t.Fatalf("unknown test commit kind %q", kind)
+	}
+	signer := testSSHSigner(t)
+	payload := []byte(headers + extensions + "\n" + message)
+	signature := signPayloadWithSSH(t, payload, signer)
+	folded := strings.ReplaceAll(strings.TrimSuffix(signature, "\n"), "\n", "\n ")
+	content := []byte(headers + "gpgsig " + folded + "\n" + extensions + "\n" + message)
+	signers, err := parseSSHAllowedSigners(
+		"ssh@example.com namespaces=\"git\" " + string(ssh.MarshalAuthorizedKey(signer.PublicKey())),
+	)
+	require.NoError(t, err)
+	return content, signers
+}
+
+func storeRawCommit(t *testing.T, repo *git.Repository, content []byte) string {
+	t.Helper()
+	obj := repo.Storer.NewEncodedObject()
+	obj.SetType(plumbing.CommitObject)
+	writer, err := obj.Writer()
+	require.NoError(t, err)
+	_, err = writer.Write(content)
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+	hash, err := repo.Storer.SetEncodedObject(obj)
+	require.NoError(t, err)
+	return hash.String()
 }
 
 func TestSSHSignatureRejectsSHA1Algorithms(t *testing.T) {
