@@ -342,6 +342,11 @@ func deployDarwin(ctx context.Context, outPath, operation string, profilePaths [
 	// We append the new profile path to the list of profile to preserve
 	profile.RemoveProfiles(append(profilePaths, profilePath))
 
+	if operation == "switch" || operation == "boot" {
+		if err = profile.SetDarwinSystemProfile(outPath); err != nil {
+			return
+		}
+	}
 	if err = switchToConfigurationDarwin(operation, outPath, false, stdout, stderr); err != nil {
 		return
 	}

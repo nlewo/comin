@@ -15,6 +15,8 @@ const (
 	systemProfiles  = "/nix/var/nix/profiles/system-profiles"
 	profileName     = "comin"
 	cominProfileDir = systemProfiles + "/" + profileName
+
+	darwinSystemProfile = "/nix/var/nix/profiles/system"
 )
 
 func RemoveProfiles(bootEntryOutPaths []string) {
@@ -110,6 +112,19 @@ func SetSystemProfile(operation string, outPath string, dryRun bool) (profilePat
 		}
 	}
 	return
+}
+
+// SetDarwinSystemProfile points the nix-darwin system profile, which is activated at boot, at outPath.
+func SetDarwinSystemProfile(outPath string) error {
+	cmdStr := fmt.Sprintf("nix-env --profile %s --set %s", darwinSystemProfile, outPath)
+	logrus.Infof("nix: running '%s'", cmdStr)
+	cmd := exec.Command("nix-env", "--profile", darwinSystemProfile, "--set", outPath)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("nix: command '%s' fails with %s", cmdStr, err)
+	}
+	return nil
 }
 
 // RemoveProfilePath removes a profile path.
